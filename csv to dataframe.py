@@ -20,9 +20,9 @@ from reportlab.platypus import Table, TableStyle
 
 def define_file_paths():
     """Define file paths for the CSV files."""
-    base_dir = Path(r"V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/CSV/0.2")
-    data_file = base_dir / "Test Description_Data_16-12-2024_16-14-26.csv"
-    test_details_file = base_dir / "Test Description_Test_Details_16-12-2024_16-14-26.csv"
+    base_dir = Path(r"V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/CSV/0.3")
+    data_file = base_dir / "Test Description_Data_18-12-2024_15-16-5.csv"
+    test_details_file = base_dir / "Test Description_Test_Details_18-12-2024_15-16-5.csv"
     output_pdf_path = base_dir / "output.pdf"
     return data_file, test_details_file, output_pdf_path
 
@@ -44,8 +44,8 @@ def read_csv_safely(filepath, **kwargs):
 def load_test_details(filepath):
     """Load test details and split into key sections."""
     test_details = read_csv_safely(filepath, header=None, index_col=0, usecols=[0, 1], nrows=13)
-    channel_transducers = read_csv_safely(filepath, header=None, index_col=0, usecols=[0, 1], skiprows=13, nrows=21)
-    channels_recorded = read_csv_safely(filepath, header=None, usecols=[0, 2], skiprows=13, nrows=21)
+    channel_transducers = read_csv_safely(filepath, header=None, index_col=0, usecols=[0, 1, 2], skiprows=13, nrows=21)
+    channels_recorded = read_csv_safely(filepath, header=None, usecols=[0, 3], skiprows=13, nrows=21)
     channels_recorded.columns = [0, 1]
     channels_recorded.set_index(0, inplace=True)
     key_points = read_csv_safely(filepath, usecols=["Main Channel", "Start of Stabalisation", "Start of Hold", "End of Hold"], skiprows=34)
@@ -73,7 +73,7 @@ def process_primary_data(filepath, channels_recorded):
         data_recorded['Date'].astype(str) + ' ' +
         data_recorded['Time'].astype(str) + '.' +
         data_recorded['Milliseconds'].astype(str),
-        format='%d/%m/%Y %H-%M-%S.%f'
+        format='%d-%m-%Y %H-%M-%S.%f'
     )
 
     # Drop unnecessary columns
@@ -82,7 +82,7 @@ def process_primary_data(filepath, channels_recorded):
     # Reorder columns
     columns = ['Datetime'] + [col for col in data_recorded.columns if col != 'Datetime']
     data_recorded = data_recorded[columns]
-    return data_recorded
+    return data_recorded, true_columns
 
 def plot_data_with_dual_axes(data_recorded, key_points):
     """
@@ -128,7 +128,7 @@ def plot_data_with_dual_axes(data_recorded, key_points):
     y_columns = [col for col in data_recorded.columns if col != 'Datetime']
 
     # Initialize figure and primary axis
-    fig, ax1 = plt.subplots(figsize=(11.69, 8.27))
+    fig, ax1 = plt.subplots(figsize=(12, 7.5))
     ax1.set_ylabel('Pressure (psi)', color='red')
     ax1.tick_params(axis='y', colors='red')
     ax1.spines['top'].set_visible(False)
@@ -199,45 +199,50 @@ def convert_fig_to_image_stream(fig):
 def draw_rectangle(c, x, y, width, height):
     """Draws a rectangle with the given dimensions."""
     c.rect(x, y, width, height)
-
-def add_text(c, text, x, y, font="Helvetica", size=12, color=None):
-    """Adds text at the specified location, with specified colour. Defaults to black if no colour is specified."""
-    c.setFont(font, size)
-    c.setFillColor(color if color else colors.black)  # Set color to black if none is specified
-    c.drawString(x, y, text)
-    c.setFillColor(colors.black)  # Reset color to black for future text
     
-def draw_centered_text(c, text, x, y, font="Helvetica", size=12):
-    """Draws centered text with the specified font and size."""
+def draw_centered_text(c, text, x, y, font="Helvetica", color='black', size=None, left_aligned=False):
+    """
+    Draws text with options for centering or left alignment in both the x and y directions
+    with the specified font, color, and size.
+
+    Parameters:
+        c: Canvas object for drawing.
+        text: Text to be drawn.
+        x: X-coordinate of the center or left alignment.
+        y: Y-coordinate of the center.
+        font: Font of the text.
+        color: Color of the text.
+        size: Font size of the text.
+        left_aligned: If True, aligns text to the left instead of centering.
+    """
     c.setFont(font, size)  # Set the font and size
     width = c.stringWidth(text, font, size)  # Get the width of the text
-    c.drawCentredString(x, y, text)  # Draw centered text
 
-def draw_grid_with_labels(c, x, y, width, height, rows, cols, headers, row_labels):
-    """Draws a grid with headers and row labels at the specified location."""
-    cell_width = width / cols
-    cell_height = height / rows
+    # Approximate text height based on the font size
+    text_height = size * 0.7  # A typical approximation (70% of the font size)
 
-    # Draw horizontal lines
-    for i in range(rows + 1):
-        c.line(x, y + i * cell_height, x + width, y + i * cell_height)
-    
-    # Draw vertical lines
-    for j in range(cols + 1):
-        c.line(x + j * cell_width, y, x + j * cell_width, y + height)
-    
-     # Draw headers (centered)
-    for j, header in enumerate(headers):
-        text_width = c.stringWidth(header, "Helvetica", 12)
-        text_height = 12  # Approximate height of the text
-        c.drawString(x + j * cell_width + (cell_width - text_width) / 2, y + (rows - 1) * cell_height + (cell_height - text_height) / 2, header)
-    
-    # Draw row labels (centered inside the first column cells)
-    for i, row_label in enumerate(row_labels):
-        text_width = c.stringWidth(row_label, "Helvetica", 12)
-        c.drawString(x + (cell_width - text_width) / 2, y + (rows - i - 1) * cell_height + (cell_height - 12) / 2, row_label)
+    if left_aligned:
+        # For left-aligned text, use x as is
+        aligned_x = x
+        aligned_y = y - (text_height / 2)
+    else:
+        # Adjust x and y to draw the text centered
+        aligned_x = x - (width / 2)
+        aligned_y = y - (text_height / 2)
 
-def create_pdf_with_figures(output_pdf_path, test_details, figures):
+    # Set the color and draw the string
+    c.setFillColor(color if color else colors.black)  # Set text color
+    # if pd.isna(text):
+    #     c.drawString(aligned_x, aligned_y, '')  # Draw the text
+    # elif text == 'NaN':
+    #     c.drawString(aligned_x, aligned_y, '')  # Draw the text
+    # else:
+    c.drawString(aligned_x, aligned_y, text)  # Draw the text
+       
+    c.setFillColor(colors.black)  # Reset color to black for future text
+
+
+def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel_transducers, figures):
     c = canvas.Canvas(str(output_pdf_path), pagesize=landscape(A4))
     c.setStrokeColor(colors.black)
 
@@ -258,52 +263,78 @@ def create_pdf_with_figures(output_pdf_path, test_details, figures):
     black = Color(0, 0, 0)
 
     # Add title
-    draw_centered_text(c, test_details.at['Test Title', 1], 315, 492.5, font="Helvetica-Bold", size=20)    
-    add_text(c, "Data Recording Equipment Used", 635, 470, "Helvetica-Bold", 12)
-    add_text(c, "3rd Party Stamp and Date", 645, 20, "Helvetica-Bold", 14)
+    draw_centered_text(c,f"{test_details.at['Test Description', 1]} {test_details.at['Test Title', 1]}", 315, 500, font="Helvetica-Bold", size=16)    
+    draw_centered_text(c, "Data Recording Equipment Used", 728.5, 475, "Helvetica-Bold", size=12)
+    draw_centered_text(c, "3rd Party Stamp and Date", 728.5, 25, "Helvetica-Bold", size=12)
+
+    empty = pd.DataFrame([['NaN'] * 2 for _ in range(14)])
+    transducers_present = channel_transducers.loc[true_columns]
+    transducers_present = transducers_present.reset_index(drop=True)
+    transducers_present.columns = range(transducers_present.shape[1])
+    transducers_present = pd.concat([transducers_present, empty], ignore_index=True)
+    print(transducers_present)
 
     # Add placeholders with dynamic content
     text_positions = [
-        (20, 565, f"Test Procedure Reference", black),
-        (165, 565, test_details.at['Test Procedure Reference', 1], light_blue),
-        (20, 550, f"Unique No.", black),
-        (165, 550, test_details.at['Unique Number', 1], light_blue),
-        (20, 535, f"R&D Reference", black),
-        (165, 535, test_details.at['R&D Reference', 1], light_blue),
-        (20, 520, f"Valve Description", black),
-        (165, 520, test_details.at['Valve Description', 1], light_blue),
-        (325, 565, f"Job No.", black),
-        (455, 565, test_details.at['Job Number', 1], light_blue),
-        (325, 550, f"Test Description", black),
-        (455, 550, test_details.at['Test Description', 1], light_blue),
-        (325, 535, f"Test Date", black),
-        (455, 535, test_details.at['Test Date', 1], light_blue),
-        (325, 520, f"Valve Drawing No.", black),
-        (455, 520, test_details.at['Valve Drawing Number', 1], light_blue),
-        (635, 260, f"Test Pressure", black),
-        (745, 260, test_details.at['Test Pressure', 1], light_blue),
-        (635, 245, f"Actuator Pressure", black),
-        (745, 245, test_details.at['Actuator Pressure', 1], light_blue),
-        (635, 455, f"Data Logger", black),
-        (745, 455, test_details.at['Data Logger', 1], light_blue),
-        (635, 440, f"Serial No.", black),
-        (745, 440, test_details.at['Serial Number', 1], light_blue),
-        (635, 425, f"Transducers", black),
-        # (745, 425, f"{entries['transducer_1'].get()}", light_blue),
-        # (745, 410, f"{entries['transducer_2'].get()}", light_blue),
-        # (745, 395, f"{entries['transducer_3'].get()}", light_blue),
-        # (745, 380, f"{entries['transducer_4'].get()}", light_blue),
-        (635, 365, f"Gauges", black),
-        # (745, 365, f"{entries['gauge_1'].get()}", light_blue),
-        # (745, 350, f"{entries['gauge_2'].get()}", light_blue),
-        # (745, 335, f"{entries['gauge_3'].get()}", light_blue),
-        # (745, 320, f"{entries['gauge_4'].get()}", light_blue),
-        (635, 305, f"Torque Transducer", black)
-        # (745, 305, f"{entries['torque_transducer'].get()}", light_blue)
+        (20, 571.875, "Test Procedure Reference", black),
+        (140, 571.875, test_details.at['Test Procedure Reference', 1], light_blue),
+        (20, 555.625, "Unique No.", black),
+        (140, 555.625, test_details.at['Unique Number', 1], light_blue),
+        (20, 539.375, "R&D Reference", black),
+        (140, 539.375, test_details.at['R&D Reference', 1], light_blue),
+        (20, 523.125, "Valve Description", black),
+        (140, 523.125, test_details.at['Valve Description', 1], light_blue),
+        (402.5, 571.875, "Job No.", black),
+        (487.5, 571.875, test_details.at['Job Number', 1], light_blue),
+        (402.5, 555.625, "Test Description", black),
+        (487.5, 555.625, test_details.at['Test Description', 1], light_blue),
+        (402.5, 539.375, "Test Date", black),
+        (487.5, 539.375, test_details.at['Test Date', 1], light_blue),
+        (402.5, 523.125, "Valve Drawing No.", black),
+        (487.5, 523.125, test_details.at['Valve Drawing Number', 1], light_blue),
+        (635, 266.25, "Test Pressure", black),
+        (725, 266.25, test_details.at['Test Pressure', 1], light_blue),
+        (635, 248.75, "Actuator Pressure", black),
+        (725, 248.75, test_details.at['Actuator Pressure', 1], light_blue),
+        (635, 457.5, "Data Logger", black),
+        (725, 457.5, test_details.at['Data Logger', 1], light_blue),
+        (635, 442.5, "Serial No.", black),
+        (725, 442.5, test_details.at['Serial Number', 1], light_blue),
+        (635, 427.5, "Transducers", black),
+        (635, 412.5, transducers_present.at[0, 0], light_blue),
+        (674.375, 412.5, transducers_present.at[1, 0], light_blue),
+        (713.75, 412.5, transducers_present.at[2, 0], light_blue),
+        (753.125, 412.5, transducers_present.at[3, 0], light_blue),
+        (792.5, 412.5, transducers_present.at[4, 0], light_blue),
+        (635, 397.5, transducers_present.at[5, 0], light_blue),
+        (674.375, 397.5, transducers_present.at[6, 0], light_blue),
+        (713.75, 397.5, transducers_present.at[7, 0], light_blue),
+        (753.125, 397.5, transducers_present.at[8, 0], light_blue),
+        (792.5, 397.5, transducers_present.at[9, 0], light_blue),
+        (635, 382.5, transducers_present.at[10, 0], light_blue),
+        (674.375, 382.5, transducers_present.at[11, 0], light_blue),
+        (713.75, 382.5, transducers_present.at[12, 0], light_blue),
+        (753.125, 382.5, transducers_present.at[13, 0], light_blue),
+        (792.5, 382.5, transducers_present.at[14, 0], light_blue),
+        (635, 367.5, "Gauges", black),
+        (635, 352.5, transducers_present.at[0, 1], light_blue),
+        (685, 352.5, transducers_present.at[1, 1], light_blue),
+        (735, 352.5, transducers_present.at[2, 1], light_blue),
+        (785, 352.5, transducers_present.at[3, 1], light_blue),
+        (635, 337.5, transducers_present.at[4, 1], light_blue),
+        (685, 337.5, transducers_present.at[5, 1], light_blue),
+        (735, 337.5, transducers_present.at[6, 1], light_blue),
+        (785, 337.5, transducers_present.at[7, 1], light_blue),
+        (635, 322.5, transducers_present.at[8, 1], light_blue),
+        (685, 322.5, transducers_present.at[9, 1], light_blue),
+        (735, 322.5, transducers_present.at[10, 1], light_blue),
+        (785, 322.5, transducers_present.at[11, 1], light_blue),
+        (635, 307.5, "Torque Transducer", black),
+        (725, 307.5, channel_transducers.at['Torque', 1], light_blue)
     ]
 
     for x, y, text, color in text_positions:
-        add_text(c, text, x, y, color=color)
+        draw_centered_text(c, text, x, y, color=color, size=10, left_aligned=True)
 
     img = ImageReader(figures)  # Create an ImageReader object
     c.drawImage(img, 16, 111, 598, 373, preserveAspectRatio=False, mask='auto')  # Use ImageReader object (Graph)
@@ -326,7 +357,7 @@ def main():
         test_details, channel_transducers, channels_recorded, key_points = load_test_details(test_details_file)
 
         # Process primary data
-        data_recorded = process_primary_data(data_file, channels_recorded)
+        data_recorded, true_columns = process_primary_data(data_file, channels_recorded)
 
         # Plot the data
         figure = plot_data_with_dual_axes(data_recorded, key_points)
@@ -334,9 +365,7 @@ def main():
         # Plot to Figure
         figure = convert_fig_to_image_stream(figure)
 
-        create_pdf_with_figures(output_pdf_path, test_details, figure)
-
-        print(test_details)
+        create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel_transducers, figure)
 
     except Exception as e:
         print(f"An error occurred: {e}")
