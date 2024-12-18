@@ -20,9 +20,9 @@ from reportlab.platypus import Table, TableStyle
 
 def define_file_paths():
     """Define file paths for the CSV files."""
-    base_dir = Path(r"V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/CSV/0.3")
-    data_file = base_dir / "Test Description_Data_18-12-2024_15-16-5.csv"
-    test_details_file = base_dir / "Test Description_Test_Details_18-12-2024_15-16-5.csv"
+    base_dir = Path(r"V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/CSV/1.1")
+    data_file = base_dir / "Test Description_Data_18-12-2024_16-33-5.csv"
+    test_details_file = base_dir / "Test Description_Test_Details_18-12-2024_16-33-5.csv"
     output_pdf_path = base_dir / "output.pdf"
     return data_file, test_details_file, output_pdf_path
 
@@ -43,12 +43,15 @@ def read_csv_safely(filepath, **kwargs):
 
 def load_test_details(filepath):
     """Load test details and split into key sections."""
-    test_details = read_csv_safely(filepath, header=None, index_col=0, usecols=[0, 1], nrows=13)
-    channel_transducers = read_csv_safely(filepath, header=None, index_col=0, usecols=[0, 1, 2], skiprows=13, nrows=21)
+    # Load and process the DataFrames
+    test_details = read_csv_safely(filepath, header=None, index_col=0, usecols=[0, 1], nrows=13).fillna('')
+    channel_transducers = read_csv_safely(filepath, header=None, index_col=0, usecols=[0, 1, 2], skiprows=13, nrows=21).fillna('')
     channels_recorded = read_csv_safely(filepath, header=None, usecols=[0, 3], skiprows=13, nrows=21)
     channels_recorded.columns = [0, 1]
     channels_recorded.set_index(0, inplace=True)
-    key_points = read_csv_safely(filepath, usecols=["Main Channel", "Start of Stabalisation", "Start of Hold", "End of Hold"], skiprows=34)
+    channels_recorded.fillna('', inplace=True)
+
+    key_points = read_csv_safely(filepath, usecols=["Main Channel", "Start of Stabalisation", "Start of Hold", "End of Hold"], skiprows=34).fillna('')
     return test_details, channel_transducers, channels_recorded, key_points
 
 def process_primary_data(filepath, channels_recorded):
@@ -73,7 +76,7 @@ def process_primary_data(filepath, channels_recorded):
         data_recorded['Date'].astype(str) + ' ' +
         data_recorded['Time'].astype(str) + '.' +
         data_recorded['Milliseconds'].astype(str),
-        format='%d-%m-%Y %H-%M-%S.%f'
+        format='%d/%m/%Y %H-%M-%S.%f'
     )
 
     # Drop unnecessary columns
@@ -232,13 +235,7 @@ def draw_centered_text(c, text, x, y, font="Helvetica", color='black', size=None
 
     # Set the color and draw the string
     c.setFillColor(color if color else colors.black)  # Set text color
-    # if pd.isna(text):
-    #     c.drawString(aligned_x, aligned_y, '')  # Draw the text
-    # elif text == 'NaN':
-    #     c.drawString(aligned_x, aligned_y, '')  # Draw the text
-    # else:
-    c.drawString(aligned_x, aligned_y, text)  # Draw the text
-       
+    c.drawString(aligned_x, aligned_y, str(text))  # Convert text to string if needed !!!!!
     c.setFillColor(colors.black)  # Reset color to black for future text
 
 
@@ -267,7 +264,7 @@ def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel
     draw_centered_text(c, "Data Recording Equipment Used", 728.5, 475, "Helvetica-Bold", size=12)
     draw_centered_text(c, "3rd Party Stamp and Date", 728.5, 25, "Helvetica-Bold", size=12)
 
-    empty = pd.DataFrame([['NaN'] * 2 for _ in range(14)])
+    empty = pd.DataFrame([[''] * 2 for _ in range(14)])
     transducers_present = channel_transducers.loc[true_columns]
     transducers_present = transducers_present.reset_index(drop=True)
     transducers_present.columns = range(transducers_present.shape[1])
