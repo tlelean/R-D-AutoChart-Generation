@@ -1,9 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib import lines
 from matplotlib.ticker import MultipleLocator
 import pandas as pd
-import numpy as np
 from pathlib import Path
 import io
 from reportlab.lib.pagesizes import landscape, A4
@@ -12,7 +10,7 @@ from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
-from reportlab.platypus import Table, TableStyle
+from datetime import datetime
 
 # ------------------------
 # Configuration
@@ -20,10 +18,10 @@ from reportlab.platypus import Table, TableStyle
 
 def define_file_paths():
     """Define file paths for the CSV files."""
-    base_dir = Path(r"V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/CSV/1.1")
-    data_file = base_dir / "Test Description_Data_18-12-2024_16-33-5.csv"
-    test_details_file = base_dir / "Test Description_Test_Details_18-12-2024_16-33-5.csv"
-    output_pdf_path = base_dir / "output.pdf"
+    base_dir = Path(r"V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/CSV/1.6")
+    data_file = base_dir / "Test Description_Data_19-12-2024_10-40-17.csv"
+    test_details_file = base_dir / "Test Description_Test_Details_19-12-2024_10-40-17.csv"
+    output_pdf_path = base_dir / "output1.pdf"
     return data_file, test_details_file, output_pdf_path
 
 # ------------------------
@@ -50,7 +48,6 @@ def load_test_details(filepath):
     channels_recorded.columns = [0, 1]
     channels_recorded.set_index(0, inplace=True)
     channels_recorded.fillna('', inplace=True)
-
     key_points = read_csv_safely(filepath, usecols=["Main Channel", "Start of Stabalisation", "Start of Hold", "End of Hold"], skiprows=34).fillna('')
     return test_details, channel_transducers, channels_recorded, key_points
 
@@ -85,7 +82,33 @@ def process_primary_data(filepath, channels_recorded):
     # Reorder columns
     columns = ['Datetime'] + [col for col in data_recorded.columns if col != 'Datetime']
     data_recorded = data_recorded[columns]
-    return data_recorded, true_columns
+    return data_recorded, true_columns, data
+
+def add_time_delta_to_key_points(key_points, test_date):
+    """
+    Adds the test date to all time variables in the key_points DataFrame.
+    
+    Parameters:
+    - key_points: pd.DataFrame containing key time points.
+    - test_date: The test date to be added to the time points.
+    
+    Returns:
+    - key_points: Updated DataFrame with combined date and time.
+    """
+    # Define the columns to update
+    time_columns = ["Start of Stabalisation", "Start of Hold", "End of Hold"]
+
+    for col in time_columns:
+        key_points[col] = key_points[col].apply(lambda x: pd.to_datetime(f"{test_date} {x}", format='%d/%m/%Y %H-%M-%S.%f') if pd.notnull(x) else x)
+    return key_points, time_columns
+
+def find_y_values(data_recorded, key_points, time_columns):
+    row_indexes = []  # Initialize a list to accumulate indexes
+    for time_column in time_columns:  # Iterate over the list of headers
+        key_point_value = key_points.at[0, time_column]  # Access the value in row 0 for the column
+        indexes = data_recorded.index[data_recorded['Datetime'] == key_point_value].tolist()  # Find matching row index(es) in the data DataFrame
+        row_indexes.extend(indexes)  # Add all found indexes to the list
+    return row_indexes
 
 def plot_data_with_dual_axes(data_recorded, key_points):
     """
@@ -131,7 +154,7 @@ def plot_data_with_dual_axes(data_recorded, key_points):
     y_columns = [col for col in data_recorded.columns if col != 'Datetime']
 
     # Initialize figure and primary axis
-    fig, ax1 = plt.subplots(figsize=(12, 7.5))
+    fig, ax1 = plt.subplots(figsize=(11.96, 8.49))
     ax1.set_ylabel('Pressure (psi)', color='red')
     ax1.tick_params(axis='y', colors='red')
     ax1.spines['top'].set_visible(False)
@@ -201,6 +224,7 @@ def convert_fig_to_image_stream(fig):
 
 def draw_rectangle(c, x, y, width, height):
     """Draws a rectangle with the given dimensions."""
+    c.setLineWidth(0.5)
     c.rect(x, y, width, height)
     
 def draw_centered_text(c, text, x, y, font="Helvetica", color='black', size=None, left_aligned=False):
@@ -218,6 +242,13 @@ def draw_centered_text(c, text, x, y, font="Helvetica", color='black', size=None
         size: Font size of the text.
         left_aligned: If True, aligns text to the left instead of centering.
     """
+    # Ensure the text is always converted to string
+    if isinstance(text, pd.Timestamp):
+        # Format datetime with original precision (3 decimal places for milliseconds)
+        text = text.strftime('%d/%m/%Y  %H:%M:%S.%f')[:-3]
+    else:
+        text = str(text) if text is not None else ""
+  
     c.setFont(font, size)  # Set the font and size
     width = c.stringWidth(text, font, size)  # Get the width of the text
 
@@ -239,15 +270,15 @@ def draw_centered_text(c, text, x, y, font="Helvetica", color='black', size=None
     c.setFillColor(colors.black)  # Reset color to black for future text
 
 
-def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel_transducers, figures):
+def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel_transducers, key_points, figures, data, row_indexes):
     c = canvas.Canvas(str(output_pdf_path), pagesize=landscape(A4))
     c.setStrokeColor(colors.black)
 
     # Define layout rectangles (x, y, width, height)
     layout_rectangles = [
         (15, 515, 600, 65),  # Info Top Left
-        (15, 110, 600, 375),  # Graph
-        (15, 15, 600, 95),  # Graph Index
+        (15, 66.5, 600, 418.5),  # Graph
+        (15, 15, 600, 51.5),  # Graph Index
         (630, 240, 197, 35), # Test Pressures
         (630, 15, 197, 200),  # 3rd Party Stamp
         (630, 300, 197, 185)  # Info Right
@@ -269,7 +300,13 @@ def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel
     transducers_present = transducers_present.reset_index(drop=True)
     transducers_present.columns = range(transducers_present.shape[1])
     transducers_present = pd.concat([transducers_present, empty], ignore_index=True)
-    print(transducers_present)
+    
+    raw_time = data.at[row_indexes[0], 'Time']  # e.g., "14-35-02"
+    formatted_time_0 = datetime.strptime(raw_time, "%H-%M-%S").strftime("%H:%M:%S")
+    raw_time = data.at[row_indexes[1], 'Time']  # e.g., "14-35-02"
+    formatted_time_1 = datetime.strptime(raw_time, "%H-%M-%S").strftime("%H:%M:%S")
+    raw_time = data.at[row_indexes[2], 'Time']  # e.g., "14-35-02"
+    formatted_time_2 = datetime.strptime(raw_time, "%H-%M-%S").strftime("%H:%M:%S")
 
     # Add placeholders with dynamic content
     text_positions = [
@@ -327,16 +364,22 @@ def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel
         (735, 322.5, transducers_present.at[10, 1], light_blue),
         (785, 322.5, transducers_present.at[11, 1], light_blue),
         (635, 307.5, "Torque Transducer", black),
-        (725, 307.5, channel_transducers.at['Torque', 1], light_blue)
+        (725, 307.5, channel_transducers.at['Torque', 1], light_blue),
+        (20, 56.5, "Start of Stabalisation", black),
+        (120, 56.5, f"{data.at[row_indexes[0], 'Date']}{"   "}{formatted_time_0}{"."}{data.at[row_indexes[0], 'Milliseconds']}{"   "}{data.at[row_indexes[0], key_points.at[0, 'Main Channel']]}{" psi    "}{data.at[row_indexes[0], 'Ambient Temperature']}{"°C"}", light_blue),
+        (20, 41.25, "Start of Hold", black),
+        (120, 41.25, f"{data.at[row_indexes[1], 'Date']}{"   "}{formatted_time_1}{"."}{data.at[row_indexes[1], 'Milliseconds']}{"   "}{data.at[row_indexes[1], key_points.at[0, 'Main Channel']]}{" psi    "}{data.at[row_indexes[1], 'Ambient Temperature']}{"°C"}", light_blue),
+        (20, 25, "End of Hold", black),
+        (120, 25, f"{data.at[row_indexes[2], 'Date']}{"   "}{formatted_time_2}{"."}{data.at[row_indexes[2], 'Milliseconds']}{"   "}{data.at[row_indexes[2], key_points.at[0, 'Main Channel']]}{" psi    "}{data.at[row_indexes[2], 'Ambient Temperature']}{"°C"}", light_blue)
     ]
 
     for x, y, text, color in text_positions:
         draw_centered_text(c, text, x, y, color=color, size=10, left_aligned=True)
 
     img = ImageReader(figures)  # Create an ImageReader object
-    c.drawImage(img, 16, 111, 598, 373, preserveAspectRatio=False, mask='auto')  # Use ImageReader object (Graph)
+    c.drawImage(img, 16, 67.5, 598, 416.5, preserveAspectRatio=False, mask='auto')  # Use ImageReader object (Graph)
     
-    c.drawImage('V:/Userdoc/R & D/Logos/Address logo with address.jpg', 629, 514, 180, 67, preserveAspectRatio=True, mask='auto')
+    c.drawImage('V:/Userdoc/R & D/Logos/R&D.png', 629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
 
     c.save()
 
@@ -354,7 +397,7 @@ def main():
         test_details, channel_transducers, channels_recorded, key_points = load_test_details(test_details_file)
 
         # Process primary data
-        data_recorded, true_columns = process_primary_data(data_file, channels_recorded)
+        data_recorded, true_columns, data = process_primary_data(data_file, channels_recorded)
 
         # Plot the data
         figure = plot_data_with_dual_axes(data_recorded, key_points)
@@ -362,7 +405,11 @@ def main():
         # Plot to Figure
         figure = convert_fig_to_image_stream(figure)
 
-        create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel_transducers, figure)
+        key_points, time_columns = add_time_delta_to_key_points(key_points, test_details.at['Test Date', 1])
+
+        row_indexes = find_y_values(data_recorded, key_points, time_columns)
+
+        create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel_transducers, key_points, figure, data, row_indexes)
 
     except Exception as e:
         print(f"An error occurred: {e}")
