@@ -189,6 +189,18 @@ def plot_data_with_dual_axes(data_recorded, key_points):
         if col in data_recorded.columns:
             ax2.plot(data_recorded['Datetime'], data_recorded[col],
                      label=col, linewidth=1, color=color_mapping.get(col, 'blue'))
+                    
+    # Ensure the y-axis of ax1 starts at 0
+    y_min, y_max = ax1.get_ylim()
+    ax1.set_ylim(0, y_max)
+
+    # Ensure the x-axis starts at the origin and ends at the very end
+    x_min, x_max = data_recorded['Datetime'].min(), data_recorded['Datetime'].max()
+
+    # Set x-axis ticks to include the start and end of the data
+    x_ticks = pd.date_range(start=x_min, end=x_max, periods=10)  # Adjust the number of periods as needed
+    ax1.set_xticks(x_ticks)
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y\n%H:%M:%S'))
 
     # Plot key points as markers
     for _, row in key_points.iterrows():
@@ -205,7 +217,7 @@ def plot_data_with_dual_axes(data_recorded, key_points):
             values = data_recorded.set_index('Datetime').loc[times, channel].values
             for time, value, label in zip(times, values, labels):
                 ax1.scatter(time, value, color='black', marker='x')
-                ax1.text(time, value + 0.001, f" {label}", color='black', fontsize=10, ha='center', va='bottom')
+                ax1.text(time, value + (y_max - y_min) * 0.05, f" {label}", color='black', fontsize=10, ha='center', va='bottom')
 
     # Custom legend combining both axes
     lines1, labels1 = ax1.get_legend_handles_labels()
@@ -280,7 +292,7 @@ def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel
         (15, 66.5, 600, 418.5),  # Graph
         (15, 15, 600, 51.5),  # Graph Index
         (630, 240, 197, 35), # Test Pressures
-        (630, 15, 197, 200),  # 3rd Party Stamp
+        (630, 35, 197, 180),  # 3rd Party Stamp
         (630, 300, 197, 185)  # Info Right
     ]
 
@@ -293,7 +305,7 @@ def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel
     # Add title
     draw_centered_text(c,f"{test_details.at['Test Description', 1]} {test_details.at['Test Title', 1]}", 315, 500, font="Helvetica-Bold", size=16)    
     draw_centered_text(c, "Data Recording Equipment Used", 728.5, 475, "Helvetica-Bold", size=12)
-    draw_centered_text(c, "3rd Party Stamp and Date", 728.5, 25, "Helvetica-Bold", size=12)
+    draw_centered_text(c, "3rd Party Stamp and Date", 728.5, 45, "Helvetica-Bold", size=12)
 
     empty = pd.DataFrame([[''] * 2 for _ in range(14)])
     transducers_present = channel_transducers.loc[true_columns]
@@ -365,6 +377,8 @@ def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel
         (785, 322.5, transducers_present.at[11, 1], light_blue),
         (635, 307.5, "Torque Transducer", black),
         (725, 307.5, channel_transducers.at['Torque', 1], light_blue),
+        (635, 22.5, "Operative:", black),
+        (725, 22.5, "Operative", light_blue),
         (20, 56.5, "Start of Stabalisation", black),
         (120, 56.5, f"{data.at[row_indexes[0], 'Date']}{"   "}{formatted_time_0}{"."}{data.at[row_indexes[0], 'Milliseconds']}{"   "}{data.at[row_indexes[0], key_points.at[0, 'Main Channel']]}{" psi    "}{data.at[row_indexes[0], 'Ambient Temperature']}{"°C"}", light_blue),
         (20, 41.25, "Start of Hold", black),
