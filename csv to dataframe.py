@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import MultipleLocator
@@ -11,17 +13,17 @@ from reportlab.lib.utils import ImageReader
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
 from datetime import datetime
+import argparse
 
 # ------------------------
 # Configuration
 # ------------------------
 
-def define_file_paths():
+def define_file_paths(file_path1, file_path2, file_path3, test_details):
     """Define file paths for the CSV files."""
-    base_dir = Path(r"V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/CSV/1.6")
-    data_file = base_dir / "Test Description_Data_19-12-2024_10-40-17.csv"
-    test_details_file = base_dir / "Test Description_Test_Details_19-12-2024_10-40-17.csv"
-    output_pdf_path = base_dir / "output1.pdf"
+    data_file = file_path1
+    test_details_file = file_path2
+    output_pdf_path = Path(file_path3) / f"{test_details.at['Test Description', 1]} {test_details.at['Test Title', 1]}.pdf"    
     return data_file, test_details_file, output_pdf_path
 
 # ------------------------
@@ -404,6 +406,15 @@ def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel
 def main():
     """Main function to load and process CSV data."""
     try:
+        parser = argparse.ArgumentParser(description="Process file paths.")
+        parser.add_argument("file_path1", type=str, help="Path to the Data file")
+        parser.add_argument("file_path2", type=str, help="Path to the Test Details file")
+        parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
+
+        args = parser.parse_args()
+
+        main(args.file_path1, args.file_path2, args.file_path3)
+
         # Define file paths
         data_file, test_details_file, output_pdf_path = define_file_paths()
 
