@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import MultipleLocator
@@ -19,11 +17,11 @@ import argparse
 # Configuration
 # ------------------------
 
-def define_file_paths(file_path1, file_path2, file_path3, test_details):
+def define_file_paths(file_path1, file_path2, file_path3):
     """Define file paths for the CSV files."""
     data_file = file_path1
     test_details_file = file_path2
-    output_pdf_path = Path(file_path3) / f"{test_details.at['Test Description', 1]} {test_details.at['Test Title', 1]}.pdf"    
+    output_pdf_path = Path(file_path3)    
     return data_file, test_details_file, output_pdf_path
 
 # ------------------------
@@ -41,7 +39,7 @@ def read_csv_safely(filepath, **kwargs):
     except Exception as e:
         raise Exception(f"Error reading file {filepath}: {e}")
 
-def load_test_details(filepath):
+def load_test_details(filepath, output_pdf_path):
     """Load test details and split into key sections."""
     # Load and process the DataFrames
     test_details = read_csv_safely(filepath, header=None, index_col=0, usecols=[0, 1], nrows=13).fillna('')
@@ -50,8 +48,10 @@ def load_test_details(filepath):
     channels_recorded.columns = [0, 1]
     channels_recorded.set_index(0, inplace=True)
     channels_recorded.fillna('', inplace=True)
-    key_points = read_csv_safely(filepath, usecols=["Main Channel", "Start of Stabalisation", "Start of Hold", "End of Hold"], skiprows=34).fillna('')
-    return test_details, channel_transducers, channels_recorded, key_points
+    key_points = read_csv_safely(filepath, skiprows=34).fillna('')
+    key_points.columns = ["Main Channel", "Start of Stabalisation", "Start of Hold", "End of Hold"]
+    output_pdf_path = output_pdf_path / f"{test_details.at['Test Description', 1]} {test_details.at['Test Title', 1]}.pdf"
+    return test_details, channel_transducers, channels_recorded, key_points, output_pdf_path
 
 def process_primary_data(filepath, channels_recorded):
     """Process primary data, generate headers, and filter columns."""
@@ -75,7 +75,7 @@ def process_primary_data(filepath, channels_recorded):
         data_recorded['Date'].astype(str) + ' ' +
         data_recorded['Time'].astype(str) + '.' +
         data_recorded['Milliseconds'].astype(str),
-        format='%d/%m/%Y %H-%M-%S.%f'
+        format='%d-%m-%Y %H-%M-%S.%f'
     )
 
     # Drop unnecessary columns
@@ -101,7 +101,7 @@ def add_time_delta_to_key_points(key_points, test_date):
     time_columns = ["Start of Stabalisation", "Start of Hold", "End of Hold"]
 
     for col in time_columns:
-        key_points[col] = key_points[col].apply(lambda x: pd.to_datetime(f"{test_date} {x}", format='%d/%m/%Y %H-%M-%S.%f') if pd.notnull(x) else x)
+        key_points[col] = key_points[col].apply(lambda x: pd.to_datetime(f"{test_date} {x}", format='%d-%m-%Y %H-%M-%S.%f') if pd.notnull(x) else x)
     return key_points, time_columns
 
 def find_y_values(data_recorded, key_points, time_columns):
@@ -382,11 +382,11 @@ def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel
         (635, 22.5, "Operative:", black),
         (725, 22.5, "Operative", light_blue),
         (20, 56.5, "Start of Stabalisation", black),
-        (120, 56.5, f"{data.at[row_indexes[0], 'Date']}{"   "}{formatted_time_0}{"."}{data.at[row_indexes[0], 'Milliseconds']}{"   "}{data.at[row_indexes[0], key_points.at[0, 'Main Channel']]}{" psi    "}{data.at[row_indexes[0], 'Ambient Temperature']}{"°C"}", light_blue),
+        (120, 56.5, f"{data.at[row_indexes[0], 'Date']}    {formatted_time_0}.{data.at[row_indexes[0], 'Milliseconds']}    {data.at[row_indexes[0], key_points.at[0, 'Main Channel']]} psi    {data.at[row_indexes[0], 'Ambient Temperature']}\u00B0C", light_blue),
         (20, 41.25, "Start of Hold", black),
-        (120, 41.25, f"{data.at[row_indexes[1], 'Date']}{"   "}{formatted_time_1}{"."}{data.at[row_indexes[1], 'Milliseconds']}{"   "}{data.at[row_indexes[1], key_points.at[0, 'Main Channel']]}{" psi    "}{data.at[row_indexes[1], 'Ambient Temperature']}{"°C"}", light_blue),
+        (120, 41.25, f"{data.at[row_indexes[1], 'Date']}    {formatted_time_1}.{data.at[row_indexes[1], 'Milliseconds']}    {data.at[row_indexes[1], key_points.at[0, 'Main Channel']]} psi    {data.at[row_indexes[1], 'Ambient Temperature']}\u00B0C", light_blue),
         (20, 25, "End of Hold", black),
-        (120, 25, f"{data.at[row_indexes[2], 'Date']}{"   "}{formatted_time_2}{"."}{data.at[row_indexes[2], 'Milliseconds']}{"   "}{data.at[row_indexes[2], key_points.at[0, 'Main Channel']]}{" psi    "}{data.at[row_indexes[2], 'Ambient Temperature']}{"°C"}", light_blue)
+        (120, 25, f"{data.at[row_indexes[2], 'Date']}    {formatted_time_2}.{data.at[row_indexes[2], 'Milliseconds']}    {data.at[row_indexes[2], key_points.at[0, 'Main Channel']]} psi    {data.at[row_indexes[2], 'Ambient Temperature']}\u00B0C", light_blue)
     ]
 
     for x, y, text, color in text_positions:
@@ -395,7 +395,7 @@ def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel
     img = ImageReader(figures)  # Create an ImageReader object
     c.drawImage(img, 16, 67.5, 598, 416.5, preserveAspectRatio=False, mask='auto')  # Use ImageReader object (Graph)
     
-    c.drawImage('V:/Userdoc/R & D/Logos/R&D.png', 629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
+    c.drawImage('/var/opt/codesys/PlcLogic/R&D_Page_2.png', 629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
 
     c.save()
 
@@ -406,6 +406,7 @@ def create_pdf_with_figures(output_pdf_path, test_details, true_columns, channel
 def main():
     """Main function to load and process CSV data."""
     try:
+        print('Starting...')
         parser = argparse.ArgumentParser(description="Process file paths.")
         parser.add_argument("file_path1", type=str, help="Path to the Data file")
         parser.add_argument("file_path2", type=str, help="Path to the Test Details file")
@@ -413,13 +414,11 @@ def main():
 
         args = parser.parse_args()
 
-        main(args.file_path1, args.file_path2, args.file_path3)
-
         # Define file paths
-        data_file, test_details_file, output_pdf_path = define_file_paths()
+        data_file, test_details_file, output_pdf_path = define_file_paths(args.file_path1, args.file_path2, args.file_path3)
 
         # Load test details
-        test_details, channel_transducers, channels_recorded, key_points = load_test_details(test_details_file)
+        test_details, channel_transducers, channels_recorded, key_points, output_pdf_path = load_test_details(test_details_file, output_pdf_path)
 
         # Process primary data
         data_recorded, true_columns, data = process_primary_data(data_file, channels_recorded)
