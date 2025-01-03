@@ -108,7 +108,15 @@ def load_test_information(test_details_path, pdf_output_path):
     channels_to_record.fillna('', inplace=True)
 
     # Load key time points (start of stabilisation, hold, etc.)
-    key_time_points = load_csv_file(test_details_path, skiprows=33).fillna('')
+    key_time_points = pd.read_csv(
+    test_details_path,
+    skiprows=33,
+    parse_dates=["Start of Stabalisation", "Start of Hold", "End of Hold"],  # Replace with the actual column name
+    dayfirst=True,  # Indicates dd/mm/yyyy format
+    infer_datetime_format=True  # Optimizes datetime parsing
+    )
+
+    print(key_time_points)
     key_time_points.columns = ["Main Channel", "Start of Stabalisation", "Start of Hold", "End of Hold"]
 
     # Build the final PDF path using metadata
@@ -474,8 +482,6 @@ def generate_pdf_report(
         raw_data (pd.DataFrame): Original CSV data (including Date/Time columns).
         key_point_rows (list): Row indexes that match each key time in raw_data.
     """
-    print(key_time_points)
-
     pdf = canvas.Canvas(str(pdf_output_path), pagesize=landscape(A4))
     pdf.setStrokeColor(colors.black)
 
