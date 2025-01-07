@@ -1,6 +1,5 @@
 import argparse
 import io
-from datetime import datetime
 from pathlib import Path
 
 import matplotlib.dates as mdates
@@ -111,13 +110,10 @@ def load_test_information(test_details_path, pdf_output_path):
     key_time_points = pd.read_csv(
     test_details_path,
     skiprows=33,
-    parse_dates=["Start of Stabalisation", "Start of Hold", "End of Hold"],  # Replace with the actual column name
-    dayfirst=True,  # Indicates dd/mm/yyyy format
-    infer_datetime_format=True  # Optimizes datetime parsing
+    parse_dates=["Start of Stabilisation", "Start of Hold", "End of Hold"],  # Replace with the actual column name
     )
 
-    print(key_time_points)
-    key_time_points.columns = ["Main Channel", "Start of Stabalisation", "Start of Hold", "End of Hold"]
+    key_time_points.columns = ["Main Channel", "Start of Stabilisation", "Start of Hold", "End of Hold"]
 
     # Build the final PDF path using metadata
     pdf_output_path = pdf_output_path / (
@@ -135,52 +131,50 @@ def load_test_information(test_details_path, pdf_output_path):
 
 def prepare_primary_data(primary_data_path, channels_to_record):
     """
-    Prepare and clean the primary CSV data, creating a combined
-    DateTime column in dd/mm/yyyy hh:mm:ss format (with milliseconds).
+    Prepare and clean the primary CSV data, which now contains a single
+    'Datetime' column in dd/mm/yyyy hh:mm:ss.000 format (with milliseconds).
 
     Assumptions:
-        - 'Date' is dd/mm/yyyy.
-        - 'Time' is hh:mm:ss.
-        - 'Milliseconds' can be fractional seconds (e.g. 123).
-        - Some channels are flagged as True in 'channels_to_record' 
+        - 'Datetime' is dd/mm/yyyy hh:mm:ss.000.
+        - Some channels are flagged as True in 'channels_to_record'
           to indicate relevance.
 
     Parameters:
         primary_data_path (str): File path to the main data CSV.
-        channels_to_record (pd.DataFrame): DataFrame indicating which 
+        channels_to_record (pd.DataFrame): DataFrame indicating which
             channels are active (True/False).
 
     Returns:
         tuple:
-            - pd.DataFrame: Filtered DataFrame with a combined 'Datetime' column.
+            - pd.DataFrame: Filtered DataFrame with a parsed 'Datetime' column.
             - list: Names of the channels actually recorded (True).
-            - pd.DataFrame: Original loaded data with headers for reference.
+            - pd.DataFrame: Original loaded data (for reference).
     """
-    raw_data = load_csv_file(primary_data_path, header=None)
+    # Load raw data (assumes the CSV now has Datetime as its first column,
+    # followed by the channels in order)
+    raw_data = load_csv_file(primary_data_path, header=None, parse_dates=[0])
 
-    # Construct full headers: 3 date/time columns + all channels
-    date_time_columns = ['Date', 'Time', 'Milliseconds']
+    # Prepare a list of all expected columns: 'Datetime' + channel names
+    date_time_columns = ['Datetime']
     channel_names = channels_to_record.index.tolist()
     all_headers = date_time_columns + channel_names
+
+    # Rename the columns in raw_data
     raw_data.columns = all_headers
 
     # Identify which channels are actually recorded
     active_channels = channels_to_record[channels_to_record[1] == True].index.tolist()
-    required_columns = date_time_columns + active_channels
+    required_columns = ['Datetime'] + active_channels
 
     # Extract only the required columns
-    data_subset = raw_data.loc[:, raw_data.columns.isin(required_columns)].copy()
+    data_subset = raw_data[required_columns].copy()
 
-    # Combine date/time into a single datetime column
+    # Convert the single 'Datetime' column to a proper datetime type
+    # (assuming format dd/mm/yyyy hh:mm:ss.000)
     data_subset['Datetime'] = pd.to_datetime(
-        data_subset['Date'].astype(str) + ' ' +
-        data_subset['Time'].astype(str) + '.' +
-        data_subset['Milliseconds'].astype(str),
-        format='%d/%m/%Y %H:%M:%S.%f'
+        data_subset['Datetime'],
+        errors='coerce',               # in case of any parse issues
     )
-
-    # Drop original date/time columns
-    data_subset.drop(columns=['Date', 'Time', 'Milliseconds'], inplace=True)
 
     # Ensure 'Datetime' is the first column
     columns_ordered = ['Datetime'] + [col for col in data_subset.columns if col != 'Datetime']
@@ -201,13 +195,13 @@ def locate_key_time_rows(cleaned_data, key_time_points):
         cleaned_data (pd.DataFrame): DataFrame with a 'Datetime' column 
             containing parsed datetime values.
         key_time_points (pd.DataFrame): DataFrame with columns for 
-            Start of Stabalisation, Start of Hold, End of Hold.
+            Start of Stabilisation, Start of Hold, End of Hold.
 
     Returns:
         list: The row indexes in 'cleaned_data' corresponding to 
               each key time.
     """
-    time_columns = ["Start of Stabalisation", "Start of Hold", "End of Hold"]
+    time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
     row_indices = []
 
     for col in time_columns:
@@ -215,7 +209,6 @@ def locate_key_time_rows(cleaned_data, key_time_points):
         if pd.notnull(key_time_points.at[0, col]):
             parsed_time = pd.to_datetime(
                 key_time_points.at[0, col],
-                format='%d/%m/%Y %H:%M:%S.%f',
                 errors='coerce'
             )
             if not pd.isnull(parsed_time):
@@ -337,7 +330,7 @@ def plot_pressure_and_temperature(cleaned_data, key_time_points):
     ax_pressure.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y\n%H:%M:%S'))
 
     # Overlay key time points
-    key_columns = ["Start of Stabalisation", "Start of Hold", "End of Hold"]
+    key_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
     key_labels = ['SOS', 'SOH', 'EOH']
     for _, row in key_time_points.iterrows():
         main_channel = row['Main Channel']
@@ -348,7 +341,6 @@ def plot_pressure_and_temperature(cleaned_data, key_time_points):
                 if pd.notnull(row[col]):
                     dt_val = pd.to_datetime(
                         str(row[col]),
-                        format='%d/%m/%Y %H:%M:%S.%f',
                         errors='coerce'
                     )
                     time_label_pairs.append((dt_val, lbl))
@@ -423,9 +415,9 @@ def draw_text_on_pdf(pdf_canvas, text, x, y, font="Helvetica",
                      colour='black', size=10, left_aligned=False):
     """
     Draw text onto the PDF canvas, with options for alignment (left or centre).
-
-    If the text is a Timestamp, it preserves milliseconds precision 
-    to 3 decimal places.
+    
+    If the text is a Timestamp, it can optionally preserve only the date (dd/mm/yyyy) 
+    or include milliseconds precision to 3 decimal places.
 
     Parameters:
         pdf_canvas (reportlab.pdfgen.canvas.Canvas): The PDF canvas to draw upon.
@@ -436,12 +428,10 @@ def draw_text_on_pdf(pdf_canvas, text, x, y, font="Helvetica",
         colour (str): Text colour (default: black).
         size (int): Font size (default: 10).
         left_aligned (bool): If True, text is left-aligned; otherwise it is centred.
+        date_only (bool): If True, only the date (dd/mm/yyyy) is shown for datetime inputs.
     """
-    if isinstance(text, (pd.Timestamp, datetime)):
-        # Format to dd/mm/yyyy HH:MM:SS.xxx
-        text = text.strftime('%d/%m/%Y  %H:%M:%S.%f')[:-3]
-    else:
-        text = str(text) if text is not None else ""
+
+    text = str(text) if text is not None else ""
 
     pdf_canvas.setFont(font, size)
     text_width = pdf_canvas.stringWidth(text, font, size)
@@ -512,6 +502,16 @@ def generate_pdf_report(
         font="Helvetica-Bold",
         size=16
     )
+
+    draw_text_on_pdf(
+        pdf, 
+        raw_data.at[0, 'Datetime'].strftime('%m/%d/%Y'), 
+        487.5, 
+        539.375, 
+        colour=light_blue,
+        left_aligned=True
+    )
+
     draw_text_on_pdf(pdf, "Data Recording Equipment Used", 728.5, 475, "Helvetica-Bold", size=12)
     draw_text_on_pdf(pdf, "3rd Party Stamp and Date", 728.5, 45, "Helvetica-Bold", size=12)
 
@@ -520,14 +520,6 @@ def generate_pdf_report(
     used_transducers = transducer_details.loc[active_channels].reset_index(drop=True)
     used_transducers.columns = range(used_transducers.shape[1])
     used_transducers = pd.concat([used_transducers, empty_rows], ignore_index=True)
-
-    # Retrieve time data from raw_data for the key points
-    time_0 = raw_data.at[key_point_rows[0], 'Time'] if len(key_point_rows) > 0 else ''
-    ms_0 = raw_data.at[key_point_rows[0], 'Milliseconds'] if len(key_point_rows) > 0 else ''
-    time_1 = raw_data.at[key_point_rows[1], 'Time'] if len(key_point_rows) > 1 else ''
-    ms_1 = raw_data.at[key_point_rows[1], 'Milliseconds'] if len(key_point_rows) > 1 else ''
-    time_2 = raw_data.at[key_point_rows[2], 'Time'] if len(key_point_rows) > 2 else ''
-    ms_2 = raw_data.at[key_point_rows[2], 'Milliseconds'] if len(key_point_rows) > 2 else ''
 
     # Build static and dynamic text for the PDF
     pdf_text_positions = [
@@ -547,7 +539,6 @@ def generate_pdf_report(
         (402.5, 555.625, "Test Description", black),
         (487.5, 555.625, test_metadata.at['Test Description', 1], light_blue),
         (402.5, 539.375, "Test Date", black),
-        (487.5, 539.375, raw_data.at[0, 'Date'], light_blue),
         (402.5, 523.125, "Valve Drawing No.", black),
         (487.5, 523.125, test_metadata.at['Valve Drawing Number', 1], light_blue),
 
@@ -605,24 +596,21 @@ def generate_pdf_report(
         (725, 22.5, "Operative", light_blue),
 
         # Key points at the bottom
-        (20, 56.5, "Start of Stabalisation", black),
+        (20, 56.5, "Start of Stabilisation", black),
         (120, 56.5,
-         f"{raw_data.at[key_point_rows[0], 'Date'] if len(key_point_rows) > 0 else ''}  "
-         f"{time_0}.{ms_0}  "
+         f"{raw_data.at[key_point_rows[0], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S.%f')[:-3] if len(key_point_rows) > 0 else ''}  "
          f"{float(raw_data.at[key_point_rows[0], key_time_points.at[0, 'Main Channel']]) if len(key_point_rows) > 0 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[0], 'Ambient Temperature'] if len(key_point_rows) > 0 else ''}\u00B0C",
          light_blue),
         (20, 41.25, "Start of Hold", black),
         (120, 41.25,
-         f"{raw_data.at[key_point_rows[1], 'Date'] if len(key_point_rows) > 1 else ''}  "
-         f"{time_1}.{ms_1}  "
+         f"{raw_data.at[key_point_rows[1], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S.%f')[:-3] if len(key_point_rows) > 1 else ''}  "
          f"{float(raw_data.at[key_point_rows[1], key_time_points.at[0, 'Main Channel']]) if len(key_point_rows) > 1 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[1], 'Ambient Temperature'] if len(key_point_rows) > 1 else ''}\u00B0C",
          light_blue),
         (20, 25, "End of Hold", black),
         (120, 25,
-         f"{raw_data.at[key_point_rows[2], 'Date'] if len(key_point_rows) > 2 else ''}  "
-         f"{time_2}.{ms_2}  "
+         f"{raw_data.at[key_point_rows[2], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S.%f')[:-3] if len(key_point_rows) > 2 else ''}  "
          f"{float(raw_data.at[key_point_rows[2], key_time_points.at[0, 'Main Channel']]) if len(key_point_rows) > 2 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[2], 'Ambient Temperature'] if len(key_point_rows) > 2 else ''}\u00B0C",
          light_blue)
@@ -681,7 +669,7 @@ def main():
 
         # Convert figure to an in-memory bytes stream
         figure_stream = convert_figure_to_bytes(figure)
-
+        
         # Identify row indexes for each key time in the original data
         key_point_rows = locate_key_time_rows(cleaned_data, key_time_points)
 
