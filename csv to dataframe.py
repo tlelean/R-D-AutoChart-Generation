@@ -25,9 +25,9 @@ def get_file_paths(primary_data_path, test_details_path, output_pdf_path):
 
     Returns:
         tuple: (str, str, Path)
-            - Path to primary data file.
-            - Path to test details file.
-            - Path object for the output PDF.
+            - Path to primary data file. 'tlelean/Job Number/Valve Drawing Number/CSV/2.1/Test Description_Data_9-1-2025_8-29-47.csv'
+            - Path to test details file. 'tlelean/Job Number/Valve Drawing Number/CSV/2.1/Test Description_Test_Details_9-1-2025_8-29-47.csv'
+            - Path object for the output PDF. 'tlelean/Job Number/Valve Drawing Number/PDF'
     """
     return (
         primary_data_path,
@@ -206,9 +206,9 @@ def locate_key_time_rows(cleaned_data, key_time_points):
 
     for col in time_columns:
         # Only parse if a time is present
-        if pd.notnull(key_time_points.at[0, col]):
+        if pd.notnull(key_time_points.iloc[0][col]):
             parsed_time = pd.to_datetime(
-                key_time_points.at[0, col],
+                key_time_points.iloc[0][col],
                 errors='coerce'
             )
             if not pd.isnull(parsed_time):
@@ -375,7 +375,6 @@ def plot_pressure_and_temperature(cleaned_data, key_time_points):
     )
 
     plt.tight_layout(rect=[0, 0.05, 1, 1])
-    plt.show()
     return fig
 
 
@@ -599,19 +598,19 @@ def generate_pdf_report(
         (20, 56.5, "Start of Stabilisation", black),
         (120, 56.5,
          f"{raw_data.at[key_point_rows[0], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S.%f')[:-3] if len(key_point_rows) > 0 else ''}  "
-         f"{float(raw_data.at[key_point_rows[0], key_time_points.at[0, 'Main Channel']]) if len(key_point_rows) > 0 else 0:.0f} psi  "
+         f"{float(raw_data.at[key_point_rows[0], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 0 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[0], 'Ambient Temperature'] if len(key_point_rows) > 0 else ''}\u00B0C",
          light_blue),
         (20, 41.25, "Start of Hold", black),
         (120, 41.25,
          f"{raw_data.at[key_point_rows[1], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S.%f')[:-3] if len(key_point_rows) > 1 else ''}  "
-         f"{float(raw_data.at[key_point_rows[1], key_time_points.at[0, 'Main Channel']]) if len(key_point_rows) > 1 else 0:.0f} psi  "
+         f"{float(raw_data.at[key_point_rows[1], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 1 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[1], 'Ambient Temperature'] if len(key_point_rows) > 1 else ''}\u00B0C",
          light_blue),
         (20, 25, "End of Hold", black),
         (120, 25,
          f"{raw_data.at[key_point_rows[2], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S.%f')[:-3] if len(key_point_rows) > 2 else ''}  "
-         f"{float(raw_data.at[key_point_rows[2], key_time_points.at[0, 'Main Channel']]) if len(key_point_rows) > 2 else 0:.0f} psi  "
+         f"{float(raw_data.at[key_point_rows[2], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 2 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[2], 'Ambient Temperature'] if len(key_point_rows) > 2 else ''}\u00B0C",
          light_blue)
     ]
@@ -625,8 +624,10 @@ def generate_pdf_report(
     pdf.drawImage(figure_image, 16, 67.5, 598, 416.5, preserveAspectRatio=False, mask='auto')
 
     # Example overlay image (remove or replace if not required)
-    pdf.drawImage('/var/opt/codesys/PlcLogic/R&D_Page_2.png',
-                  629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
+    # pdf.drawImage('/var/opt/codesys/PlcLogic/R&D_Page_2.png',
+    #               629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
+    pdf.drawImage('V:/Userdoc/R & D/Logos/R&D_Page_2.png',
+                629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
 
     pdf.save()
 
@@ -637,17 +638,21 @@ def main():
     generate a plot, and export a PDF report combining text + images.
     """
     try:
-        print('Starting...')
-        parser = argparse.ArgumentParser(description="Process file paths.")
-        parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
-        parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
-        parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
-        args = parser.parse_args()
+        # print('Starting...')
+        # parser = argparse.ArgumentParser(description="Process file paths.")
+        # parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
+        # parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
+        # parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
+        # args = parser.parse_args()
 
-        # Gather file paths
-        primary_data_file, test_details_file, pdf_output_path = get_file_paths(
-            args.file_path1, args.file_path2, args.file_path3
-        )
+        # # Gather file paths
+        # primary_data_file, test_details_file, pdf_output_path = get_file_paths(
+        #     args.file_path1, args.file_path2, args.file_path3
+        # )
+
+        primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/CSV/2.1/Test Description_Data_9-1-2025_8-29-47.csv"
+        test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/CSV/2.1/Test Description_Test_Details_9-1-2025_8-29-47.csv"
+        pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/PDF")
 
         # Load test details + transducer info
         (
@@ -664,26 +669,60 @@ def main():
             channels_to_record
         )
 
-        # Create a plot of pressures + temperatures
-        figure = plot_pressure_and_temperature(cleaned_data, key_time_points)
+        if len(key_time_points) == 1:
+            # Create a plot of pressures + temperatures
+            figure = plot_pressure_and_temperature(cleaned_data, key_time_points)
 
-        # Convert figure to an in-memory bytes stream
-        figure_stream = convert_figure_to_bytes(figure)
-        
-        # Identify row indexes for each key time in the original data
-        key_point_rows = locate_key_time_rows(cleaned_data, key_time_points)
+            # Convert figure to an in-memory bytes stream
+            figure_stream = convert_figure_to_bytes(figure)
+            
+            # Identify row indexes for each key time in the original data
+            key_point_rows = locate_key_time_rows(cleaned_data, key_time_points)
 
-        # Generate the final PDF report
-        generate_pdf_report(
-            pdf_output_path,
-            test_metadata,
-            active_channels,
-            transducer_details,
-            key_time_points,
-            figure_stream,
-            raw_data,
-            key_point_rows
-        )
+            # Generate the final PDF report
+            generate_pdf_report(
+                pdf_output_path,
+                test_metadata,
+                active_channels,
+                transducer_details,
+                key_time_points,
+                figure_stream,
+                raw_data,
+                key_point_rows
+            )
+
+        elif len(key_time_points) > 1:
+            for index, row in key_time_points.iterrows():
+                # Filter the key time points to the current row (as a DataFrame)
+                single_key_time_point = key_time_points.loc[[index]]
+
+                # Create a plot of pressures + temperatures
+                figure = plot_pressure_and_temperature(cleaned_data, single_key_time_point)
+
+                # Convert figure to an in-memory bytes stream
+                figure_stream = convert_figure_to_bytes(figure)
+                
+                # Identify row indexes for each key time in the original data
+                key_point_rows = locate_key_time_rows(cleaned_data, single_key_time_point)
+
+                # Generate a unique filename for the PDF
+                unique_pdf_output_path = pdf_output_path.with_name(
+                    f"{pdf_output_path.stem.strip()}.{index + 1}{pdf_output_path.suffix}"
+                )
+
+                test_metadata.at['Test Description', 1] = f"{test_metadata.at['Test Description', 1]}.{index + 1}"
+
+                # Generate the final PDF report
+                generate_pdf_report(
+                    unique_pdf_output_path,
+                    test_metadata,
+                    active_channels,
+                    transducer_details,
+                    single_key_time_point,
+                    figure_stream,
+                    raw_data,
+                    key_point_rows
+                )
 
     except Exception as exc:
         print(f"An error occurred: {exc}")
