@@ -82,7 +82,7 @@ def load_test_information(test_details_path, pdf_output_path):
     """
     # Load top sections (test metadata and transducer data)
     test_metadata = (
-        load_csv_file(test_details_path, header=None, index_col=0, usecols=[0, 1], nrows=12)
+        load_csv_file(test_details_path, header=None, index_col=0, usecols=[0, 1], nrows=14)
         .fillna('')
     )
     transducer_details = (
@@ -91,7 +91,7 @@ def load_test_information(test_details_path, pdf_output_path):
             header=None,
             index_col=0,
             usecols=[0, 1, 2],
-            skiprows=12,
+            skiprows=14,
             nrows=21
         ).fillna('')
     )
@@ -99,7 +99,7 @@ def load_test_information(test_details_path, pdf_output_path):
         test_details_path,
         header=None,
         usecols=[0, 3],
-        skiprows=12,
+        skiprows=14,
         nrows=21
     )
     channels_to_record.columns = [0, 1]
@@ -109,7 +109,7 @@ def load_test_information(test_details_path, pdf_output_path):
     # Load key time points (start of stabilisation, hold, etc.)
     key_time_points = pd.read_csv(
     test_details_path,
-    skiprows=33,
+    skiprows=35,
     parse_dates=["Start of Stabilisation", "Start of Hold", "End of Hold"],  # Replace with the actual column name
     )
 
@@ -456,7 +456,8 @@ def generate_pdf_report(
     key_time_points,
     figure_bytes,
     raw_data,
-    key_point_rows
+    key_point_rows,
+    is_gui
 ):
     """
     Generate a PDF report including plot images and textual details.
@@ -479,7 +480,8 @@ def generate_pdf_report(
         (15, 515, 600, 65),     # Info Top Left
         (15, 66.5, 600, 418.5), # Graph
         (15, 15, 600, 51.5),    # Graph Index
-        (630, 240, 197, 35),    # Test Pressures
+        (630, 254.16, 197, 35),    # Test Pressures
+        (630, 225.83, 197, 17.5),    # Breakout Torque
         (630, 35, 197, 180),    # 3rd Party Stamp
         (630, 300, 197, 185)    # Info Right
     ]
@@ -542,10 +544,14 @@ def generate_pdf_report(
         (487.5, 523.125, test_metadata.at['Valve Drawing Number', 1], light_blue),
 
         # Pressures & other details
-        (635, 266.25, "Test Pressure", black),
-        (725, 266.25, test_metadata.at['Test Pressure', 1], light_blue),
-        (635, 248.75, "Actuator Pressure", black),
-        (725, 248.75, test_metadata.at['Actuator Pressure', 1], light_blue),
+        (635, 280.41, "Test Pressure", black),
+        (725, 280.41, test_metadata.at['Test Pressure', 1], light_blue),
+        (635, 262.91, "Actuator Pressure", black),
+        (725, 262.91, test_metadata.at['Actuator Pressure', 1], light_blue),
+
+        # Breakout Torque
+        (635, 234.58, "Breakout Torque", black),
+        (725, 234.58, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs", light_blue),
 
         # Data Logger info
         (635, 457.5, "Data Logger", black),
@@ -592,24 +598,24 @@ def generate_pdf_report(
 
         # Bottom-left stamp
         (635, 22.5, "Operative:", black),
-        (725, 22.5, "Operative", light_blue),
+        (725, 22.5, test_metadata.at['Operative', 1], light_blue),
 
         # Key points at the bottom
         (20, 56.5, "Start of Stabilisation", black),
         (120, 56.5,
-         f"{raw_data.at[key_point_rows[0], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S.%f')[:-3] if len(key_point_rows) > 0 else ''}  "
+         f"{raw_data.at[key_point_rows[0], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S') if len(key_point_rows) > 0 else ''}  "
          f"{float(raw_data.at[key_point_rows[0], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 0 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[0], 'Ambient Temperature'] if len(key_point_rows) > 0 else ''}\u00B0C",
          light_blue),
         (20, 41.25, "Start of Hold", black),
         (120, 41.25,
-         f"{raw_data.at[key_point_rows[1], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S.%f')[:-3] if len(key_point_rows) > 1 else ''}  "
+         f"{raw_data.at[key_point_rows[1], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S') if len(key_point_rows) > 1 else ''}  "
          f"{float(raw_data.at[key_point_rows[1], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 1 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[1], 'Ambient Temperature'] if len(key_point_rows) > 1 else ''}\u00B0C",
          light_blue),
         (20, 25, "End of Hold", black),
         (120, 25,
-         f"{raw_data.at[key_point_rows[2], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S.%f')[:-3] if len(key_point_rows) > 2 else ''}  "
+         f"{raw_data.at[key_point_rows[2], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S') if len(key_point_rows) > 2 else ''}  "
          f"{float(raw_data.at[key_point_rows[2], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 2 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[2], 'Ambient Temperature'] if len(key_point_rows) > 2 else ''}\u00B0C",
          light_blue)
@@ -623,10 +629,13 @@ def generate_pdf_report(
     figure_image = ImageReader(figure_bytes)
     pdf.drawImage(figure_image, 16, 67.5, 598, 416.5, preserveAspectRatio=False, mask='auto')
 
-    # Example overlay image (remove or replace if not required)
-    # pdf.drawImage('/var/opt/codesys/PlcLogic/R&D_Page_2.png',
-    #               629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
-    pdf.drawImage('V:/Userdoc/R & D/Logos/R&D_Page_2.png',
+    # Define the image path based on `is_gui`
+    # if is_gui:
+    #     image_path = 'V:/Userdoc/R & D/Logos/R&D_Page_2.png'
+    # elsif not is_gui:
+    image_path = '/var/opt/codesys/PlcLogic/R&D_Page_2.png'
+
+    pdf.drawImage(image_path,
                 629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
 
     pdf.save()
@@ -638,21 +647,20 @@ def main():
     generate a plot, and export a PDF report combining text + images.
     """
     try:
-        # print('Starting...')
-        # parser = argparse.ArgumentParser(description="Process file paths.")
-        # parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
-        # parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
-        # parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
-        # args = parser.parse_args()
+        print('Starting...')
+        parser = argparse.ArgumentParser(description="Process file paths.")
+        parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
+        parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
+        parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
+        parser.add_argument("is_gui", type=bool, help="GUI or not")
+        args = parser.parse_args()
 
-        # # Gather file paths
-        # primary_data_file, test_details_file, pdf_output_path = get_file_paths(
-        #     args.file_path1, args.file_path2, args.file_path3
-        # )
+        is_gui = args.is_gui
 
-        primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/CSV/2.1/Test Description_Data_9-1-2025_8-29-47.csv"
-        test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/CSV/2.1/Test Description_Test_Details_9-1-2025_8-29-47.csv"
-        pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/PDF")
+        # Gather file paths
+        primary_data_file, test_details_file, pdf_output_path = get_file_paths(
+            args.file_path1, args.file_path2, args.file_path3
+        )
 
         # Load test details + transducer info
         (
@@ -688,10 +696,14 @@ def main():
                 key_time_points,
                 figure_stream,
                 raw_data,
-                key_point_rows
+                key_point_rows,
+                is_gui
             )
 
         elif len(key_time_points) > 1:
+
+            test_title_prefix = test_metadata.at['Test Description', 1]
+
             for index, row in key_time_points.iterrows():
                 # Filter the key time points to the current row (as a DataFrame)
                 single_key_time_point = key_time_points.loc[[index]]
@@ -710,7 +722,7 @@ def main():
                     f"{pdf_output_path.stem.strip()}.{index + 1}{pdf_output_path.suffix}"
                 )
 
-                test_metadata.at['Test Description', 1] = f"{test_metadata.at['Test Description', 1]}.{index + 1}"
+                test_metadata.at['Test Description', 1] = f"{test_title_prefix}.{index + 1}"
 
                 # Generate the final PDF report
                 generate_pdf_report(
@@ -721,7 +733,8 @@ def main():
                     single_key_time_point,
                     figure_stream,
                     raw_data,
-                    key_point_rows
+                    key_point_rows,
+                    is_gui
                 )
 
     except Exception as exc:
