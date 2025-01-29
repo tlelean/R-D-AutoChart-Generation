@@ -54,7 +54,7 @@ def load_csv_file(file_path, **kwargs):
         Exception: For any other reading/formatting errors.
     """
     try:
-        return pd.read_csv(file_path, **kwargs)
+        return pd.read_csv(file_path, **kwargs, dayfirst=True)
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"File not found: {file_path}") from exc
     except pd.errors.EmptyDataError as exc:
@@ -82,9 +82,15 @@ def load_test_information(test_details_path, pdf_output_path):
     """
     # Load top sections (test metadata and transducer data)
     test_metadata = (
-        load_csv_file(test_details_path, header=None, index_col=0, usecols=[0, 1], nrows=14)
-        .fillna('')
+        load_csv_file(
+            test_details_path, 
+            header=None, 
+            index_col=0, 
+            usecols=[0, 1], 
+            nrows=14)
+            .fillna('')
     )
+
     transducer_details = (
         load_csv_file(
             test_details_path,
@@ -92,9 +98,10 @@ def load_test_information(test_details_path, pdf_output_path):
             index_col=0,
             usecols=[0, 1, 2],
             skiprows=14,
-            nrows=21
-        ).fillna('')
+            nrows=21)
+            .fillna('')
     )
+
     channels_to_record = load_csv_file(
         test_details_path,
         header=None,
@@ -102,6 +109,7 @@ def load_test_information(test_details_path, pdf_output_path):
         skiprows=14,
         nrows=21
     )
+
     channels_to_record.columns = [0, 1]
     channels_to_record.set_index(0, inplace=True)
     channels_to_record.fillna('', inplace=True)
@@ -110,10 +118,8 @@ def load_test_information(test_details_path, pdf_output_path):
     key_time_points = pd.read_csv(
     test_details_path,
     skiprows=35,
-    parse_dates=["Start of Stabilisation", "Start of Hold", "End of Hold"],  # Replace with the actual column name
+    dayfirst=True
     )
-
-    key_time_points.columns = ["Main Channel", "Start of Stabilisation", "Start of Hold", "End of Hold"]
 
     # Build the final PDF path using metadata
     pdf_output_path = pdf_output_path / (
@@ -647,7 +653,6 @@ def main():
     generate a plot, and export a PDF report combining text + images.
     """
     try:
-        print('Starting...')
         parser = argparse.ArgumentParser(description="Process file paths.")
         parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
         parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
@@ -661,6 +666,12 @@ def main():
         primary_data_file, test_details_file, pdf_output_path = get_file_paths(
             args.file_path1, args.file_path2, args.file_path3
         )
+
+        # Direct file paths (replace these with your actual file locations)
+        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt 1/CSV/Test Description/Test Description_Data_29-1-2025_11-12-34.csv"  # Replace with actual primary data file path
+        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt 1/CSV/Test Description/Test Description_Test_Details_29-1-2025_11-12-34.csv"  # Replace with actual test details file path
+        # pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt 1/PDF")  # Replace with desired PDF output path
+        # is_gui = True  # Set to True if using a GUI, otherwise keep False
 
         # Load test details + transducer info
         (
@@ -736,6 +747,8 @@ def main():
                     key_point_rows,
                     is_gui
                 )
+
+        print("Done")
 
     except Exception as exc:
         print(f"An error occurred: {exc}")
