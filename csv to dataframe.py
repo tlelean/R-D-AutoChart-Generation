@@ -87,7 +87,7 @@ def load_test_information(test_details_path, pdf_output_path):
             header=None, 
             index_col=0, 
             usecols=[0, 1], 
-            nrows=14)
+            nrows=15)
             .fillna('')
     )
 
@@ -97,7 +97,7 @@ def load_test_information(test_details_path, pdf_output_path):
             header=None,
             index_col=0,
             usecols=[0, 1, 2],
-            skiprows=14,
+            skiprows=15,
             nrows=21)
             .fillna('')
     )
@@ -106,7 +106,7 @@ def load_test_information(test_details_path, pdf_output_path):
         test_details_path,
         header=None,
         usecols=[0, 3],
-        skiprows=14,
+        skiprows=15,
         nrows=21
     )
 
@@ -117,14 +117,15 @@ def load_test_information(test_details_path, pdf_output_path):
     # Load key time points (start of stabilisation, hold, etc.)
     key_time_points = pd.read_csv(
     test_details_path,
-    skiprows=35,
+    skiprows=36,
     dayfirst=True
     )
 
     # Build the final PDF path using metadata
     pdf_output_path = pdf_output_path / (
-        f"{test_metadata.at['Test Description', 1]} "
-        f"{test_metadata.at['Test Title', 1]}.pdf"
+        f"{test_metadata.at['Test Description', 1]}_"
+        f"{test_metadata.at['Test Title', 1]}_"
+        f"{test_metadata.at['Date Time', 1]}.pdf"
     )
     return (
         test_metadata,
@@ -512,7 +513,7 @@ def generate_pdf_report(
 
     draw_text_on_pdf(
         pdf, 
-        raw_data.at[0, 'Datetime'].strftime('%m/%d/%Y'), 
+        raw_data.at[0, 'Datetime'].strftime('%d/%m/%Y'), 
         487.5, 
         539.375, 
         colour=light_blue,
@@ -609,19 +610,19 @@ def generate_pdf_report(
         # Key points at the bottom
         (20, 56.5, "Start of Stabilisation", black),
         (120, 56.5,
-         f"{raw_data.at[key_point_rows[0], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S') if len(key_point_rows) > 0 else ''}  "
+         f"{raw_data.at[key_point_rows[0], 'Datetime'].strftime('%d/%m/%Y %H:%M:%S') if len(key_point_rows) > 0 else ''}  "
          f"{float(raw_data.at[key_point_rows[0], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 0 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[0], 'Ambient Temperature'] if len(key_point_rows) > 0 else ''}\u00B0C",
          light_blue),
         (20, 41.25, "Start of Hold", black),
         (120, 41.25,
-         f"{raw_data.at[key_point_rows[1], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S') if len(key_point_rows) > 1 else ''}  "
+         f"{raw_data.at[key_point_rows[1], 'Datetime'].strftime('%d/%m/%Y %H:%M:%S') if len(key_point_rows) > 1 else ''}  "
          f"{float(raw_data.at[key_point_rows[1], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 1 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[1], 'Ambient Temperature'] if len(key_point_rows) > 1 else ''}\u00B0C",
          light_blue),
         (20, 25, "End of Hold", black),
         (120, 25,
-         f"{raw_data.at[key_point_rows[2], 'Datetime'].strftime('%m/%d/%Y %H:%M:%S') if len(key_point_rows) > 2 else ''}  "
+         f"{raw_data.at[key_point_rows[2], 'Datetime'].strftime('%d/%m/%Y %H:%M:%S') if len(key_point_rows) > 2 else ''}  "
          f"{float(raw_data.at[key_point_rows[2], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 2 else 0:.0f} psi  "
          f"{raw_data.at[key_point_rows[2], 'Ambient Temperature'] if len(key_point_rows) > 2 else ''}\u00B0C",
          light_blue)
@@ -636,16 +637,15 @@ def generate_pdf_report(
     pdf.drawImage(figure_image, 16, 67.5, 598, 416.5, preserveAspectRatio=False, mask='auto')
 
     # Define the image path based on `is_gui`
-    # if is_gui:
-    #     image_path = 'V:/Userdoc/R & D/Logos/R&D_Page_2.png'
-    # elsif not is_gui:
-    image_path = '/var/opt/codesys/PlcLogic/R&D_Page_2.png'
+    if is_gui:
+        image_path = 'V:/Userdoc/R & D/Logos/R&D_Page_2.png'
+    elif not is_gui:
+        image_path = '/var/opt/codesys/PlcLogic/R&D_Page_2.png'
 
     pdf.drawImage(image_path,
                 629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
 
     pdf.save()
-
 
 def main():
     """
