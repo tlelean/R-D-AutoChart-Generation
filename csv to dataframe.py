@@ -191,42 +191,15 @@ def prepare_primary_data(primary_data_path, channels_to_record):
 
 
 def locate_key_time_rows(cleaned_data, key_time_points):
-    """
-    Locate the row indexes in 'cleaned_data' that match each 
-    of the three key times from 'key_time_points'.
-
-    Key times are expected to be strings in dd/mm/yyyy hh:mm:ss 
-    (with optional .xxx milliseconds) format.
-
-    Parameters:
-        cleaned_data (pd.DataFrame): DataFrame with a 'Datetime' column 
-            containing parsed datetime values.
-        key_time_points (pd.DataFrame): DataFrame with columns for 
-            Start of Stabilisation, Start of Hold, End of Hold.
-
-    Returns:
-        list: The row indexes in 'cleaned_data' corresponding to 
-              each key time.
-    """
     time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
-    row_indices = []
+    key_time_indicies = key_time_points.copy()
 
     for col in time_columns:
-        # Only parse if a time is present
-        if pd.notnull(key_time_points.iloc[0][col]):
-            parsed_time = pd.to_datetime(
-                key_time_points.iloc[0][col],
-                errors='coerce'
-            )
-            if not pd.isnull(parsed_time):
-                # Find matching rows in the dataset
-                matching = cleaned_data.index[cleaned_data['Datetime'] == parsed_time].tolist()
-                row_indices.extend(matching)
+        key_time_points.iloc[0][col] = pd.to_datetime(key_time_points.iloc[0][col], errors='coerce')
+        key_time_indicies.iloc[0][col] = cleaned_data.index[cleaned_data['Datetime'] == key_time_points.iloc[0][col]]
+    return key_time_indicies
 
-    return row_indices
-
-
-def plot_pressure_and_temperature(cleaned_data, key_time_points):
+def plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_points):
     """
     Plot pressure on the left y-axis and temperature on the right y-axis.
     Also overlay markers for key time points (start/hold/end).
@@ -337,37 +310,21 @@ def plot_pressure_and_temperature(cleaned_data, key_time_points):
     ax_pressure.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y\n%H:%M:%S'))
 
     # Overlay key time points
-    key_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
+    time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
     key_labels = ['SOS', 'SOH', 'EOH']
-    for _, row in key_time_points.iterrows():
-        main_channel = row['Main Channel']
-        if main_channel in data_for_plot.columns:
-            # For each key time
-            time_label_pairs = []
-            for col, lbl in zip(key_columns, key_labels):
-                if pd.notnull(row[col]):
-                    dt_val = pd.to_datetime(
-                        str(row[col]),
-                        errors='coerce'
-                    )
-                    time_label_pairs.append((dt_val, lbl))
-                else:
-                    time_label_pairs.append((None, lbl))
-
-            # Plot each time if it's valid
-            for dt_val, lbl in time_label_pairs:
-                if dt_val is not None and dt_val in data_for_plot['Datetime'].values:
-                    channel_val = data_for_plot.loc[data_for_plot['Datetime'] == dt_val, main_channel].values[0]
-                    ax_pressure.scatter(dt_val, channel_val, color='black', marker='x')
-                    ax_pressure.text(
-                        dt_val,
-                        channel_val + (y_max - y_min) * 0.05,
-                        f" {lbl}",
-                        color='black',
-                        fontsize=10,
-                        ha='center',
-                        va='bottom'
-                    )
+    for col in time_columns:
+        x = cleaned_data['Datetime'].loc[key_time_indicies.iloc[0][col]]
+        y = cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0][col]]      
+        plt.plot(x, y, marker='x', color='black', markersize=10)
+        plt.text(
+            x,
+            y + (y_max - y_min) * 0.05,
+            f" {key_labels[time_columns.index(col)]}",
+            color='black',
+            fontsize=10,
+            ha='center',
+            va='bottom'
+        )
 
     # Create a combined legend at the bottom
     lines1, labels1 = ax_pressure.get_legend_handles_labels()
@@ -462,8 +419,8 @@ def generate_pdf_report(
     transducer_details,
     key_time_points,
     figure_bytes,
-    raw_data,
-    key_point_rows,
+    cleaned_data,
+    key_time_indicies,
     is_gui
 ):
     """
@@ -513,7 +470,7 @@ def generate_pdf_report(
 
     draw_text_on_pdf(
         pdf, 
-        raw_data.at[0, 'Datetime'].strftime('%d/%m/%Y'), 
+        cleaned_data.at[0, 'Datetime'].strftime('%d/%m/%Y'), 
         487.5, 
         539.375, 
         colour=light_blue,
@@ -610,21 +567,21 @@ def generate_pdf_report(
         # Key points at the bottom
         (20, 56.5, "Start of Stabilisation", black),
         (120, 56.5,
-         f"{raw_data.at[key_point_rows[0], 'Datetime'].strftime('%d/%m/%Y %H:%M:%S') if len(key_point_rows) > 0 else ''}  "
-         f"{float(raw_data.at[key_point_rows[0], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 0 else 0:.0f} psi  "
-         f"{raw_data.at[key_point_rows[0], 'Ambient Temperature'] if len(key_point_rows) > 0 else ''}\u00B0C",
+         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]["Start of Stabilisation"]]}  "
+         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]["Start of Stabilisation"]])} psi  "
+         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]["Start of Stabilisation"]]}\u00B0C",
          light_blue),
         (20, 41.25, "Start of Hold", black),
         (120, 41.25,
-         f"{raw_data.at[key_point_rows[1], 'Datetime'].strftime('%d/%m/%Y %H:%M:%S') if len(key_point_rows) > 1 else ''}  "
-         f"{float(raw_data.at[key_point_rows[1], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 1 else 0:.0f} psi  "
-         f"{raw_data.at[key_point_rows[1], 'Ambient Temperature'] if len(key_point_rows) > 1 else ''}\u00B0C",
+         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]["Start of Hold"]]}  "
+         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]["Start of Hold"]])} psi  "
+         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]["Start of Hold"]]}\u00B0C",
          light_blue),
         (20, 25, "End of Hold", black),
         (120, 25,
-         f"{raw_data.at[key_point_rows[2], 'Datetime'].strftime('%d/%m/%Y %H:%M:%S') if len(key_point_rows) > 2 else ''}  "
-         f"{float(raw_data.at[key_point_rows[2], key_time_points.iloc[0]['Main Channel']]) if len(key_point_rows) > 2 else 0:.0f} psi  "
-         f"{raw_data.at[key_point_rows[2], 'Ambient Temperature'] if len(key_point_rows) > 2 else ''}\u00B0C",
+         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]["End of Hold"]]}  "
+         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]["End of Hold"]])} psi  "
+         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]["End of Hold"]]}\u00B0C",
          light_blue)
     ]
 
@@ -689,15 +646,15 @@ def main():
         )
 
         if len(key_time_points) == 1:
+            # Identify row indexes for each key time in the original data
+            key_time_indicies = locate_key_time_rows(cleaned_data, key_time_points)
+
             # Create a plot of pressures + temperatures
-            figure = plot_pressure_and_temperature(cleaned_data, key_time_points)
+            figure = plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_points)
 
             # Convert figure to an in-memory bytes stream
             figure_stream = convert_figure_to_bytes(figure)
             
-            # Identify row indexes for each key time in the original data
-            key_point_rows = locate_key_time_rows(cleaned_data, key_time_points)
-
             # Generate the final PDF report
             generate_pdf_report(
                 pdf_output_path,
@@ -706,8 +663,8 @@ def main():
                 transducer_details,
                 key_time_points,
                 figure_stream,
-                raw_data,
-                key_point_rows,
+                cleaned_data,
+                key_time_indicies,
                 is_gui
             )
 
@@ -719,14 +676,14 @@ def main():
                 # Filter the key time points to the current row (as a DataFrame)
                 single_key_time_point = key_time_points.loc[[index]]
 
+                # Identify row indexes for each key time in the original data
+                key_time_indicies = locate_key_time_rows(cleaned_data, single_key_time_point)
+
                 # Create a plot of pressures + temperatures
-                figure = plot_pressure_and_temperature(cleaned_data, single_key_time_point)
+                figure = plot_pressure_and_temperature(cleaned_data, key_time_indicies, single_key_time_point)
 
                 # Convert figure to an in-memory bytes stream
                 figure_stream = convert_figure_to_bytes(figure)
-                
-                # Identify row indexes for each key time in the original data
-                key_point_rows = locate_key_time_rows(cleaned_data, single_key_time_point)
 
                 # Generate a unique filename for the PDF
                 unique_pdf_output_path = pdf_output_path.with_name(
@@ -743,8 +700,8 @@ def main():
                     transducer_details,
                     single_key_time_point,
                     figure_stream,
-                    raw_data,
-                    key_point_rows,
+                    cleaned_data,
+                    key_time_indicies,
                     is_gui
                 )
 
