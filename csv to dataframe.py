@@ -117,8 +117,7 @@ def load_test_information(test_details_path, pdf_output_path):
     # Load key time points (start of stabilisation, hold, etc.)
     key_time_points = pd.read_csv(
     test_details_path,
-    skiprows=36,
-    dayfirst=True
+    skiprows=36
     )
 
     # Build the final PDF path using metadata
@@ -159,7 +158,7 @@ def prepare_primary_data(primary_data_path, channels_to_record):
     """
     # Load raw data (assumes the CSV now has Datetime as its first column,
     # followed by the channels in order)
-    raw_data = load_csv_file(primary_data_path, header=None, parse_dates=[0])
+    raw_data = load_csv_file(primary_data_path, header=None, parse_dates=[0]).iloc[:-1]
 
     # Prepare a list of all expected columns: 'Datetime' + channel names
     date_time_columns = ['Datetime']
@@ -180,6 +179,7 @@ def prepare_primary_data(primary_data_path, channels_to_record):
     # (assuming format dd/mm/yyyy hh:mm:ss.000)
     data_subset['Datetime'] = pd.to_datetime(
         data_subset['Datetime'],
+        format='%d/%m/%Y %H:%M:%S.%f',
         errors='coerce',               # in case of any parse issues
     )
 
@@ -187,16 +187,17 @@ def prepare_primary_data(primary_data_path, channels_to_record):
     columns_ordered = ['Datetime'] + [col for col in data_subset.columns if col != 'Datetime']
     data_subset = data_subset[columns_ordered]
 
-    return data_subset, active_channels, raw_data
+    return data_subset, active_channels
 
 
 def locate_key_time_rows(cleaned_data, key_time_points):
     time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
     key_time_indicies = key_time_points.copy()
+    date_time_index = cleaned_data.set_index('Datetime')
 
     for col in time_columns:
-        key_time_points.iloc[0][col] = pd.to_datetime(key_time_points.iloc[0][col], errors='coerce')
-        key_time_indicies.iloc[0][col] = cleaned_data.index[cleaned_data['Datetime'] == key_time_points.iloc[0][col]]
+        key_time_points.at[0, col] = pd.to_datetime(key_time_points.at[0, col], format='%d/%m/%Y %H:%M:%S.%f', errors='coerce', dayfirst=True)
+        key_time_indicies.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
     return key_time_indicies
 
 def plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_points):
@@ -214,7 +215,7 @@ def plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_poin
         matplotlib.figure.Figure: The figure object for further processing.
     """
     data_for_plot = cleaned_data.copy()
-    data_for_plot['Datetime'] = pd.to_datetime(data_for_plot['Datetime'])
+    data_for_plot['Datetime'] = pd.to_datetime(data_for_plot['Datetime'], format='%d/%m/%Y %H:%M:%S.%f')
 
     # Colour mapping for known channels
     CHANNEL_COLOUR_MAP = {
@@ -315,10 +316,10 @@ def plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_poin
     for col in time_columns:
         x = cleaned_data['Datetime'].loc[key_time_indicies.iloc[0][col]]
         y = cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0][col]]      
-        plt.plot(x, y, marker='x', color='black', markersize=10)
-        plt.text(
+        ax_pressure.plot(x, y, marker='x', color='black', markersize=10)
+        ax_pressure.text(
             x,
-            y + (y_max - y_min) * 0.05,
+            y + (y_max - y_min) * 0.03,
             f" {key_labels[time_columns.index(col)]}",
             color='black',
             fontsize=10,
@@ -354,8 +355,9 @@ def convert_figure_to_bytes(figure):
         io.BytesIO: A binary stream containing the rendered PNG.
     """
     buffer_stream = io.BytesIO()
-    figure.savefig(buffer_stream, format='PNG', bbox_inches='tight', dpi=1000)
+    figure.savefig(buffer_stream, format='PNG', bbox_inches='tight', dpi=100)
     buffer_stream.seek(0)
+    plt.close(figure)
     return buffer_stream
 
 
@@ -562,26 +564,29 @@ def generate_pdf_report(
 
         # Bottom-left stamp
         (635, 22.5, "Operative:", black),
-        (725, 22.5, test_metadata.at['Operative', 1], light_blue),
+        (685, 22.5, test_metadata.at['Operative', 1], light_blue),
 
         # Key points at the bottom
         (20, 56.5, "Start of Stabilisation", black),
         (120, 56.5,
-         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]["Start of Stabilisation"]]}  "
-         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]["Start of Stabilisation"]])} psi  "
-         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]["Start of Stabilisation"]]}\u00B0C",
+         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']].strftime('%d/%m/%Y %H:%M:%S.')}"
+         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']].microsecond // 1000:03d}   "
+         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]):.0f} psi   "
+         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]}\u00B0C",
          light_blue),
         (20, 41.25, "Start of Hold", black),
         (120, 41.25,
-         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]["Start of Hold"]]}  "
-         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]["Start of Hold"]])} psi  "
-         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]["Start of Hold"]]}\u00B0C",
+         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Hold']].strftime('%d/%m/%Y %H:%M:%S.')}"
+         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Hold']].microsecond // 1000:03d}   "
+         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Hold']]):.0f} psi   "
+         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Hold']]}\u00B0C",
          light_blue),
         (20, 25, "End of Hold", black),
         (120, 25,
-         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]["End of Hold"]]}  "
-         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]["End of Hold"]])} psi  "
-         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]["End of Hold"]]}\u00B0C",
+         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['End of Hold']].strftime('%d/%m/%Y %H:%M:%S.')}"
+         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['End of Hold']].microsecond // 1000:03d}   "
+         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['End of Hold']]):.0f} psi   "
+         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['End of Hold']]}\u00B0C",
          light_blue)
     ]
 
@@ -625,9 +630,9 @@ def main():
         )
 
         # Direct file paths (replace these with your actual file locations)
-        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt 1/CSV/Test Description/Test Description_Data_29-1-2025_11-12-34.csv"  # Replace with actual primary data file path
-        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt 1/CSV/Test Description/Test Description_Test_Details_29-1-2025_11-12-34.csv"  # Replace with actual test details file path
-        # pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt 1/PDF")  # Replace with desired PDF output path
+        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/Test Description/Test Description_Data_7-2-2025_14-32-27.csv"  # Replace with actual primary data file path
+        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/Test Description/Test Description_Test_Details_7-2-2025_14-32-27.csv"  # Replace with actual test details file path
+        # pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/PDF")  # Replace with desired PDF output path
         # is_gui = True  # Set to True if using a GUI, otherwise keep False
 
         # Load test details + transducer info
@@ -640,7 +645,7 @@ def main():
         ) = load_test_information(test_details_file, pdf_output_path)
 
         # Prepare the primary data
-        cleaned_data, active_channels, raw_data = prepare_primary_data(
+        cleaned_data, active_channels = prepare_primary_data(
             primary_data_file, 
             channels_to_record
         )
