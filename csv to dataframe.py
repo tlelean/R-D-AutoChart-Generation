@@ -11,6 +11,7 @@ from reportlab.lib.colors import Color
 from reportlab.lib.pagesizes import landscape, A4
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
+import shutil  # Add this at the top with your other imports
 
 
 def get_file_paths(primary_data_path, test_details_path, output_pdf_path):
@@ -629,12 +630,6 @@ def main():
             args.file_path1, args.file_path2, args.file_path3
         )
 
-        # Direct file paths (replace these with your actual file locations)
-        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/Test Description/Test Description_Data_7-2-2025_14-32-27.csv"  # Replace with actual primary data file path
-        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/Test Description/Test Description_Test_Details_7-2-2025_14-32-27.csv"  # Replace with actual test details file path
-        # pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/PDF")  # Replace with desired PDF output path
-        # is_gui = True  # Set to True if using a GUI, otherwise keep False
-
         # Load test details + transducer info
         (
             test_metadata,
@@ -673,6 +668,10 @@ def main():
                 is_gui
             )
 
+            # Extra copy if not GUI
+            if not is_gui:
+                shutil.copy(str(pdf_output_path), "/var/opt/codesys/PlcLogic/visu/PDF.pdf")
+
         elif len(key_time_points) > 1:
 
             test_title_prefix = test_metadata.at['Test Description', 1]
@@ -709,6 +708,10 @@ def main():
                     key_time_indicies,
                     is_gui
                 )
+
+                # Extra copy if not GUI (this will be overwritten for each iteration)
+                if not is_gui:
+                    shutil.copy(str(unique_pdf_output_path), "/var/opt/codesys/PlcLogic/visu/PDF.pdf")
 
         print("Done")
 
