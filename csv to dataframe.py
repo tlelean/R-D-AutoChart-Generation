@@ -518,7 +518,7 @@ def generate_pdf_report(
 
         # Breakout Torque
         (635, 234.58, "Breakout Torque", black),
-        (725, 234.58, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs", light_blue),
+        (725, 234.58, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] != 0.0 else "N/A", light_blue),
 
         # Data Logger info
         (635, 457.5, "Data Logger", black),
