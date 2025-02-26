@@ -1,6 +1,7 @@
 import argparse
 import io
 from pathlib import Path
+import numpy as np
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -119,7 +120,7 @@ def load_test_information(test_details_path, pdf_output_path):
     key_time_points = pd.read_csv(
     test_details_path,
     skiprows=36
-    )
+    ).fillna('')
 
     # Build the final PDF path using metadata
     pdf_output_path = pdf_output_path / (
@@ -197,8 +198,11 @@ def locate_key_time_rows(cleaned_data, key_time_points):
     date_time_index = cleaned_data.set_index('Datetime')
 
     for col in time_columns:
-        key_time_points.at[0, col] = pd.to_datetime(key_time_points.at[0, col], format='%d/%m/%Y %H:%M:%S.%f', errors='coerce', dayfirst=True)
-        key_time_indicies.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
+        if (key_time_points.at[0, col]) == '':
+            key_time_indicies.at[0, col] = ''
+        else:
+            key_time_points.at[0, col] = pd.to_datetime(key_time_points.at[0, col], format='%d/%m/%Y %H:%M:%S.%f', errors='coerce', dayfirst=True)
+            key_time_indicies.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
     return key_time_indicies
 
 def plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_points):
@@ -315,6 +319,8 @@ def plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_poin
     time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
     key_labels = ['SOS', 'SOH', 'EOH']
     for col in time_columns:
+        if key_time_indicies.iloc[0][col] == '':
+            continue
         x = cleaned_data['Datetime'].loc[key_time_indicies.iloc[0][col]]
         y = cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0][col]]      
         ax_pressure.plot(x, y, marker='x', color='black', markersize=10)
@@ -572,19 +578,19 @@ def generate_pdf_report(
         (120, 56.5,
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]):.0f} psi   "
-         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]}\u00B0C",
+         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]}\u00B0C" if key_time_indicies.iloc[0]['Start of Stabilisation'] != '' else '',
          light_blue),
         (20, 41.25, "Start of Hold", black),
         (120, 41.25,
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Hold']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Hold']]):.0f} psi   "
-         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Hold']]}\u00B0C",
+         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Hold']]}\u00B0C" if key_time_indicies.iloc[0]['Start of Hold'] != '' else '',
          light_blue),
         (20, 25, "End of Hold", black),
         (120, 25,
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['End of Hold']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['End of Hold']]):.0f} psi   "
-         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['End of Hold']]}\u00B0C",
+         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['End of Hold']]}\u00B0C" if key_time_indicies.iloc[0]['End of Hold'] != '' else '',
          light_blue)
     ]
 
