@@ -574,19 +574,19 @@ def generate_pdf_report(
         (685, 22.5, test_metadata.at['Operative', 1], light_blue),
 
         # Key points at the bottom
-        (20, 56.5, "Start of Stabilisation", black),
+        (20, 56.5, "Start of Stabilisation" if key_time_indicies.iloc[0]['Start of Stabilisation'] != '' else '', black),
         (120, 56.5,
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]):.0f} psi   "
          f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]}\u00B0C" if key_time_indicies.iloc[0]['Start of Stabilisation'] != '' else '',
          light_blue),
-        (20, 41.25, "Start of Hold", black),
+        (20, 41.25, "Start of Hold" if key_time_indicies.iloc[0]['Start of Hold'] != '' else '', black),
         (120, 41.25,
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Hold']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Hold']]):.0f} psi   "
          f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Hold']]}\u00B0C" if key_time_indicies.iloc[0]['Start of Hold'] != '' else '',
          light_blue),
-        (20, 25, "End of Hold", black),
+        (20, 25, "End of Hold" if key_time_indicies.iloc[0]['End of Hold'] != '' else '', black),
         (120, 25,
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['End of Hold']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['End of Hold']]):.0f} psi   "
