@@ -12,7 +12,7 @@ from reportlab.lib.colors import Color
 from reportlab.lib.pagesizes import landscape, A4
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
-import shutil  # Add this at the top with your other imports
+import fitz
 
 
 def get_file_paths(primary_data_path, test_details_path, output_pdf_path):
@@ -263,6 +263,7 @@ def plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_poin
     fig, ax_pressure = plt.subplots(figsize=(11.96, 8.49))
     ax_pressure.set_ylabel('Pressure (psi)', color='red')
     ax_pressure.tick_params(axis='y', colors='red')
+    ax_pressure.margins(x=0)
     ax_pressure.spines['top'].set_visible(False)
     ax_pressure.spines['right'].set_visible(False)
     ax_pressure.spines['left'].set_edgecolor('red')
@@ -286,6 +287,7 @@ def plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_poin
     ax_temp = ax_pressure.twinx()
     ax_temp.set_ylabel('Temperature (°C)', color='blue')
     ax_temp.tick_params(axis='y', colors='blue')
+    ax_temp.set_xlim(ax_pressure.get_xlim())
     ax_temp.set_ylim(-60, 260)
     ax_temp.yaxis.set_major_locator(MultipleLocator(10))
     ax_temp.spines['top'].set_visible(False)
@@ -384,7 +386,7 @@ def draw_bounding_box(pdf_canvas, x, y, width, height):
 
 
 def draw_text_on_pdf(pdf_canvas, text, x, y, font="Helvetica",
-                     colour='black', size=10, left_aligned=False):
+                     colour='black', size=10, left_aligned=False, replace_empty=False):
     """
     Draw text onto the PDF canvas, with options for alignment (left or centre).
     
@@ -403,7 +405,12 @@ def draw_text_on_pdf(pdf_canvas, text, x, y, font="Helvetica",
         date_only (bool): If True, only the date (dd/mm/yyyy) is shown for datetime inputs.
     """
 
-    text = str(text) if text is not None else ""
+    # Convert text to string or set to "" if None
+    text = "" if text is None else str(text)
+
+    if replace_empty:
+        # If replace_empty is True, replace if empty/whitespace
+        text = "N/A" if not text.strip() else text
 
     pdf_canvas.setFont(font, size)
     text_width = pdf_canvas.stringWidth(text, font, size)
@@ -498,105 +505,111 @@ def generate_pdf_report(
     # Build static and dynamic text for the PDF
     pdf_text_positions = [
         # Left column data
-        (20, 571.875, "Test Procedure Reference", black),
-        (140, 571.875, test_metadata.at['Test Procedure Reference', 1], light_blue),
-        (20, 555.625, "Unique No.", black),
-        (140, 555.625, test_metadata.at['Unique Number', 1], light_blue),
-        (20, 539.375, "R&D Reference", black),
-        (140, 539.375, test_metadata.at['R&D Reference', 1], light_blue),
-        (20, 523.125, "Valve Description", black),
-        (140, 523.125, test_metadata.at['Valve Description', 1], light_blue),
+        (20, 571.875, "Test Procedure Reference", black, False),
+        (140, 571.875, test_metadata.at['Test Procedure Reference', 1], light_blue, True),
+        (20, 555.625, "Unique No.", black, False),
+        (140, 555.625, test_metadata.at['Unique Number', 1], light_blue, True),
+        (20, 539.375, "R&D Reference", black, False),
+        (140, 539.375, test_metadata.at['R&D Reference', 1], light_blue, True),
+        (20, 523.125, "Valve Description", black, False),
+        (140, 523.125, test_metadata.at['Valve Description', 1], light_blue, True),
 
         # Right column data (top)
-        (402.5, 571.875, "Job No.", black),
-        (487.5, 571.875, test_metadata.at['Job Number', 1], light_blue),
-        (402.5, 555.625, "Test Description", black),
-        (487.5, 555.625, test_metadata.at['Test Description', 1], light_blue),
-        (402.5, 539.375, "Test Date", black),
-        (402.5, 523.125, "Valve Drawing No.", black),
-        (487.5, 523.125, test_metadata.at['Valve Drawing Number', 1], light_blue),
+        (402.5, 571.875, "Job No.", black, False),
+        (487.5, 571.875, test_metadata.at['Job Number', 1], light_blue, True),
+        (402.5, 555.625, "Test Description", black, False),
+        (487.5, 555.625, test_metadata.at['Test Description', 1], light_blue, True),
+        (402.5, 539.375, "Test Date", black, False),
+        (402.5, 523.125, "Valve Drawing No.", black, False),
+        (487.5, 523.125, test_metadata.at['Valve Drawing Number', 1], light_blue, True),
 
         # Pressures & other details
-        (635, 280.41, "Test Pressure", black),
-        (725, 280.41, test_metadata.at['Test Pressure', 1], light_blue),
-        (635, 262.91, "Actuator Pressure", black),
-        (725, 262.91, test_metadata.at['Actuator Pressure', 1], light_blue),
+        (635, 280.41, "Test Pressure", black, False),
+        (725, 280.41, test_metadata.at['Test Pressure', 1], light_blue, True),
+        (635, 262.91, "Actuator Pressure", black, False),
+        (725, 262.91, test_metadata.at['Actuator Pressure', 1], light_blue, True),
 
         # Breakout Torque
-        (635, 234.58, "Breakout Torque", black),
-        (725, 234.58, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] != 0.0 else "N/A", light_blue),
+        (635, 234.58, "Breakout Torque", black, False),
+        (
+            725, 
+            234.58, 
+            f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] != '0.0' else "N/A", 
+            light_blue, 
+            True
+        ),
 
         # Data Logger info
-        (635, 457.5, "Data Logger", black),
-        (725, 457.5, test_metadata.at['Data Logger', 1], light_blue),
-        (635, 442.5, "Serial No.", black),
-        (725, 442.5, test_metadata.at['Serial Number', 1], light_blue),
+        (635, 457.5, "Data Logger", black, False),
+        (725, 457.5, test_metadata.at['Data Logger', 1], light_blue, True),
+        (635, 442.5, "Serial No.", black, False),
+        (725, 442.5, test_metadata.at['Serial Number', 1], light_blue, True),
 
         # Transducers used
-        (635, 427.5, "Transducers", black),
-        (635, 412.5, used_transducers.at[0, 0], light_blue),
-        (674.375, 412.5, used_transducers.at[1, 0], light_blue),
-        (713.75, 412.5, used_transducers.at[2, 0], light_blue),
-        (753.125, 412.5, used_transducers.at[3, 0], light_blue),
-        (792.5, 412.5, used_transducers.at[4, 0], light_blue),
-        (635, 397.5, used_transducers.at[5, 0], light_blue),
-        (674.375, 397.5, used_transducers.at[6, 0], light_blue),
-        (713.75, 397.5, used_transducers.at[7, 0], light_blue),
-        (753.125, 397.5, used_transducers.at[8, 0], light_blue),
-        (792.5, 397.5, used_transducers.at[9, 0], light_blue),
-        (635, 382.5, used_transducers.at[10, 0], light_blue),
-        (674.375, 382.5, used_transducers.at[11, 0], light_blue),
-        (713.75, 382.5, used_transducers.at[12, 0], light_blue),
-        (753.125, 382.5, used_transducers.at[13, 0], light_blue),
-        (792.5, 382.5, used_transducers.at[14, 0], light_blue),
+        (635, 427.5, "Transducers", black, False),
+        (635, 412.5, used_transducers.at[0, 0], light_blue, False),
+        (674.375, 412.5, used_transducers.at[1, 0], light_blue, False),
+        (713.75, 412.5, used_transducers.at[2, 0], light_blue, False),
+        (753.125, 412.5, used_transducers.at[3, 0], light_blue, False),
+        (792.5, 412.5, used_transducers.at[4, 0], light_blue, False),
+        (635, 397.5, used_transducers.at[5, 0], light_blue, False),
+        (674.375, 397.5, used_transducers.at[6, 0], light_blue, False),
+        (713.75, 397.5, used_transducers.at[7, 0], light_blue, False),
+        (753.125, 397.5, used_transducers.at[8, 0], light_blue, False),
+        (792.5, 397.5, used_transducers.at[9, 0], light_blue, False),
+        (635, 382.5, used_transducers.at[10, 0], light_blue, False),
+        (674.375, 382.5, used_transducers.at[11, 0], light_blue, False),
+        (713.75, 382.5, used_transducers.at[12, 0], light_blue, False),
+        (753.125, 382.5, used_transducers.at[13, 0], light_blue, False),
+        (792.5, 382.5, used_transducers.at[14, 0], light_blue, False),
 
         # Gauges
-        (635, 367.5, "Gauges", black),
-        (635, 352.5, used_transducers.at[0, 1], light_blue),
-        (685, 352.5, used_transducers.at[1, 1], light_blue),
-        (735, 352.5, used_transducers.at[2, 1], light_blue),
-        (785, 352.5, used_transducers.at[3, 1], light_blue),
-        (635, 337.5, used_transducers.at[4, 1], light_blue),
-        (685, 337.5, used_transducers.at[5, 1], light_blue),
-        (735, 337.5, used_transducers.at[6, 1], light_blue),
-        (785, 337.5, used_transducers.at[7, 1], light_blue),
-        (635, 322.5, used_transducers.at[8, 1], light_blue),
-        (685, 322.5, used_transducers.at[9, 1], light_blue),
-        (735, 322.5, used_transducers.at[10, 1], light_blue),
-        (785, 322.5, used_transducers.at[11, 1], light_blue),
+        (635, 367.5, "Gauges", black, False),
+        (635, 352.5, used_transducers.at[0, 1], light_blue, False),
+        (685, 352.5, used_transducers.at[1, 1], light_blue, False),
+        (735, 352.5, used_transducers.at[2, 1], light_blue, False),
+        (785, 352.5, used_transducers.at[3, 1], light_blue, False),
+        (635, 337.5, used_transducers.at[4, 1], light_blue, False),
+        (685, 337.5, used_transducers.at[5, 1], light_blue, False),
+        (735, 337.5, used_transducers.at[6, 1], light_blue, False),
+        (785, 337.5, used_transducers.at[7, 1], light_blue, False),
+        (635, 322.5, used_transducers.at[8, 1], light_blue, False),
+        (685, 322.5, used_transducers.at[9, 1], light_blue, False),
+        (735, 322.5, used_transducers.at[10, 1], light_blue, False),
+        (785, 322.5, used_transducers.at[11, 1], light_blue, False),
 
         # Torque Transducer
-        (635, 307.5, "Torque Transducer", black),
-        (725, 307.5, transducer_details.at['Torque', 1], light_blue),
+        (635, 307.5, "Torque Transducer", black, False),
+        (725, 307.5, transducer_details.at['Torque', 1], light_blue, True),
 
         # Bottom-left stamp
-        (635, 22.5, "Operative:", black),
-        (685, 22.5, test_metadata.at['Operative', 1], light_blue),
+        (635, 22.5, "Operative:", black, True),
+        (685, 22.5, test_metadata.at['Operative', 1], light_blue, False),
 
         # Key points at the bottom
-        (20, 56.5, "Start of Stabilisation" if key_time_indicies.iloc[0]['Start of Stabilisation'] != '' else '', black),
+        (20, 56.5, "Start of Stabilisation" if key_time_indicies.iloc[0]['Start of Stabilisation'] != '' else '', black, False),
         (120, 56.5,
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]):.0f} psi   "
          f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]}\u00B0C" if key_time_indicies.iloc[0]['Start of Stabilisation'] != '' else '',
-         light_blue),
-        (20, 41.25, "Start of Hold" if key_time_indicies.iloc[0]['Start of Hold'] != '' else '', black),
+         light_blue, True),
+        (20, 41.25, "Start of Hold" if key_time_indicies.iloc[0]['Start of Hold'] != '' else '', black, False),
         (120, 41.25,
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Hold']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Hold']]):.0f} psi   "
          f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Hold']]}\u00B0C" if key_time_indicies.iloc[0]['Start of Hold'] != '' else '',
-         light_blue),
-        (20, 25, "End of Hold" if key_time_indicies.iloc[0]['End of Hold'] != '' else '', black),
+         light_blue, True),
+        (20, 25, "End of Hold" if key_time_indicies.iloc[0]['End of Hold'] != '' else '', black, False),
         (120, 25,
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['End of Hold']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['End of Hold']]):.0f} psi   "
          f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['End of Hold']]}\u00B0C" if key_time_indicies.iloc[0]['End of Hold'] != '' else '',
-         light_blue)
+         light_blue, True)
     ]
 
     # Draw text fields on the PDF
-    for x_coord, y_coord, text_value, text_colour in pdf_text_positions:
-        draw_text_on_pdf(pdf, text_value, x_coord, y_coord, colour=text_colour, size=10, left_aligned=True)
+    for x_coord, y_coord, text_value, text_colour, replace_empty in pdf_text_positions:
+        draw_text_on_pdf(pdf, text_value, x_coord, y_coord, colour=text_colour, size=10, left_aligned=True, replace_empty=replace_empty)
 
     # Insert the figure
     figure_image = ImageReader(figure_bytes)
@@ -673,7 +686,13 @@ def main():
 
             # Extra copy if not GUI
             if not is_gui:
-                shutil.copy(str(pdf_output_path), "/var/opt/codesys/PlcLogic/visu/PDF.pdf")
+                doc = fitz.open(pdf_output_path)
+                page = doc.load_page(0)       # or doc[0]
+                zoom_factor = 3
+                mat = fitz.Matrix(zoom_factor, zoom_factor)
+                pix = page.get_pixmap(matrix=mat)       # get the rasterised page
+                pix.save("/var/opt/codesys/PlcLogic/visu/pdf.png")
+                doc.close()
 
         elif len(key_time_points) > 1:
 
@@ -714,7 +733,13 @@ def main():
 
                 # Extra copy if not GUI (this will be overwritten for each iteration)
                 if not is_gui:
-                    shutil.copy(str(unique_pdf_output_path), "/var/opt/codesys/PlcLogic/visu/PDF.pdf")
+                    doc = fitz.open(pdf_output_path)
+                    page = doc.load_page(0)       # or doc[0]
+                    zoom_factor = 2.015  # e.g. 2.0 => 200% size
+                    mat = fitz.Matrix(zoom_factor, zoom_factor)
+                    pix = page.get_pixmap(matrix=mat)       # get the rasterised page
+                    pix.save("/var/opt/codesys/PlcLogic/visu/PDF.png")
+                    doc.close()
 
         print("Done")
 
