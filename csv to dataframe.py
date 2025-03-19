@@ -632,26 +632,26 @@ def main():
     generate a plot, and export a PDF report combining text + images.
     """
     try:
-        # # Comment out to test
-        # parser = argparse.ArgumentParser(description="Process file paths.")
-        # parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
-        # parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
-        # parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
-        # parser.add_argument("is_gui", type=bool, help="GUI or not")
-        # args = parser.parse_args()
+        # Comment out to test
+        parser = argparse.ArgumentParser(description="Process file paths.")
+        parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
+        parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
+        parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
+        parser.add_argument("is_gui", type=bool, help="GUI or not")
+        args = parser.parse_args()
 
-        # is_gui = args.is_gui
+        is_gui = args.is_gui
 
-        # # Gather file paths
-        # primary_data_file, test_details_file, pdf_output_path = get_file_paths(
-        #     args.file_path1, args.file_path2, args.file_path3
-        # )
+        # Gather file paths
+        primary_data_file, test_details_file, pdf_output_path = get_file_paths(
+            args.file_path1, args.file_path2, args.file_path3
+        )
 
-        # For testing
-        primary_data_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1 Hz/1 Hz_Data_19-3-2025_16-30-42.csv'
-        test_details_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1 Hz/1 Hz_Test_Details_19-3-2025_16-30-42.csv'
-        pdf_output_path = Path('V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/PDF')
-        is_gui = True
+        # # For testing
+        # primary_data_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1 Hz/1 Hz_Data_19-3-2025_16-30-42.csv'
+        # test_details_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1 Hz/1 Hz_Test_Details_19-3-2025_16-30-42.csv'
+        # pdf_output_path = Path('V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/PDF')
+        # is_gui = True
 
         # Load test details + transducer info
         (
