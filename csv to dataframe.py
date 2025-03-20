@@ -477,7 +477,7 @@ def generate_pdf_report(
     # Add a title using the test description and test title
     draw_text_on_pdf(
         pdf,
-        f"{test_metadata.at['Test Description', 1]} {test_metadata.at['Test Title', 1]}",
+        f"{test_metadata.at['Test Section Number', 1]} {test_metadata.at['Test Name', 1]}",
         315,
         500,
         font="Helvetica-Bold",
@@ -518,7 +518,7 @@ def generate_pdf_report(
         (402.5, 571.875, "Job No.", black, False),
         (487.5, 571.875, test_metadata.at['Job Number', 1], light_blue, True),
         (402.5, 555.625, "Test Description", black, False),
-        (487.5, 555.625, test_metadata.at['Test Description', 1], light_blue, True),
+        (487.5, 555.625, test_metadata.at['Test Section Number', 1], light_blue, True),
         (402.5, 539.375, "Test Date", black, False),
         (402.5, 523.125, "Valve Drawing No.", black, False),
         (487.5, 523.125, test_metadata.at['Valve Drawing Number', 1], light_blue, True),
@@ -703,7 +703,7 @@ def main():
 
         elif len(key_time_points) > 1:
 
-            test_title_prefix = test_metadata.at['Test Description', 1]
+            test_title_prefix = test_metadata.at['Test Section Number', 1]
 
             for index, row in key_time_points.iterrows():
                 # Filter the key time points to the current row (as a DataFrame)
@@ -723,7 +723,7 @@ def main():
                     f"{pdf_output_path.stem.strip()}.{index + 1}{pdf_output_path.suffix}"
                 )
 
-                test_metadata.at['Test Description', 1] = f"{test_title_prefix}.{index + 1}"
+                test_metadata.at['Test Section Number', 1] = f"{test_title_prefix}.{index + 1}"
 
                 # Generate the final PDF report
                 generate_pdf_report(
