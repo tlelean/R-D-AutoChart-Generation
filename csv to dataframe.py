@@ -14,7 +14,6 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 import fitz
 
-
 def get_file_paths(primary_data_path, test_details_path, output_pdf_path):
     """
     Return validated file paths for the primary data, test details, 
@@ -89,7 +88,7 @@ def load_test_information(test_details_path, pdf_output_path):
             header=None, 
             index_col=0, 
             usecols=[0, 1], 
-            nrows=16)
+            nrows=17)
             .fillna('')
     )
 
@@ -99,7 +98,7 @@ def load_test_information(test_details_path, pdf_output_path):
             header=None,
             index_col=0,
             usecols=[0, 1, 2],
-            skiprows=16,
+            skiprows=17,
             nrows=21)
             .fillna('')
     )
@@ -108,7 +107,7 @@ def load_test_information(test_details_path, pdf_output_path):
         test_details_path,
         header=None,
         usecols=[0, 3],
-        skiprows=16,
+        skiprows=17,
         nrows=21
     )
 
@@ -119,7 +118,7 @@ def load_test_information(test_details_path, pdf_output_path):
     # Load key time points (start of stabilisation, hold, etc.)
     key_time_points = pd.read_csv(
     test_details_path,
-    skiprows=37
+    skiprows=38
     ).fillna('')
 
     # Build the final PDF path using metadata
@@ -460,8 +459,8 @@ def generate_pdf_report(
         (15, 515, 600, 65),     # Info Top Left
         (15, 66.5, 600, 418.5), # Graph
         (15, 15, 600, 51.5),    # Graph Index
-        (630, 254.16, 197, 35),    # Test Pressures
-        (630, 225.83, 197, 17.5),    # Breakout Torque
+        (630, 260, 197, 35),    # Test Pressures
+        (630, 220, 197, 35),    # Breakout Torque
         (630, 35, 197, 180),    # 3rd Party Stamp
         (630, 300, 197, 185)    # Info Right
     ]
@@ -524,17 +523,27 @@ def generate_pdf_report(
         (487.5, 523.125, test_metadata.at['Valve Drawing Number', 1], light_blue, True),
 
         # Pressures & other details
-        (635, 280.41, "Test Pressure", black, False),
-        (725, 280.41, test_metadata.at['Test Pressure', 1], light_blue, True),
-        (635, 262.91, "Actuator Pressure", black, False),
-        (725, 262.91, test_metadata.at['Actuator Pressure', 1], light_blue, True),
+        (635, 286.25, "Test Pressure", black, False),
+        (725, 286.25, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
+        (635, 268.75, "Actuator Pressure", black, False),
+        (725, 268.75, f"{test_metadata.at['Actuator Pressure', 1]} psi" if test_metadata.at['Actuator Pressure', 1] != '' else "N/A", light_blue, True),
 
         # Breakout Torque
-        (635, 234.58, "Breakout Torque", black, False),
+        (635, 246.25, "Breakout Torque", black, False),
         (
             725, 
-            234.58, 
+            246.25, 
             f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] != '0.0' else "N/A", 
+            light_blue, 
+            True
+        ),
+
+        # Running Torque
+        (635, 228.75, "Running Torque", black, False),
+        (
+            725, 
+            228.75, 
+            f"{test_metadata.at['Running Torque', 1]} ft.lbs" if test_metadata.at['Running Torque', 1] != '0.0' else "N/A", 
             light_blue, 
             True
         ),
@@ -648,9 +657,9 @@ def main():
         )
 
         # # For testing
-        # primary_data_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1 Hz/1 Hz_Data_19-3-2025_16-30-42.csv'
-        # test_details_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1 Hz/1 Hz_Test_Details_19-3-2025_16-30-42.csv'
-        # pdf_output_path = Path('V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/PDF')
+        # primary_data_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/4.4.1/4.4.1_Data_24-3-2025_12-16-59.csv'
+        # test_details_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/4.4.1/4.4.1_Test_Details_24-3-2025_12-16-59.csv'
+        # pdf_output_path = Path('V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/PDF')
         # is_gui = True
 
         # Load test details + transducer info
