@@ -533,7 +533,7 @@ def generate_pdf_report(
         (
             725, 
             246.25, 
-            f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] != '0.0' else "N/A", 
+            f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] not in ['0.0', '0'] else "N/A", 
             light_blue, 
             True
         ),
@@ -543,7 +543,7 @@ def generate_pdf_report(
         (
             725, 
             228.75, 
-            f"{test_metadata.at['Running Torque', 1]} ft.lbs" if test_metadata.at['Running Torque', 1] != '0.0' else "N/A", 
+            f"{test_metadata.at['Running Torque', 1]} ft.lbs" if test_metadata.at['Running Torque', 1] not in ['0.0', '0'] else "N/A", 
             light_blue, 
             True
         ),
@@ -657,9 +657,9 @@ def main():
         )
 
         # # For testing
-        # primary_data_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/4.4.1/4.4.1_Data_24-3-2025_12-16-59.csv'
-        # test_details_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/4.4.1/4.4.1_Test_Details_24-3-2025_12-16-59.csv'
-        # pdf_output_path = Path('V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/PDF')
+        # primary_data_file = 'V:/Userdoc/R & D/DAQ_Station/plinegar/TEK15025/TA7671-9/Attempt 1/CSV/12.1.1/12.1.1_Data_26-3-2025_11-42-35.csv'
+        # test_details_file = 'V:/Userdoc/R & D/DAQ_Station/plinegar/TEK15025/TA7671-9/Attempt 1/CSV/12.1.1/12.1.1_Test_Details_26-3-2025_11-42-35.csv'
+        # pdf_output_path = Path('V:/Userdoc/R & D/DAQ_Station/plinegar/TEK15025/TA7671-9/Attempt 1/PDF')
         # is_gui = True
 
         # Load test details + transducer info
