@@ -550,8 +550,10 @@ def generate_pdf_report(
 
         # Data Logger info
         (635, 457.5, "Data Logger", black, False),
+        #(725, 457.5, 'ECR 010', light_blue, True),        
         (725, 457.5, test_metadata.at['Data Logger', 1], light_blue, True),
         (635, 442.5, "Serial No.", black, False),
+        #(725, 442.5, 'N1V800040', light_blue, True),        
         (725, 442.5, test_metadata.at['Serial Number', 1], light_blue, True),
 
         # Transducers used
