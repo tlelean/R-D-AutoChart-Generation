@@ -603,19 +603,19 @@ def generate_pdf_report(
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]):.0f} psi   "
          f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]}\u00B0C" if key_time_indicies.iloc[0]['Start of Stabilisation'] != '' else '',
-         light_blue, True),
+         light_blue, False),
         (20, 41.25, "Start of Hold" if key_time_indicies.iloc[0]['Start of Hold'] != '' else '', black, False),
         (120, 41.25,
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Hold']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Hold']]):.0f} psi   "
          f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Hold']]}\u00B0C" if key_time_indicies.iloc[0]['Start of Hold'] != '' else '',
-         light_blue, True),
+         light_blue, False),
         (20, 25, "End of Hold" if key_time_indicies.iloc[0]['End of Hold'] != '' else '', black, False),
         (120, 25,
          f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['End of Hold']].strftime('%d/%m/%Y %H:%M:%S')}   "
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['End of Hold']]):.0f} psi   "
          f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['End of Hold']]}\u00B0C" if key_time_indicies.iloc[0]['End of Hold'] != '' else '',
-         light_blue, True)
+         light_blue, False)
     ]
 
     # Draw text fields on the PDF
@@ -659,9 +659,9 @@ def main():
         )
 
         # # For testing
-        # primary_data_file = 'V:/Userdoc/R & D/DAQ_Station/plinegar/TEK15025/TA7671-9/Attempt 1/CSV/12.1.1/12.1.1_Data_26-3-2025_11-42-35.csv'
-        # test_details_file = 'V:/Userdoc/R & D/DAQ_Station/plinegar/TEK15025/TA7671-9/Attempt 1/CSV/12.1.1/12.1.1_Test_Details_26-3-2025_11-42-35.csv'
-        # pdf_output_path = Path('V:/Userdoc/R & D/DAQ_Station/plinegar/TEK15025/TA7671-9/Attempt 1/PDF')
+        # primary_data_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/Dynamic Cycles Pertrobras/Dynamic Cycles Pertrobras_Data_15-4-2025_10-24-11.csv'
+        # test_details_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/Dynamic Cycles Pertrobras/Dynamic Cycles Pertrobras_Test_Details_15-4-2025_10-24-11.csv'
+        # pdf_output_path = Path('V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/PDF')
         # is_gui = True
 
         # Load test details + transducer info
@@ -678,8 +678,30 @@ def main():
             primary_data_file, 
             channels_to_record
         )
+        if len(key_time_points) == 0:
+            key_time_indicies = pd.DataFrame({
+                "Start of Stabilisation": [''],
+                "Start of Hold": [''],
+                "End of Hold": ['']
+            })
+            
+            figure = plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_points)
 
-        if len(key_time_points) == 1:
+            figure_stream = convert_figure_to_bytes(figure)
+
+            generate_pdf_report(
+                pdf_output_path,
+                test_metadata,
+                active_channels,
+                transducer_details,
+                key_time_points,
+                figure_stream,
+                cleaned_data,
+                key_time_indicies,
+                is_gui
+            )
+
+        elif len(key_time_points) == 1:
             # Identify row indexes for each key time in the original data
             key_time_indicies = locate_key_time_rows(cleaned_data, key_time_points)
 
