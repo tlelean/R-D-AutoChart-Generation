@@ -659,8 +659,8 @@ def main():
         )
 
         # # For testing
-        # primary_data_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/Dynamic Cycles Pertrobras/Dynamic Cycles Pertrobras_Data_15-4-2025_10-24-11.csv'
-        # test_details_file = 'V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/Dynamic Cycles Pertrobras/Dynamic Cycles Pertrobras_Test_Details_15-4-2025_10-24-11.csv'
+        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/Dynamic Cycles Petrobras/Dynamic Cycles Petrobras_Data_15-4-2025_15-10-36.csv"
+        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/Dynamic Cycles Petrobras/Dynamic Cycles Petrobras_Test_Details_15-4-2025_15-10-36.csv"
         # pdf_output_path = Path('V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/PDF')
         # is_gui = True
 
@@ -678,7 +678,8 @@ def main():
             primary_data_file, 
             channels_to_record
         )
-        if len(key_time_points) == 0:
+
+        if key_time_points['Main Channel'][0] == '':
             key_time_indicies = pd.DataFrame({
                 "Start of Stabilisation": [''],
                 "Start of Hold": [''],
@@ -700,6 +701,16 @@ def main():
                 key_time_indicies,
                 is_gui
             )
+
+            # Extra copy if not GUI
+            if not is_gui:
+                doc = fitz.open(pdf_output_path)
+                page = doc.load_page(0)       # or doc[0]
+                zoom_factor = 3
+                mat = fitz.Matrix(zoom_factor, zoom_factor)
+                pix = page.get_pixmap(matrix=mat)       # get the rasterised page
+                pix.save("/var/opt/codesys/PlcLogic/visu/pdf.png")
+                doc.close()
 
         elif len(key_time_points) == 1:
             # Identify row indexes for each key time in the original data
@@ -771,14 +782,14 @@ def main():
                     is_gui
                 )
 
-                # Extra copy if not GUI (this will be overwritten for each iteration)
+                # Extra copy if not GUI
                 if not is_gui:
                     doc = fitz.open(pdf_output_path)
                     page = doc.load_page(0)       # or doc[0]
-                    zoom_factor = 2.015  # e.g. 2.0 => 200% size
+                    zoom_factor = 3
                     mat = fitz.Matrix(zoom_factor, zoom_factor)
                     pix = page.get_pixmap(matrix=mat)       # get the rasterised page
-                    pix.save("/var/opt/codesys/PlcLogic/visu/PDF.png")
+                    pix.save("/var/opt/codesys/PlcLogic/visu/pdf.png")
                     doc.close()
 
         print("Done")
