@@ -1,7 +1,6 @@
 import argparse
 import io
 from pathlib import Path
-import numpy as np
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -88,7 +87,7 @@ def load_test_information(test_details_path, pdf_output_path):
             header=None, 
             index_col=0, 
             usecols=[0, 1], 
-            nrows=17)
+            nrows=16)
             .fillna('')
     )
 
@@ -98,7 +97,7 @@ def load_test_information(test_details_path, pdf_output_path):
             header=None,
             index_col=0,
             usecols=[0, 1, 2],
-            skiprows=17,
+            skiprows=16,
             nrows=21)
             .fillna('')
     )
@@ -107,7 +106,7 @@ def load_test_information(test_details_path, pdf_output_path):
         test_details_path,
         header=None,
         usecols=[0, 3],
-        skiprows=17,
+        skiprows=16,
         nrows=21
     )
 
@@ -118,8 +117,11 @@ def load_test_information(test_details_path, pdf_output_path):
     # Load key time points (start of stabilisation, hold, etc.)
     key_time_points = pd.read_csv(
     test_details_path,
-    skiprows=38
+    skiprows=37
     ).fillna('')
+
+    if key_time_points["Main Channel"][0] == 'Breakout 1':
+        breakout_values = key_time_points.copy()
 
     # Build the final PDF path using metadata
     pdf_output_path = pdf_output_path / (
@@ -132,6 +134,7 @@ def load_test_information(test_details_path, pdf_output_path):
         transducer_details,
         channels_to_record,
         key_time_points,
+        breakout_values,
         pdf_output_path
     )
 
@@ -436,6 +439,7 @@ def generate_pdf_report(
     figure_bytes,
     cleaned_data,
     key_time_indicies,
+    breakout_values,
     is_gui
 ):
     """
@@ -459,7 +463,7 @@ def generate_pdf_report(
         (15, 515, 600, 65),     # Info Top Left
         (15, 66.5, 600, 418.5), # Graph
         (15, 15, 600, 51.5),    # Graph Index
-        (630, 260, 197, 35),    # Test Pressures
+        (630, 251.25, 197, 17.5),    # Test Pressures
         (630, 220, 197, 35),    # Breakout Torque
         (630, 35, 197, 180),    # 3rd Party Stamp
         (630, 300, 197, 185)    # Info Right
@@ -523,17 +527,17 @@ def generate_pdf_report(
         (487.5, 523.125, test_metadata.at['Valve Drawing Number', 1], light_blue, True),
 
         # Pressures & other details
-        (635, 286.25, "Test Pressure", black, False),
-        (725, 286.25, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
-        (635, 268.75, "Actuator Pressure", black, False),
-        (725, 268.75, f"{test_metadata.at['Actuator Pressure', 1]} psi" if test_metadata.at['Actuator Pressure', 1] != '' else "N/A", light_blue, True),
+        (635, 277.5, "Test Pressure", black, False),
+        (725, 277.5, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
 
-        # Breakout Torque
+        # Breakout Torque / Table Note
         (635, 246.25, "Breakout Torque", black, False),
         (
             725, 
             246.25, 
-            f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] not in ['0.0', '0'] else "N/A", 
+            f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" 
+            if key_time_points['Main Channel'][0] != '' and test_metadata.at['Breakout Torque', 1] not in ['0.0', '0']
+            else ("See below graph" if key_time_points['Main Channel'][0] == '' else "N/A"),
             light_blue, 
             True
         ),
@@ -616,6 +620,11 @@ def generate_pdf_report(
          f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['End of Hold']]):.0f} psi   "
          f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['End of Hold']]}\u00B0C" if key_time_indicies.iloc[0]['End of Hold'] != '' else '',
          light_blue, False)
+
+        # Breakout Values
+        (20, 56.5, f"Breakout 1 {breakout_values[1].iloc['Breakout 1']}" if breakout_values[1].iloc["Breakout 1"] != '' else '', black, False),
+        (20, 41.25, f"Breakout 2 {breakout_values[1].iloc['Breakout 2']}" if breakout_values[1].iloc["Breakout 2"] != '' else '', black, False),
+        (20, 25, f"Breakout 3 {breakout_values[1].iloc['Breakout 3']}" if breakout_values[1].iloc["Breakout 3"] != '' else '', black, False),
     ]
 
     # Draw text fields on the PDF
@@ -670,6 +679,7 @@ def main():
             transducer_details,
             channels_to_record,
             key_time_points,
+            breakout_values,
             pdf_output_path
         ) = load_test_information(test_details_file, pdf_output_path)
 
@@ -679,7 +689,7 @@ def main():
             channels_to_record
         )
 
-        if key_time_points['Main Channel'][0] == '':
+        if key_time_points['Main Channel'][0] == 'Breakout 1' or '':
             key_time_indicies = pd.DataFrame({
                 "Start of Stabilisation": [''],
                 "Start of Hold": [''],
@@ -699,6 +709,7 @@ def main():
                 figure_stream,
                 cleaned_data,
                 key_time_indicies,
+                breakout_values,
                 is_gui
             )
 
@@ -732,6 +743,7 @@ def main():
                 figure_stream,
                 cleaned_data,
                 key_time_indicies,
+                breakout_values,
                 is_gui
             )
 
@@ -779,6 +791,7 @@ def main():
                     figure_stream,
                     cleaned_data,
                     key_time_indicies,
+                    breakout_values,
                     is_gui
                 )
 
