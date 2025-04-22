@@ -13,6 +13,8 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 import fitz
 
+KEY_OR_BREAKOUT = None
+
 def get_file_paths(primary_data_path, test_details_path, output_pdf_path):
     """
     Return validated file paths for the primary data, test details, 
@@ -64,6 +66,7 @@ def load_csv_file(file_path, **kwargs):
 
 
 def load_test_information(test_details_path, pdf_output_path):
+    global KEY_OR_BREAKOUT
     """
     Load test details and channel/transducer information from a CSV.
     Also builds the final PDF path using 'Test Description' and 'Test Title'.
@@ -102,26 +105,57 @@ def load_test_information(test_details_path, pdf_output_path):
             .fillna('')
     )
 
-    channels_to_record = load_csv_file(
-        test_details_path,
-        header=None,
-        usecols=[0, 3],
-        skiprows=16,
-        nrows=21
+    channels_to_record = (
+        load_csv_file(
+            test_details_path,
+            header=None,
+            usecols=[0, 3],
+            skiprows=16,
+            nrows=21)
+            .fillna('')
     )
 
     channels_to_record.columns = [0, 1]
     channels_to_record.set_index(0, inplace=True)
     channels_to_record.fillna('', inplace=True)
 
-    # Load key time points (start of stabilisation, hold, etc.)
-    key_time_points = pd.read_csv(
-    test_details_path,
-    skiprows=37
-    ).fillna('')
+    breakout_or_key_points = (
+        load_csv_file(
+            test_details_path,
+            header=None,
+            usecols=[0],
+            skiprows=37,
+            nrows=1)
+            .fillna('')
+    )
 
-    if key_time_points["Main Channel"][0] == 'Breakout 1':
-        breakout_values = key_time_points.copy()
+    if breakout_or_key_points.iloc[0, 0] == 'Breakouts':
+        breakout_values = (
+            load_csv_file(
+                test_details_path,
+                header=None,
+                usecols=[0, 1],
+                skiprows=38)
+                .dropna(how='all')
+                .fillna('')
+        )
+        key_time_points = None
+
+        KEY_OR_BREAKOUT = 'Breakouts'
+
+    elif breakout_or_key_points.iloc[0, 0] == 'Key Points':
+        key_time_points = (
+            load_csv_file(
+                test_details_path,
+                header=None,
+                usecols=[0, 1, 2, 3],
+                skiprows=38)
+                .dropna(how='all')
+                .fillna('')
+        )
+        breakout_values = None
+
+        KEY_OR_BREAKOUT = 'Key Points'
 
     # Build the final PDF path using metadata
     pdf_output_path = pdf_output_path / (
@@ -319,24 +353,25 @@ def plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_poin
     ax_pressure.set_xticks(x_ticks)
     ax_pressure.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y\n%H:%M:%S'))
 
-    # Overlay key time points
-    time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
-    key_labels = ['SOS', 'SOH', 'EOH']
-    for col in time_columns:
-        if key_time_indicies.iloc[0][col] == '':
-            continue
-        x = cleaned_data['Datetime'].loc[key_time_indicies.iloc[0][col]]
-        y = cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0][col]]      
-        ax_pressure.plot(x, y, marker='x', color='black', markersize=10)
-        ax_pressure.text(
-            x,
-            y + (y_max - y_min) * 0.03,
-            f" {key_labels[time_columns.index(col)]}",
-            color='black',
-            fontsize=10,
-            ha='center',
-            va='bottom'
-        )
+    if KEY_OR_BREAKOUT == 'Key Points':
+        # Overlay key time points
+        time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
+        key_labels = ['SOS', 'SOH', 'EOH']
+        for col in time_columns:
+            if key_time_indicies.iloc[0][col] == '':
+                continue
+            x = cleaned_data['Datetime'].loc[key_time_indicies.iloc[0][col]]
+            y = cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0][col]]      
+            ax_pressure.plot(x, y, marker='x', color='black', markersize=10)
+            ax_pressure.text(
+                x,
+                y + (y_max - y_min) * 0.03,
+                f" {key_labels[time_columns.index(col)]}",
+                color='black',
+                fontsize=10,
+                ha='center',
+                va='bottom'
+            )
 
     # Create a combined legend at the bottom
     lines1, labels1 = ax_pressure.get_legend_handles_labels()
@@ -444,70 +479,60 @@ def generate_pdf_report(
 ):
     """
     Generate a PDF report including plot images and textual details.
-
-    Parameters:
-        pdf_output_path (Path): Final path for saving the PDF report.
-        test_metadata (pd.DataFrame): DataFrame containing general test info.
-        active_channels (list): Channels that were recorded (True in CSV).
-        transducer_details (pd.DataFrame): Mapping of channels to transducers.
-        key_time_points (pd.DataFrame): DataFrame of main channel + key times.
-        figure_bytes (io.BytesIO): In-memory stream of the PNG figure.
-        raw_data (pd.DataFrame): Original CSV data (including Date/Time columns).
-        key_point_rows (list): Row indexes that match each key time in raw_data.
     """
     pdf = canvas.Canvas(str(pdf_output_path), pagesize=landscape(A4))
     pdf.setStrokeColor(colors.black)
 
-    # Define typical layout boxes on the PDF page
+    # Define layout boxes
     PDF_LAYOUT_BOXES = [
         (15, 515, 600, 65),     # Info Top Left
         (15, 66.5, 600, 418.5), # Graph
         (15, 15, 600, 51.5),    # Graph Index
-        (630, 251.25, 197, 17.5),    # Test Pressures
+        (630, 268.75, 197, 17.5),    # Test Pressures
         (630, 220, 197, 35),    # Breakout Torque
         (630, 35, 197, 180),    # 3rd Party Stamp
         (630, 300, 197, 185)    # Info Right
     ]
-
-    # Draw each bounding box
     for box in PDF_LAYOUT_BOXES:
         draw_bounding_box(pdf, *box)
 
-    # Primary colours used in the PDF
+    # Colours
     light_blue = Color(0.325, 0.529, 0.761)
     black = Color(0, 0, 0)
 
-    # Add a title using the test description and test title
+    # Title and headers
+    draw_text_on_pdf(pdf,
+        f"{test_metadata.at['Test Section Number', 1]} {test_metadata.at['Test Name', 1]}",
+        315, 500, font="Helvetica-Bold", size=16)
     draw_text_on_pdf(
         pdf,
-        f"{test_metadata.at['Test Section Number', 1]} {test_metadata.at['Test Name', 1]}",
-        315,
-        500,
-        font="Helvetica-Bold",
-        size=16
-    )
-
-    draw_text_on_pdf(
-        pdf, 
-        cleaned_data.at[0, 'Datetime'].strftime('%d/%m/%Y'), 
-        487.5, 
-        539.375, 
+        cleaned_data.at[0, 'Datetime'].strftime('%d/%m/%Y'),
+        487.5, 539.375,
         colour=light_blue,
         left_aligned=True
     )
-
     draw_text_on_pdf(pdf, "Data Recording Equipment Used", 728.5, 475, "Helvetica-Bold", size=12)
     draw_text_on_pdf(pdf, "3rd Party Stamp and Date", 728.5, 45, "Helvetica-Bold", size=12)
 
-    # Prepare a DataFrame of transducers that were actually used
-    empty_rows = pd.DataFrame([[''] * 2 for _ in range(14)])
+    # Prepare transducers DataFrame
+    empty_rows = pd.DataFrame([['', '']] * 14)
     used_transducers = transducer_details.loc[active_channels].reset_index(drop=True)
-    used_transducers.columns = range(used_transducers.shape[1])
+    used_transducers.columns = [0, 1]
     used_transducers = pd.concat([used_transducers, empty_rows], ignore_index=True)
 
-    # Build static and dynamic text for the PDF
+    if KEY_OR_BREAKOUT != 'Key Points':  # i.e. for Breakouts
+        # Check breakout_values for indices 0 to 2 (i.e. first three rows)
+        breakout_vals = [str(breakout_values.iat[i, 1]).strip() for i in range(3)]
+        if all(val in ['', '0', '0.0'] for val in breakout_vals):
+            breakout_display = "N/A"
+        else:
+            breakout_display = "See Below Graph"
+    else:
+        breakout_display = None
+
+    # Build static text positions
     pdf_text_positions = [
-        # Left column data
+        # Left column
         (20, 571.875, "Test Procedure Reference", black, False),
         (140, 571.875, test_metadata.at['Test Procedure Reference', 1], light_blue, True),
         (20, 555.625, "Unique No.", black, False),
@@ -517,7 +542,7 @@ def generate_pdf_report(
         (20, 523.125, "Valve Description", black, False),
         (140, 523.125, test_metadata.at['Valve Description', 1], light_blue, True),
 
-        # Right column data (top)
+        # Right column
         (402.5, 571.875, "Job No.", black, False),
         (487.5, 571.875, test_metadata.at['Job Number', 1], light_blue, True),
         (402.5, 555.625, "Test Description", black, False),
@@ -526,124 +551,93 @@ def generate_pdf_report(
         (402.5, 523.125, "Valve Drawing No.", black, False),
         (487.5, 523.125, test_metadata.at['Valve Drawing Number', 1], light_blue, True),
 
-        # Pressures & other details
+        # Pressures & torques
         (635, 277.5, "Test Pressure", black, False),
         (725, 277.5, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
-
-        # Breakout Torque / Table Note
         (635, 246.25, "Breakout Torque", black, False),
-        (
-            725, 
-            246.25, 
-            f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" 
-            if key_time_points['Main Channel'][0] != '' and test_metadata.at['Breakout Torque', 1] not in ['0.0', '0']
-            else ("See below graph" if key_time_points['Main Channel'][0] == '' else "N/A"),
-            light_blue, 
-            True
+        (725, 246.25,
+            (f"{test_metadata.at['Breakout Torque', 1]} ft.lbs"
+             if KEY_OR_BREAKOUT == 'Key Points' and test_metadata.at['Breakout Torque', 1] not in ['0.0','0'] 
+             else breakout_display
+            ),
+            light_blue, True
         ),
-
-        # Running Torque
         (635, 228.75, "Running Torque", black, False),
-        (
-            725, 
-            228.75, 
-            f"{test_metadata.at['Running Torque', 1]} ft.lbs" if test_metadata.at['Running Torque', 1] not in ['0.0', '0'] else "N/A", 
-            light_blue, 
-            True
+        (725, 228.75,
+            f"{test_metadata.at['Running Torque', 1]} ft.lbs"
+            if test_metadata.at['Running Torque', 1] not in ['0.0','0'] else "N/A",
+            light_blue, True
         ),
-
-        # Data Logger info
         (635, 457.5, "Data Logger", black, False),
-        #(725, 457.5, 'ECR 010', light_blue, True),        
         (725, 457.5, test_metadata.at['Data Logger', 1], light_blue, True),
         (635, 442.5, "Serial No.", black, False),
-        #(725, 442.5, 'N1V800040', light_blue, True),        
         (725, 442.5, test_metadata.at['Serial Number', 1], light_blue, True),
 
-        # Transducers used
         (635, 427.5, "Transducers", black, False),
-        (635, 412.5, used_transducers.at[0, 0], light_blue, False),
-        (674.375, 412.5, used_transducers.at[1, 0], light_blue, False),
-        (713.75, 412.5, used_transducers.at[2, 0], light_blue, False),
-        (753.125, 412.5, used_transducers.at[3, 0], light_blue, False),
-        (792.5, 412.5, used_transducers.at[4, 0], light_blue, False),
-        (635, 397.5, used_transducers.at[5, 0], light_blue, False),
-        (674.375, 397.5, used_transducers.at[6, 0], light_blue, False),
-        (713.75, 397.5, used_transducers.at[7, 0], light_blue, False),
-        (753.125, 397.5, used_transducers.at[8, 0], light_blue, False),
-        (792.5, 397.5, used_transducers.at[9, 0], light_blue, False),
-        (635, 382.5, used_transducers.at[10, 0], light_blue, False),
-        (674.375, 382.5, used_transducers.at[11, 0], light_blue, False),
-        (713.75, 382.5, used_transducers.at[12, 0], light_blue, False),
-        (753.125, 382.5, used_transducers.at[13, 0], light_blue, False),
-        (792.5, 382.5, used_transducers.at[14, 0], light_blue, False),
-
-        # Gauges
         (635, 367.5, "Gauges", black, False),
-        (635, 352.5, used_transducers.at[0, 1], light_blue, False),
-        (685, 352.5, used_transducers.at[1, 1], light_blue, False),
-        (735, 352.5, used_transducers.at[2, 1], light_blue, False),
-        (785, 352.5, used_transducers.at[3, 1], light_blue, False),
-        (635, 337.5, used_transducers.at[4, 1], light_blue, False),
-        (685, 337.5, used_transducers.at[5, 1], light_blue, False),
-        (735, 337.5, used_transducers.at[6, 1], light_blue, False),
-        (785, 337.5, used_transducers.at[7, 1], light_blue, False),
-        (635, 322.5, used_transducers.at[8, 1], light_blue, False),
-        (685, 322.5, used_transducers.at[9, 1], light_blue, False),
-        (735, 322.5, used_transducers.at[10, 1], light_blue, False),
-        (785, 322.5, used_transducers.at[11, 1], light_blue, False),
-
-        # Torque Transducer
-        (635, 307.5, "Torque Transducer", black, False),
-        (725, 307.5, transducer_details.at['Torque', 1], light_blue, True),
-
-        # Bottom-left stamp
-        (635, 22.5, "Operative:", black, True),
-        (685, 22.5, test_metadata.at['Operative', 1], light_blue, False),
-
-        # Key points at the bottom
-        (20, 56.5, "Start of Stabilisation" if key_time_indicies.iloc[0]['Start of Stabilisation'] != '' else '', black, False),
-        (120, 56.5,
-         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']].strftime('%d/%m/%Y %H:%M:%S')}   "
-         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]):.0f} psi   "
-         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Stabilisation']]}\u00B0C" if key_time_indicies.iloc[0]['Start of Stabilisation'] != '' else '',
-         light_blue, False),
-        (20, 41.25, "Start of Hold" if key_time_indicies.iloc[0]['Start of Hold'] != '' else '', black, False),
-        (120, 41.25,
-         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['Start of Hold']].strftime('%d/%m/%Y %H:%M:%S')}   "
-         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['Start of Hold']]):.0f} psi   "
-         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['Start of Hold']]}\u00B0C" if key_time_indicies.iloc[0]['Start of Hold'] != '' else '',
-         light_blue, False),
-        (20, 25, "End of Hold" if key_time_indicies.iloc[0]['End of Hold'] != '' else '', black, False),
-        (120, 25,
-         f"{cleaned_data['Datetime'].loc[key_time_indicies.iloc[0]['End of Hold']].strftime('%d/%m/%Y %H:%M:%S')}   "
-         f"{float(cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0]['End of Hold']]):.0f} psi   "
-         f"{cleaned_data['Ambient Temperature'].loc[key_time_indicies.iloc[0]['End of Hold']]}\u00B0C" if key_time_indicies.iloc[0]['End of Hold'] != '' else '',
-         light_blue, False)
-
-        # Breakout Values
-        (20, 56.5, f"Breakout 1 {breakout_values[1].iloc['Breakout 1']}" if breakout_values[1].iloc["Breakout 1"] != '' else '', black, False),
-        (20, 41.25, f"Breakout 2 {breakout_values[1].iloc['Breakout 2']}" if breakout_values[1].iloc["Breakout 2"] != '' else '', black, False),
-        (20, 25, f"Breakout 3 {breakout_values[1].iloc['Breakout 3']}" if breakout_values[1].iloc["Breakout 3"] != '' else '', black, False),
     ]
 
-    # Draw text fields on the PDF
-    for x_coord, y_coord, text_value, text_colour, replace_empty in pdf_text_positions:
-        draw_text_on_pdf(pdf, text_value, x_coord, y_coord, colour=text_colour, size=10, left_aligned=True, replace_empty=replace_empty)
+    # Transducers list (first 15 entries)
+    for i in range(15):
+        x = 635 + (i % 5) * 39.375
+        y = 412.5 - (i // 5) * 15
+        pdf_text_positions.append((x, y, used_transducers.iat[i, 0], light_blue, False))
 
-    # Insert the figure
-    figure_image = ImageReader(figure_bytes)
-    pdf.drawImage(figure_image, 16, 67.5, 598, 416.5, preserveAspectRatio=False, mask='auto')
+    # Gauges list (first 12 entries)
+    for i in range(12):
+        x = 635 + (i % 4) * 50
+        y = 352.5 - (i // 4) * 15
+        pdf_text_positions.append((x, y, used_transducers.iat[i, 1], light_blue, False))
 
-    # Define the image path based on `is_gui`
-    if is_gui:
-        image_path = 'V:/Userdoc/R & D/Logos/R&D_Page_2.png'
-    elif not is_gui:
-        image_path = '/var/opt/codesys/PlcLogic/R&D_Page_2.png'
+    # Torque transducer and stamp
+    pdf_text_positions.extend([
+        (635, 307.5, "Torque Transducer", black, False),
+        (725, 307.5, transducer_details.at['Torque', 1], light_blue, True),
+        (635, 22.5, "Operative:", black, False),
+        (685, 22.5, test_metadata.at['Operative', 1], light_blue, False),
+    ])
 
-    pdf.drawImage(image_path,
-                629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
+    # Conditional key points / breakouts
+    if KEY_OR_BREAKOUT == 'Key Points':
+        indices = key_time_indicies.iloc[0]
+        main_ch = key_time_points.iloc[0]['Main Channel']
+        for label, ypos, col in [
+            ("Start of Stabilisation", 56.5, 'Start of Stabilisation'),
+            ("Start of Hold", 41.25, 'Start of Hold'),
+            ("End of Hold", 25, 'End of Hold')
+        ]:
+            idx = indices[col]
+            if idx != '':
+                time = cleaned_data.at[idx, 'Datetime'].strftime('%d/%m/%Y %H:%M:%S')
+                psi  = int(cleaned_data.at[idx, main_ch])
+                temp = cleaned_data.at[idx, 'Ambient Temperature']
+                pdf_text_positions.extend([
+                    (20, ypos, label, black, False),
+                    (120, ypos,
+                        f"{time}   {psi} psi   {temp}\u00B0C",
+                        light_blue, False
+                    )
+                ])
+    elif KEY_OR_BREAKOUT == 'Breakouts':
+        for i in range(3):
+            val = breakout_values.iat[i, 1]
+            if val not in ['', 0, 0.0]:
+                pdf_text_positions.append(
+                    (20, 56.5 - i*15, f"Breakout {i+1}", black, False)
+                )
+                pdf_text_positions.append(
+                    (75, 56.5 - i*15, f"{val} ft.lbs", light_blue, False)
+                )
 
+    # Draw all text
+    for x, y, text, colour, replace_empty in pdf_text_positions:
+        draw_text_on_pdf(pdf, text, x, y, colour=colour, size=10, left_aligned=True, replace_empty=replace_empty)
+
+    # Insert plot and logo
+    fig_img = ImageReader(figure_bytes)
+    pdf.drawImage(fig_img, 16, 67.5, 598, 416.5, preserveAspectRatio=False, mask='auto')
+    image_path = 'V:/Userdoc/R & D/Logos/R&D_Page_2.png' if is_gui else '/var/opt/codesys/PlcLogic/R&D_Page_2.png'
+    pdf.drawImage(image_path, 629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
     pdf.save()
 
 def main():
@@ -668,9 +662,9 @@ def main():
         )
 
         # # For testing
-        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/Dynamic Cycles Petrobras/Dynamic Cycles Petrobras_Data_15-4-2025_15-10-36.csv"
-        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/CSV/Dynamic Cycles Petrobras/Dynamic Cycles Petrobras_Test_Details_15-4-2025_15-10-36.csv"
-        # pdf_output_path = Path('V:/Userdoc/R & D/DAQ_Station/tlelean/123456/B10FX25S/Attempt 1/PDF')
+        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Valve Description/Job Number/Attempt Valve Drawing Number/CSV/Test Pneumatic/Test Pneumatic_Data_17-4-2025_12-14-31.csv"
+        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Valve Description/Job Number/Attempt Valve Drawing Number/CSV/Test Pneumatic/Test Pneumatic_Test_Details_17-4-2025_12-14-31.csv"
+        # pdf_output_path = Path('V:/Userdoc/R & D/DAQ_Station/tlelean/Valve Description/Job Number/Attempt Valve Drawing Number/PDF')
         # is_gui = True
 
         # Load test details + transducer info
@@ -689,75 +683,7 @@ def main():
             channels_to_record
         )
 
-        if key_time_points['Main Channel'][0] == 'Breakout 1' or '':
-            key_time_indicies = pd.DataFrame({
-                "Start of Stabilisation": [''],
-                "Start of Hold": [''],
-                "End of Hold": ['']
-            })
-            
-            figure = plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_points)
-
-            figure_stream = convert_figure_to_bytes(figure)
-
-            generate_pdf_report(
-                pdf_output_path,
-                test_metadata,
-                active_channels,
-                transducer_details,
-                key_time_points,
-                figure_stream,
-                cleaned_data,
-                key_time_indicies,
-                breakout_values,
-                is_gui
-            )
-
-            # Extra copy if not GUI
-            if not is_gui:
-                doc = fitz.open(pdf_output_path)
-                page = doc.load_page(0)       # or doc[0]
-                zoom_factor = 3
-                mat = fitz.Matrix(zoom_factor, zoom_factor)
-                pix = page.get_pixmap(matrix=mat)       # get the rasterised page
-                pix.save("/var/opt/codesys/PlcLogic/visu/pdf.png")
-                doc.close()
-
-        elif len(key_time_points) == 1:
-            # Identify row indexes for each key time in the original data
-            key_time_indicies = locate_key_time_rows(cleaned_data, key_time_points)
-
-            # Create a plot of pressures + temperatures
-            figure = plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_points)
-
-            # Convert figure to an in-memory bytes stream
-            figure_stream = convert_figure_to_bytes(figure)
-            
-            # Generate the final PDF report
-            generate_pdf_report(
-                pdf_output_path,
-                test_metadata,
-                active_channels,
-                transducer_details,
-                key_time_points,
-                figure_stream,
-                cleaned_data,
-                key_time_indicies,
-                breakout_values,
-                is_gui
-            )
-
-            # Extra copy if not GUI
-            if not is_gui:
-                doc = fitz.open(pdf_output_path)
-                page = doc.load_page(0)       # or doc[0]
-                zoom_factor = 3
-                mat = fitz.Matrix(zoom_factor, zoom_factor)
-                pix = page.get_pixmap(matrix=mat)       # get the rasterised page
-                pix.save("/var/opt/codesys/PlcLogic/visu/pdf.png")
-                doc.close()
-
-        elif len(key_time_points) > 1:
+        if KEY_OR_BREAKOUT == 'Key Points' and len(key_time_points) > 1:
 
             test_title_prefix = test_metadata.at['Test Section Number', 1]
 
@@ -804,6 +730,75 @@ def main():
                     pix = page.get_pixmap(matrix=mat)       # get the rasterised page
                     pix.save("/var/opt/codesys/PlcLogic/visu/pdf.png")
                     doc.close()
+
+        elif KEY_OR_BREAKOUT == 'Breakouts':
+
+            # Identify row indexes for each key time in the original data
+            key_time_indicies = key_time_points
+
+            # Create a plot of pressures + temperatures
+            figure = plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_points)
+
+            # Convert figure to an in-memory bytes stream
+            figure_stream = convert_figure_to_bytes(figure)
+            
+            # Generate the final PDF report
+            generate_pdf_report(
+                pdf_output_path,
+                test_metadata,
+                active_channels,
+                transducer_details,
+                key_time_points,
+                figure_stream,
+                cleaned_data,
+                key_time_indicies,
+                breakout_values,
+                is_gui
+            )
+
+            # Extra copy if not GUI
+            if not is_gui:
+                doc = fitz.open(pdf_output_path)
+                page = doc.load_page(0)       # or doc[0]
+                zoom_factor = 3
+                mat = fitz.Matrix(zoom_factor, zoom_factor)
+                pix = page.get_pixmap(matrix=mat)       # get the rasterised page
+                pix.save("/var/opt/codesys/PlcLogic/visu/pdf.png")
+                doc.close()
+
+        elif KEY_OR_BREAKOUT == 'Key Points':
+            # Identify row indexes for each key time in the original data
+            key_time_indicies = locate_key_time_rows(cleaned_data, key_time_points)
+
+            # Create a plot of pressures + temperatures
+            figure = plot_pressure_and_temperature(cleaned_data, key_time_indicies, key_time_points)
+
+            # Convert figure to an in-memory bytes stream
+            figure_stream = convert_figure_to_bytes(figure)
+            
+            # Generate the final PDF report
+            generate_pdf_report(
+                pdf_output_path,
+                test_metadata,
+                active_channels,
+                transducer_details,
+                key_time_points,
+                figure_stream,
+                cleaned_data,
+                key_time_indicies,
+                breakout_values,
+                is_gui
+            )
+
+            # Extra copy if not GUI
+            if not is_gui:
+                doc = fitz.open(pdf_output_path)
+                page = doc.load_page(0)       # or doc[0]
+                zoom_factor = 3
+                mat = fitz.Matrix(zoom_factor, zoom_factor)
+                pix = page.get_pixmap(matrix=mat)       # get the rasterised page
+                pix.save("/var/opt/codesys/PlcLogic/visu/pdf.png")
+                doc.close()
 
         print("Done")
 
