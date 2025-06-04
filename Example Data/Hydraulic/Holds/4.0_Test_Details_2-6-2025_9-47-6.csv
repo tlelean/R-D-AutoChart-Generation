@@ -1,0 +1,42 @@
+Test Procedure Reference,
+Unique Number,
+R&D Reference,
+Valve Description,
+Job Number,
+Valve Drawing Number,
+Attempt,
+Test Name,Gas Body Test
+Test Section Number,4.0
+Test Pressure,10000
+Data Logger,DLS Prototype
+Serial Number,
+Operative,Jason Bradley
+Breakout Torque,0.0
+Running Torque,0.0
+Date Time,2-6-2025_9-47-6
+Program Name,Holds
+Show Breakout Torque,FALSE
+Test Start Time,
+Upstream,,,TRUE
+Downstream,,,TRUE
+Body,,,TRUE
+Actuator,,,TRUE
+Hyperbaric,,,FALSE
+Backseat,,,TRUE
+Spring Chamber,,,FALSE
+Primary Stem Seal,,,FALSE
+Secondary Stem Seal,,,FALSE
+Relief Port,,,FALSE
+BX Port,,,FALSE
+Spare,,,FALSE
+Flow Meter,,,FALSE
+Mass Spectrometer,,,FALSE
+LVDT,,,FALSE
+Torque,,,FALSE
+Number Of Turns,,,FALSE
+Motor Speed,,,FALSE
+Ambient Temperature,,,TRUE
+Body Temperature,,,TRUE
+Monitor Temperature,,,FALSE
+Main Channel,Start of Stabilisation,Start of Hold,End of Hold
+Upstream,2/6/2025 9:53:52.229,2/6/2025 9:56:52.229,2/6/2025 9:59:53.229

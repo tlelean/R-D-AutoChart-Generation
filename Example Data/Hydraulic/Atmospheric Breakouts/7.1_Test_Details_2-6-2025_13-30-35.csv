@@ -1,0 +1,43 @@
+Test Procedure Reference,
+Unique Number,
+R&D Reference,
+Valve Description,
+Job Number,
+Valve Drawing Number,
+Attempt,
+Test Name,Atmospheric Breakouts Gas Hydraulic
+Test Section Number,7.1
+Test Pressure,5000
+Data Logger,DLS Prototype
+Serial Number,
+Operative,Jason Bradley
+Breakout Torque,0.0
+Running Torque,0.0
+Date Time,2-6-2025_13-30-35
+Program Name,Atmospheric Breakouts
+Show Breakout Torque,TRUE
+Test Start Time,2-6-2025_13-34-32
+Upstream,,,TRUE
+Downstream,,,TRUE
+Body,,,TRUE
+Actuator,,,TRUE
+Hyperbaric,,,FALSE
+Backseat,,,TRUE
+Spring Chamber,,,FALSE
+Primary Stem Seal,,,FALSE
+Secondary Stem Seal,,,FALSE
+Relief Port,,,FALSE
+BX Port,,,FALSE
+Spare,,,FALSE
+Flow Meter,,,FALSE
+Mass Spectrometer,,,FALSE
+LVDT,,,FALSE
+Torque,,,FALSE
+Number Of Turns,,,FALSE
+Motor Speed,,,FALSE
+Ambient Temperature,,,TRUE
+Body Temperature,,,TRUE
+Monitor Temperature,,,FALSE
+Breakout 1,0.0
+Breakout 2,0.0
+Breakout 3,0.0
