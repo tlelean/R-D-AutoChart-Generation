@@ -75,7 +75,7 @@ def load_test_information(test_details_path):
             header=None, 
             index_col=0, 
             usecols=[0, 1], 
-            nrows=17)
+            nrows=19)
             .fillna('')
     )
 
@@ -85,7 +85,7 @@ def load_test_information(test_details_path):
             header=None,
             index_col=0,
             usecols=[0, 1, 2],
-            skiprows=17,
+            skiprows=19,
             nrows=21)
             .fillna('')
     )
@@ -95,7 +95,7 @@ def load_test_information(test_details_path):
             test_details_path,
             header=None,
             usecols=[0, 3],
-            skiprows=17,
+            skiprows=19,
             nrows=21)
             .fillna('')
     )
@@ -108,14 +108,14 @@ def load_test_information(test_details_path):
    
     # Handler functions for each program type
     def handle_holds():
-        return load_csv_file(test_details_path, header=0, skiprows=38) \
+        return load_csv_file(test_details_path, header=0, skiprows=40) \
             .dropna(how='all') \
             .dropna(axis=1, how='all') \
             .fillna('') \
             .reset_index(drop=True)
     
     def handle_breakouts():
-        return load_csv_file(test_details_path, header=None, skiprows=38) \
+        return load_csv_file(test_details_path, header=None, skiprows=40) \
             .dropna(how='all') \
             .dropna(axis=1, how='all') \
             .fillna('') \
