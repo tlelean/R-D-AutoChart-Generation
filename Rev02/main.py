@@ -26,6 +26,13 @@ def main() -> None:
             args.file_path1, args.file_path2, args.file_path3
         )
 
+        # # For testing purposes, hardcode the file paths
+        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/jbradley/Attempt /CSV/4.0/4.0_Data_2-6-2025_9-47-6.csv"
+        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/jbradley/Attempt /CSV/4.0/4.0_Test_Details_2-6-2025_9-47-6.csv"
+        # pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/jbradley/Attempt /CSV/4.0")
+
+        # is_gui = True
+
         test_metadata, transducer_details, channels_to_record, additional_info = load_test_information(
             test_details_file
         )
