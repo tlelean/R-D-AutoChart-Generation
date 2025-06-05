@@ -139,7 +139,7 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
         # Program = Holds
         #------------------------------------------------------------------------------
 
-        if program_name == "Holds":
+        if program_name == "Holds-Body" or program_name == "Holds-Seat":
 
             key_time_indicies = locate_key_time_rows(cleaned_data, key_time_points)
 

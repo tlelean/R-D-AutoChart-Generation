@@ -68,6 +68,7 @@ def main() -> None:
             primary_data_file = example_dir / "primary_data.csv"
             test_details_file = example_dir / "test_details.csv"
             pdf_output_path = example_dir
+            is_gui = True
         else:
             if not all([args.file_path1, args.file_path2, args.file_path3]):
                 parser.error(

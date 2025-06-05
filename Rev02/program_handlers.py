@@ -96,7 +96,8 @@ def handle_generic(
 
 
 PROGRAM_HANDLERS: dict[str, Callable[..., Optional[Path]]] = {
-    "Holds": handle_holds,
+    "Holds-Body": handle_holds,
+    "Holds-Seat": handle_holds,
     "Atmospheric Breakouts": handle_generic,
     "Atmospheric Cyclic": handle_generic,
     "Dynamic Cycles PR2": handle_generic,

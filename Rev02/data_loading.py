@@ -127,7 +127,8 @@ def load_test_information(test_details_path):
 
     # Map program names to handler functions
     program_handlers = {
-        "Holds": handle_holds,
+        "Holds-Body": handle_holds,
+        "Holds-Seat": handle_holds,
         "Atmospheric Breakouts": handle_breakouts,
         "Atmospheric Cyclic": handle_breakouts,
         "Dynamic Cycles PR2": handle_breakouts,
