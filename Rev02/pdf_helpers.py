@@ -176,10 +176,17 @@ def build_program_specific_info(program_name, additional_info_indicies, addition
     positions = []
 
     #------------------------------------------------------------------------------
-    # Program = Holds
+    # Program = Initial Cycle
     #------------------------------------------------------------------------------
 
-    if program_name == "Holds":
+    if program_name == "Initial Cycle":
+        pass
+
+    #------------------------------------------------------------------------------
+    # Program = Holds-Seat or Holds-Body
+    #------------------------------------------------------------------------------  
+
+    elif program_name == "Holds-Seat" or program_name == "Holds-Body":
 
         indices = additional_info_indicies.iloc[0]
         main_ch = additional_info_value.iloc[0]['Main Channel']

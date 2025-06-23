@@ -135,11 +135,18 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
         x_ticks = pd.date_range(start=x_min, end=x_max, periods=10)
         ax.set_xticks(x_ticks)
 
-            #------------------------------------------------------------------------------
-        # Program = Holds
+        #------------------------------------------------------------------------------
+        # Program = Initial Cycle
         #------------------------------------------------------------------------------
 
-        if program_name == "Holds":
+        if program_name == "Initial Cycle":
+            pass
+
+        #------------------------------------------------------------------------------
+        # Program = Holds-Seat or Holds-Body
+        #------------------------------------------------------------------------------  
+
+        if program_name == "Holds-Seat" or program_name == "Holds-Body":
 
             key_time_indicies = locate_key_time_rows(cleaned_data, key_time_points)
 

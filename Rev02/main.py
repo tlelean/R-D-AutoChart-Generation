@@ -4,8 +4,6 @@ from pathlib import Path
 from data_loading import get_file_paths, load_test_information, prepare_primary_data
 from pdf_helpers import draw_test_details, insert_plot_and_logo
 from graph_plotter import plot_channel_data
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import landscape, A4
 
 def main():
     """
@@ -27,9 +25,9 @@ def main():
         primary_data_file, test_details_file, pdf_output_path = get_file_paths(args.file_path1, args.file_path2, args.file_path3)
 
         # # For testing purposes, hardcode the file paths
-        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/jbradley/Attempt /CSV/4.0/4.0_Data_2-6-2025_9-47-6.csv"
-        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/jbradley/Attempt /CSV/4.0/4.0_Test_Details_2-6-2025_9-47-6.csv"
-        # pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/jbradley/Attempt /CSV/4.0")
+        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Initial Cycle SEW/Initial Cycle SEW_Data_19-6-2025_13-55-17.csv"
+        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Initial Cycle SEW/Initial Cycle SEW_Test_Details_19-6-2025_13-55-17.csv"
+        # pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Initial Cycle SEW/PDF")
 
         # is_gui = True
 
@@ -42,10 +40,34 @@ def main():
         program_name = test_metadata.at['Program Name', 1]
 
         #------------------------------------------------------------------------------
-        # Program = Holds
+        # Program = Initial Cycle
         #------------------------------------------------------------------------------
 
-        if program_name == "Holds":
+        if program_name == "Initial Cycle":
+
+            # Build the final PDF path using metadata
+            unique_pdf_output_path = pdf_output_path / (
+                f"{test_metadata.at['Test Section Number', 1]}_"
+                f"{test_metadata.at['Test Name', 1]}_"
+                f"{test_metadata.at['Date Time', 1]}.pdf"
+                )
+            
+            breakouts = additional_info
+
+            # Create a plot of pressures + temperatures
+            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, breakouts)
+
+            # Create the PDF and draw the test details
+            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, key_time_indicies, breakouts, program_name)
+
+            # Add a PNG of the plot to the PDF
+            insert_plot_and_logo(figure, pdf, is_gui)   
+
+        #------------------------------------------------------------------------------
+        # Program = Holds-Seat or Holds-Body
+        #------------------------------------------------------------------------------  
+
+        if program_name == "Holds-Seat" or program_name == "Holds-Body":
 
             test_title_prefix = test_metadata.at['Test Section Number', 1]
 
