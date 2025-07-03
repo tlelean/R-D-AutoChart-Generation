@@ -127,15 +127,16 @@ def load_test_information(test_details_path):
 
     # Map program names to handler functions
     program_handlers = {
-        "Holds": handle_holds,
+        "Holds-Seat": handle_holds,
+        "Holds-Body": handle_holds,
         "Atmospheric Breakouts": handle_breakouts,
         "Atmospheric Cyclic": handle_breakouts,
         "Dynamic Cycles PR2": handle_breakouts,
         "Dynamic Cycles Petrobras": handle_breakouts,
-        "Pulse Cycles": handle_breakouts,
-        "Signatures": handle_breakouts,
-        "Open-Close": handle_breakouts,
-        "Number Of Turns": handle_breakouts,
+        "Pulse Cycles": handle_default,
+        "Signatures": handle_default,
+        "Open-Close": handle_default,
+        "Number Of Turns": handle_default,
     }
 
     # Call the appropriate handler

@@ -25,9 +25,9 @@ def main():
         primary_data_file, test_details_file, pdf_output_path = get_file_paths(args.file_path1, args.file_path2, args.file_path3)
 
         # # For testing purposes, hardcode the file paths
-        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Initial Cycle SEW/Initial Cycle SEW_Data_19-6-2025_13-55-17.csv"
-        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Initial Cycle SEW/Initial Cycle SEW_Test_Details_19-6-2025_13-55-17.csv"
-        # pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Initial Cycle SEW/PDF")
+        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/jbradley///Attempt /CSV/12.0/12.0_Data_3-7-2025_11-58-51.csv"
+        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/jbradley///Attempt /CSV/12.0/12.0_Test_Details_3-7-2025_11-58-51.csv"
+        # pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/jbradley///Attempt /PDF")
 
         # is_gui = True
 
@@ -67,7 +67,7 @@ def main():
         # Program = Holds-Seat or Holds-Body
         #------------------------------------------------------------------------------  
 
-        if program_name == "Holds-Seat" or program_name == "Holds-Body":
+        elif program_name == "Holds-Seat" or program_name == "Holds-Body":
 
             test_title_prefix = test_metadata.at['Test Section Number', 1]
 

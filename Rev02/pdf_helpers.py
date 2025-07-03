@@ -277,16 +277,8 @@ def build_program_specific_info(program_name, additional_info_indicies, addition
     #------------------------------------------------------------------------------
 
     elif program_name == "Pulse Cycles":
-
-        for i in range(len(additional_info_value.index)):
-            val = additional_info_value.iat[i, 1]
-            if val not in ['', 0, 0.0]:
-                positions.append(
-                    (20, 56.5 - i*15, f"Breakout {i+1}", black, False)
-                )
-                positions.append(
-                    (75, 56.5 - i*15, f"{val} ft.lbs", light_blue, False)
-                )
+        pass
+    
     #------------------------------------------------------------------------------
     # Program = Signatures
     #------------------------------------------------------------------------------
@@ -308,16 +300,7 @@ def build_program_specific_info(program_name, additional_info_indicies, addition
     #------------------------------------------------------------------------------
 
     elif program_name == "Open-Close":
-    
-        for i in range(len(additional_info_value.index)):
-            val = additional_info_value.iat[i, 1]
-            if val not in ['', 0, 0.0]:
-                positions.append(
-                    (20, 56.5 - i*15, f"Breakout {i+1}", black, False)
-                )
-                positions.append(
-                    (75, 56.5 - i*15, f"{val} ft.lbs", light_blue, False)
-                )
+        pass
 
     #------------------------------------------------------------------------------
     # Program = Number of Turns
