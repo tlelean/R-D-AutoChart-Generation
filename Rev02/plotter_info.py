@@ -22,7 +22,9 @@ CHANNEL_COLOUR_MAP = {
     'Body Temperature': '#ff8c00',    # Dark Orange
     'Monitor Temperature': '#5c5c00', # Dark Olive
     'Chamber Temperature': '#cd5c5c', # Indian Red
-    'Hyperbaric Temperature': '#696969' # Dim Grey
+    'Hyperbaric Temperature': '#696969', # Dim Grey
+    'Close' : "#ff1493",               # Deep Pink
+    'Open' : '#1e90ff'                 # Dodger Blue
 }
 
 CHANNEL_UNITS_MAP = {
@@ -48,7 +50,9 @@ CHANNEL_UNITS_MAP = {
     'Body Temperature': '°C',
     'Monitor Temperature': '°C',
     'Chamber Temperature': '°C',
-    'Hyperbaric Temperature': '°C'
+    'Hyperbaric Temperature': '°C',
+    'Close': '',
+    'Open': ''
 }
 
 CHANNEL_AXIS_NAMES_MAP = {
@@ -74,7 +78,9 @@ CHANNEL_AXIS_NAMES_MAP = {
     'Body Temperature': 'Temperature',
     'Monitor Temperature': 'Temperature',
     'Chamber Temperature': 'Temperature',
-    'Hyperbaric Temperature': 'Temperature'
+    'Hyperbaric Temperature': 'Temperature',
+    'Close': 'Valve State',
+    'Open': 'Valve State'
 }
 
 AXIS_COLOUR_MAP = {
@@ -86,6 +92,7 @@ AXIS_COLOUR_MAP = {
     'Number Of Turns': '#000075',       # Navy Blue
     'Motor Speed': '#00a572',           # Emerald Green
     'Temperature': '#4363d8',           # Vivid Blue
+    'Valve State' : "#ff1493"
 }
 
 
@@ -94,11 +101,11 @@ AXIS_PRIORITY = [
     'Torque', 
     'Pneumatic', 
     'Leak Rate', 
-    'Mass Spec',
+    'Mass Spectrometer',
     'Number Of Turns', 
     'Motor Speed', 
-    'LVDT', 
-    'Limit Switches', 
+    'LVDT',
+    'Valve State',
     'Temperature'
 ]
 

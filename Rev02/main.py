@@ -1,7 +1,7 @@
 import fitz
 import argparse
 from pathlib import Path
-from data_loading import get_file_paths, load_test_information, prepare_primary_data
+from data_loading import get_file_paths, load_test_information, load_additional_info, prepare_primary_data
 from pdf_helpers import draw_test_details, insert_plot_and_logo
 from graph_plotter import plot_channel_data
 
@@ -11,31 +11,29 @@ def main():
     generate a plot, and export a PDF report combining text + images.
     """
     try:
-        # Comment out to test
-        parser = argparse.ArgumentParser(description="Process file paths.")
-        parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
-        parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
-        parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
-        parser.add_argument("is_gui", type=bool, help="GUI or not")
-        args = parser.parse_args()
+        # # Comment out to test
+        # parser = argparse.ArgumentParser(description="Process file paths.")
+        # parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
+        # parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
+        # parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
+        # parser.add_argument("is_gui", type=bool, help="GUI or not")
+        # args = parser.parse_args()
 
-        is_gui = args.is_gui
+        # is_gui = args.is_gui
 
-        # Gather file paths
-        primary_data_file, test_details_file, pdf_output_path = get_file_paths(args.file_path1, args.file_path2, args.file_path3)
+        # # Gather file paths
+        # primary_data_file, test_details_file, pdf_output_path = get_file_paths(args.file_path1, args.file_path2, args.file_path3)
 
-        # # For testing purposes, hardcode the file paths
-        # primary_data_file = "V:/Userdoc/R & D/DAQ_Station/jbradley///Attempt /CSV/12.0/12.0_Data_3-7-2025_11-58-51.csv"
-        # test_details_file = "V:/Userdoc/R & D/DAQ_Station/jbradley///Attempt /CSV/12.0/12.0_Test_Details_3-7-2025_11-58-51.csv"
-        # pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/jbradley///Attempt /PDF")
+        # For testing purposes, hardcode the file paths
+        primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1.3/1.3_Data_4-7-2025_12-16-32.csv"
+        test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1.3/1.3_Test_Details_4-7-2025_12-16-32.csv"
+        pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/PDF")
 
-        # is_gui = True
+        is_gui = True
 
-        # Load test details + transducer info
-        (test_metadata, transducer_details, channels_to_record, additional_info) = load_test_information(test_details_file)
-
-        # Prepare the primary data
+        test_metadata, transducer_details, channels_to_record, program_name = load_test_information(test_details_file)
         cleaned_data, active_channels = prepare_primary_data(primary_data_file, channels_to_record)
+        additional_info = load_additional_info(test_details_file, program_name, channels_to_record, cleaned_data)
 
         program_name = test_metadata.at['Program Name', 1]
 

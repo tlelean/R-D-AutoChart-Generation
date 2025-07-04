@@ -1,3 +1,4 @@
+import matplotlib
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -126,6 +127,10 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
         if 'Pressure' in axis_name:
             y_min, y_max = ax.get_ylim()
             ax.set_ylim(0, y_max)
+        if 'Valve State' in axis_name:
+            ax.set_ylim(-0.05, 1.05)           # Use full axis height for plotting
+            ax.set_yticks([0, 1])              # Only show 0 and 1 as ticks
+            ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
         ax.spines['bottom'].set_edgecolor('black')
         ax.spines['bottom'].set_linewidth(0.5)
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y\n%H:%M:%S'))
@@ -144,7 +149,7 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
 
         #------------------------------------------------------------------------------
         # Program = Holds-Seat or Holds-Body
-        #------------------------------------------------------------------------------  
+        #------------------------------------------------------------------------------
 
         if program_name == "Holds-Seat" or program_name == "Holds-Body":
 
@@ -223,9 +228,28 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
         elif program_name == "Number Of Turns":
             pass
 
-    # Create a combined legend
-    fig.legend(plotted_lines, plotted_labels, loc='lower center', ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.02))
-    plt.tight_layout(rect=[0, 0.05, 1, 1])
+    # # Create a combined legend
+    # fig.legend(plotted_lines, plotted_labels, loc='lower center', ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.02))
+    # plt.tight_layout(rect=[0, 0.05, 1, 1])
+
+    # Dynamically set legend columns and bottom margin
+    max_cols = 5
+    n_channels = len(plotted_labels)
+    ncol = min(n_channels, max_cols)
+    nrows = (n_channels + max_cols - 1) // max_cols
+    # Adjust vertical position and bottom margin based on number of rows
+    legend_y = 0.02 + 0.03 * (nrows - 1)
+    bottom_margin = 0.05 * nrows
+
+    fig.legend(
+        plotted_lines,
+        plotted_labels,
+        loc='lower center',
+        ncol=ncol,
+        frameon=False,
+        bbox_to_anchor=(0.5, legend_y)
+    )
+    plt.tight_layout(rect=[0, bottom_margin, 1, 1])
 
     # plt.show()
     
