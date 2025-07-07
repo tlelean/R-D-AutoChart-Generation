@@ -1,11 +1,7 @@
-"""Handlers for program-specific processing steps."""
-
 from pathlib import Path
 from typing import Callable, Dict, Any
-
-from graph_plotter import plot_channel_data
-from pdf_helpers import draw_test_details, insert_plot_and_logo
-
+from graph_plotter import plot_channel_data, annotate_holds, annotate_breakouts
+from pdf_helpers import draw_test_details, insert_plot_and_logo, locate_key_time_rows, locate_bto_btc_rows
 
 def build_output_path(base_path: Path, test_metadata) -> Path:
     """Construct the output PDF path from metadata."""
@@ -79,6 +75,13 @@ def handle_holds(
                 single_info,
                 test_metadata,
             )
+            key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
+
+            annotate_holds(
+                axes=axes, 
+                cleaned_data=cleaned_data, 
+                key_time_indices=key_time_indices)
+            
             pdf = draw_test_details(
                 test_metadata,
                 transducer_details,
@@ -100,6 +103,13 @@ def handle_holds(
             single_info,
             test_metadata,
         )
+        key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
+
+        annotate_holds(
+            axes=axes, 
+            cleaned_data=cleaned_data, 
+            key_time_indices=key_time_indices)
+        
         pdf = draw_test_details(
             test_metadata,
             transducer_details,
@@ -136,6 +146,16 @@ def handle_breakouts(
         additional_info=additional_info,
         test_metadata=test_metadata,
     )
+
+    additional_info, bto_indicies, btc_indicies = locate_bto_btc_rows(raw_data, additional_info)
+
+    annotate_breakouts(
+        axes=axes, 
+        cleaned_data=cleaned_data, 
+        bto_indicies=bto_indicies,
+        btc_indicies=btc_indicies,
+    )
+    
     pdf = draw_test_details(
         test_metadata,
         transducer_details,

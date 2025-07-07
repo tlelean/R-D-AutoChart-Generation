@@ -19,6 +19,50 @@ def locate_key_time_rows(cleaned_data, key_time_points):
         
     return key_time_indicies
 
+def locate_bto_btc_rows(raw_data, additional_info):
+    bto_indicies: list[int] = []
+    btc_indicies: list[int] = []
+
+    # Early‑exit if data seem to be missing --------------------------------
+    if additional_info.iloc[1, 0] == "NaN":
+        return additional_info, bto_indicies, btc_indicies
+
+    torque_data = raw_data["Torque"]
+    cycle_count_data = raw_data["Cycle Count"]
+
+    # ── Process one cycle at a time ───────────────────────────────────────
+    for i, cycle_num in enumerate(sorted(cycle_count_data.unique())):
+        mask = cycle_count_data == cycle_num
+        torque_cycle = torque_data[mask]
+
+        n_points = len(torque_cycle)
+        if n_points == 0:
+            # Skip empty cycles (shouldn't happen, but better to be safe)
+            continue
+
+        # Compute slice boundaries — each third is as equal as integer division allows
+        third_len = max(1, n_points // 3)
+        first_slice  = slice(0, third_len)
+        middle_slice = slice(third_len, 2 * third_len)
+
+        torque_first_third  = torque_cycle.iloc[first_slice]
+        torque_middle_third = torque_cycle.iloc[middle_slice]
+
+        # ── Determine BTO and BTC values ──────────────────────────────────
+        bto = torque_first_third.min().round(1)
+        btc = torque_middle_third.max().round(1)
+
+        # Record the row indices at which these extremes occur -------------
+        bto_indicies.append(int(torque_first_third.idxmin()))
+        btc_indicies.append(int(torque_middle_third.idxmax()))
+
+        # Write results back into *additional_info* (row offset by +1) -----
+        additional_info.iloc[i + 1, 1] = bto
+        additional_info.iloc[i + 1, 2] = btc
+
+        return additional_info, bto_indicies, btc_indicies
+
+
 def insert_plot_and_logo(figure, pdf, is_gui):
     png_figure = io.BytesIO()
     figure.savefig(png_figure, format='PNG', bbox_inches='tight', dpi=500)
