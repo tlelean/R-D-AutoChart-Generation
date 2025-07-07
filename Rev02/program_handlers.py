@@ -108,7 +108,7 @@ def handle_holds(
     return unique_path
 
 
-def handle_open_close(
+def handle_breakouts(
     program_name: str,
     pdf_output_path: Path,
     test_metadata,
@@ -121,7 +121,7 @@ def handle_open_close(
     bto_indicies,
     **kwargs,
 ):
-    """Handler for Open-Close program."""
+    """Handler for breakout programs."""
     unique_path = build_output_path(pdf_output_path, test_metadata)
     figure, key_indices = plot_channel_data(
         active_channels,
@@ -147,14 +147,14 @@ def handle_open_close(
 
 HANDLERS: Dict[str, Callable[..., Any]] = {
     "Initial Cycle": handle_generic,
-    "Atmospheric Breakouts": handle_generic,
-    "Atmospheric Cyclic": handle_generic,
-    "Dynamic Cycles PR2": handle_generic,
-    "Dynamic Cycles Petrobras": handle_generic,
+    "Atmospheric Breakouts": handle_breakouts,
+    "Atmospheric Cyclic": handle_breakouts,
+    "Dynamic Cycles PR2": handle_breakouts,
+    "Dynamic Cycles Petrobras": handle_breakouts,
     "Pulse Cycles": handle_generic,
     "Signatures": handle_generic,
     "Holds-Seat": handle_holds,
     "Holds-Body": handle_holds,
-    "Open-Close": handle_open_close,
+    "Open-Close": handle_breakouts,
     "Number Of Turns": lambda *a, **k: None,
 }

@@ -20,16 +20,6 @@ def locate_key_time_rows(cleaned_data, key_time_points):
     return key_time_indicies
 
 def insert_plot_and_logo(figure, pdf, is_gui):
-    """
-    Convert a matplotlib Figure to a BytesIO stream (PNG format),
-    for later embedding into a PDF.
-
-    Parameters:
-        figure (matplotlib.figure.Figure): The matplotlib figure to convert.
-
-    Returns:
-        io.BytesIO: A binary stream containing the rendered PNG.
-    """
     png_figure = io.BytesIO()
     figure.savefig(png_figure, format='PNG', bbox_inches='tight', dpi=500)
     png_figure.seek(0)
@@ -41,38 +31,11 @@ def insert_plot_and_logo(figure, pdf, is_gui):
     pdf.save()
 
 def draw_bounding_box(pdf_canvas, x, y, width, height):
-    """
-    Draw a rectangular bounding box on the PDF canvas.
-
-    Parameters:
-        pdf_canvas (reportlab.pdfgen.canvas.Canvas): The PDF canvas.
-        x (float): X-coordinate of the lower-left corner.
-        y (float): Y-coordinate of the lower-left corner.
-        width (float): The width of the rectangle.
-        height (float): The height of the rectangle.
-    """
     pdf_canvas.setLineWidth(0.5)
     pdf_canvas.rect(x, y, width, height)
 
 
 def draw_text_on_pdf(pdf_canvas, text, x, y, font="Helvetica", colour='black', size=10, left_aligned=False, replace_empty=False):
-    """
-    Draw text onto the PDF canvas, with options for alignment (left or centre).
-    
-    If the text is a Timestamp, it can optionally preserve only the date (dd/mm/yyyy) 
-    or include milliseconds precision to 3 decimal places.
-
-    Parameters:
-        pdf_canvas (reportlab.pdfgen.canvas.Canvas): The PDF canvas to draw upon.
-        text (str or pd.Timestamp): The text (or datetime) to be printed.
-        x (float): Horizontal reference (centre or left).
-        y (float): Vertical centre position.
-        font (str): Font name (default: Helvetica).
-        colour (str): Text colour (default: black).
-        size (int): Font size (default: 10).
-        left_aligned (bool): If True, text is left-aligned; otherwise it is centred.
-        date_only (bool): If True, only the date (dd/mm/yyyy) is shown for datetime inputs.
-    """
 
     # Convert text to string or set to "" if None
     text = "" if text is None else str(text)

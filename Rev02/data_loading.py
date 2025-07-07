@@ -2,21 +2,6 @@ import pandas as pd
 from pathlib import Path
 
 def get_file_paths(primary_data_path, test_details_path, output_pdf_path):
-    """
-    Return validated file paths for the primary data, test details, 
-    and the output PDF location.
-
-    Parameters:
-        primary_data_path (str): Path to the primary data CSV file.
-        test_details_path (str): Path to the test details CSV file.
-        output_pdf_path (str): Directory or file path for the output PDF.
-
-    Returns:
-        tuple: (str, str, Path)
-            - Path to primary data file. 'tlelean/Job Number/Valve Drawing Number/CSV/2.1/Test Description_Data_9-1-2025_8-29-47.csv'
-            - Path to test details file. 'tlelean/Job Number/Valve Drawing Number/CSV/2.1/Test Description_Test_Details_9-1-2025_8-29-47.csv'
-            - Path object for the output PDF. 'tlelean/Job Number/Valve Drawing Number/PDF'
-    """
     return (
         primary_data_path,
         test_details_path,
@@ -25,22 +10,6 @@ def get_file_paths(primary_data_path, test_details_path, output_pdf_path):
 
 
 def load_csv_file(file_path, **kwargs):
-    """
-    Load a CSV file using pandas, adding error handling to catch 
-    common issues (file missing, empty file, parse errors, etc.).
-
-    Parameters:
-        file_path (str or Path): The CSV file path to read.
-        **kwargs: Additional arguments to pass to pd.read_csv.
-
-    Returns:
-        pd.DataFrame: A pandas DataFrame containing the CSV data.
-
-    Raises:
-        FileNotFoundError: If the file does not exist.
-        ValueError: If the file is empty.
-        Exception: For any other reading/formatting errors.
-    """
     try:
         return pd.read_csv(file_path, **kwargs, dayfirst=True)
     except FileNotFoundError as exc:
@@ -52,21 +21,7 @@ def load_csv_file(file_path, **kwargs):
 
 
 def load_test_information(test_details_path):
-    """
-    Load test details and channel/transducer information from a CSV.
-    Returns metadata, transducer info, channels to record, and program name.
-    (Does NOT require cleaned_data.)
 
-    Parameters:
-        test_details_path (str or Path): CSV containing test details.
-
-    Returns:
-        tuple: 
-            - pd.DataFrame: DataFrame of test details (metadata).
-            - pd.DataFrame: Transducer info for each channel.
-            - pd.DataFrame: Indicates channels to be recorded (True/False).
-            - str: Program name.
-    """
     # Load top sections (test metadata and transducer data)
     test_metadata = (
         load_csv_file(
@@ -113,13 +68,7 @@ def load_test_information(test_details_path):
     )
 
 def load_additional_info(test_details_path, program_name, raw_data):
-    """
-    Loads additional info (holds, breakouts, etc.) depending on program type.
-    Requires cleaned_data for breakouts.
 
-    Returns:
-        pd.DataFrame or None
-    """
     def handle_holds():
         df = load_csv_file(test_details_path, header=0, skiprows=45)
         return df.dropna(how='all').dropna(axis=1, how='all').fillna('').reset_index(drop=True)
@@ -193,26 +142,7 @@ def load_additional_info(test_details_path, program_name, raw_data):
     return handler()
 
 def prepare_primary_data(primary_data_path, channels_to_record):
-    """
-    Prepare and clean the primary CSV data, which now contains a single
-    'Datetime' column in dd/mm/yyyy hh:mm:ss.000 format (with milliseconds).
 
-    Assumptions:
-        - 'Datetime' is dd/mm/yyyy hh:mm:ss.000.
-        - Some channels are flagged as True in 'channels_to_record'
-          to indicate relevance.
-
-    Parameters:
-        primary_data_path (str): File path to the main data CSV.
-        channels_to_record (pd.DataFrame): DataFrame indicating which
-            channels are active (True/False).
-
-    Returns:
-        tuple:
-            - pd.DataFrame: Filtered DataFrame with a parsed 'Datetime' column.
-            - list: Names of the channels actually recorded (True).
-            - pd.DataFrame: Original loaded data (for reference).
-    """
     # Load raw data (assumes the CSV now has Datetime as its first column,
     # followed by the channels in order)
     raw_data = load_csv_file(primary_data_path, header=None, parse_dates=[0]).iloc[:-1]

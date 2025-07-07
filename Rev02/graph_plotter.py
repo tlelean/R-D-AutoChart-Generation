@@ -198,10 +198,6 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
         elif program_name == "Open-Close":
             annotate_open_close(axes, cleaned_data, bto_indicies or [], btc_indicies or [])
 
-    # # Create a combined legend
-    # fig.legend(plotted_lines, plotted_labels, loc='lower center', ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.02))
-    # plt.tight_layout(rect=[0, 0.05, 1, 1])
-
     # Dynamically set legend columns and bottom margin
     max_cols = 5
     n_channels = len(plotted_labels)
