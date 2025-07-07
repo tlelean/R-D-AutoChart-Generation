@@ -30,7 +30,7 @@ def main():
 
         is_gui = True
 
-        test_metadata, transducer_details, channels_to_record, program_name, additional_info = load_test_information(test_details_file)
+        test_metadata, transducer_details, channels_to_record, additional_info, program_name = load_test_information(test_details_file)
         cleaned_data, active_channels, raw_data = prepare_primary_data(primary_data_file, channels_to_record)
 
         program_name = test_metadata.at['Program Name', 1]
@@ -46,6 +46,7 @@ def main():
             transducer_details=transducer_details,
             active_channels=active_channels,
             cleaned_data=cleaned_data,
+            raw_data=raw_data,
             additional_info=additional_info,
             is_gui=is_gui
         )

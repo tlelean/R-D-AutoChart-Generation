@@ -1,11 +1,7 @@
-"""Handlers for program-specific processing steps."""
-
 from pathlib import Path
 from typing import Callable, Dict, Any
-
-from graph_plotter import plot_channel_data
-from pdf_helpers import draw_test_details, insert_plot_and_logo
-
+from graph_plotter import plot_channel_data, annotate_holds, annotate_breakouts
+from pdf_helpers import draw_test_details, insert_plot_and_logo, locate_key_time_rows, locate_bto_btc_rows
 
 def build_output_path(base_path: Path, test_metadata) -> Path:
     """Construct the output PDF path from metadata."""
@@ -23,6 +19,7 @@ def handle_generic(
     transducer_details,
     active_channels,
     cleaned_data,
+    raw_data,
     additional_info,
     is_gui: bool,
     **kwargs,
@@ -30,19 +27,21 @@ def handle_generic(
     """Default handler used by many programs."""
     unique_path = build_output_path(pdf_output_path, test_metadata)
     figure = plot_channel_data(
-        active_channels,
-        program_name,
-        cleaned_data,
-        additional_info,
+        active_channels=active_channels,
+        program_name=program_name,
+        cleaned_data=cleaned_data,
+        raw_data=raw_data,
+        additional_info=additional_info,
+        test_metadata=test_metadata,
     )
     pdf = draw_test_details(
-        test_metadata,
-        transducer_details,
-        active_channels,
-        cleaned_data,
-        unique_path,
-        additional_info,
-        program_name,
+        test_metadata=test_metadata,
+        transducer_details=transducer_details,
+        active_channels=active_channels,
+        cleaned_data=cleaned_data,
+        unique_path=unique_path,
+        additional_info=additional_info,
+        program_name=program_name,
     )
     insert_plot_and_logo(figure, pdf, is_gui)
     return unique_path
@@ -55,6 +54,7 @@ def handle_holds(
     transducer_details,
     active_channels,
     cleaned_data,
+    raw_data,
     additional_info,
     is_gui: bool,
     **kwargs,
@@ -68,18 +68,26 @@ def handle_holds(
             unique_path = build_output_path(pdf_output_path, test_metadata)
             single_info = additional_info.loc[[index]]
             figure = plot_channel_data(
-                active_channels=active_channels,
-                program_name=program_name,
-                cleaned_data=cleaned_data,
-                key_time_points=single_info,
+                active_channels,
+                program_name,
+                cleaned_data,
+                raw_data,
+                single_info,
+                test_metadata,
             )
+            key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
+
+            annotate_holds(
+                axes=axes, 
+                cleaned_data=cleaned_data, 
+                key_time_indices=key_time_indices)
+            
             pdf = draw_test_details(
                 test_metadata,
                 transducer_details,
                 active_channels,
                 cleaned_data,
                 unique_path,
-                key_indices,
                 single_info,
                 program_name,
             )
@@ -91,15 +99,23 @@ def handle_holds(
             active_channels,
             program_name,
             cleaned_data,
+            raw_data,
             single_info,
+            test_metadata,
         )
+        key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
+
+        annotate_holds(
+            axes=axes, 
+            cleaned_data=cleaned_data, 
+            key_time_indices=key_time_indices)
+        
         pdf = draw_test_details(
             test_metadata,
             transducer_details,
             active_channels,
             cleaned_data,
             unique_path,
-            key_indices,
             single_info,
             program_name,
         )
@@ -115,6 +131,7 @@ def handle_breakouts(
     transducer_details,
     active_channels,
     cleaned_data,
+    raw_data,
     additional_info,
     is_gui: bool,
     **kwargs,
@@ -122,13 +139,23 @@ def handle_breakouts(
     """Handler for breakout programs."""
     unique_path = build_output_path(pdf_output_path, test_metadata)
     figure = plot_channel_data(
-        active_channels,
-        program_name,
-        cleaned_data,
-        raw_data,
-        additional_info,
-        test_metadata,
+        active_channels=active_channels,
+        program_name=program_name,
+        cleaned_data=cleaned_data,
+        raw_data=raw_data,
+        additional_info=additional_info,
+        test_metadata=test_metadata,
     )
+
+    additional_info, bto_indicies, btc_indicies = locate_bto_btc_rows(raw_data, additional_info)
+
+    annotate_breakouts(
+        axes=axes, 
+        cleaned_data=cleaned_data, 
+        bto_indicies=bto_indicies,
+        btc_indicies=btc_indicies,
+    )
+    
     pdf = draw_test_details(
         test_metadata,
         transducer_details,

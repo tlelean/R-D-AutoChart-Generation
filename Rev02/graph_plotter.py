@@ -3,73 +3,40 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import MultipleLocator
-from plotter_info import CHANNEL_COLOUR_MAP, CHANNEL_UNITS_MAP, CHANNEL_AXIS_NAMES_MAP, AXIS_COLOUR_MAP, AXIS_LOCATIONS, AXIS_PRIORITY
+from plotter_info import (
+    CHANNEL_COLOUR_MAP,
+    CHANNEL_UNITS_MAP,
+    CHANNEL_AXIS_NAMES_MAP,
+    AXIS_COLOUR_MAP,
+    AXIS_LOCATIONS,
+    AXIS_PRIORITY,
+)
 
-
-def annotate_holds(axes, cleaned_data, key_time_indicies):
+def annotate_holds(axes, cleaned_data, key_time_indices):
     """Annotate the plot for Holds programs."""
     time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
     key_labels = ["SOS", "SOH", "EOH"]
-    y_min, y_max = axes['left'].get_ylim()
-    for col in time_columns:
-        if key_time_indicies.iloc[0][col] == '':
+    main_channel = key_time_indices.iloc[0]["Main Channel"]
+    y_min, y_max = axes["left"].get_ylim()
+    for col, label in zip(time_columns, key_labels):
+        idx = key_time_indices.iloc[0][col]
+        if idx == "":
             continue
-        x = cleaned_data['Datetime'].loc[key_time_indicies.iloc[0][col]]
-        y = cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0][col]]
-        axes['left'].plot(x, y, marker='x', color='black', markersize=10)
-        axes['left'].text(
+        x = cleaned_data["Datetime"].loc[idx]
+        y = cleaned_data[main_channel].loc[idx]
+        axes["left"].plot(x, y, marker="x", color="black", markersize=10)
+        axes["left"].text(
             x,
             y + (y_max - y_min) * 0.03,
-            f" {key_labels[time_columns.index(col)]}",
-            color='black',
+            f" {label}",
+            color="black",
             fontsize=10,
-            ha='center',
-            va='bottom',
+            ha="center",
+            va="bottom",
         )
 
-
-def annotate_open_close(axes, cleaned_data, raw_data, additional_info):
+def annotate_breakouts(axes, cleaned_data, bto_indicies, btc_indicies):
     """Annotate BTO/BTC markers for Open-Close program."""
-    bto_indicies: list[int] = []
-    btc_indicies: list[int] = []
-
-    # Early‑exit if data seem to be missing --------------------------------
-    if additional_info.iloc[1, 0] == "NaN":
-        return additional_info, bto_indicies, btc_indicies
-
-    torque_data = raw_data["Torque"]
-    cycle_count_data = raw_data["Cycle Count"]
-
-    # ── Process one cycle at a time ───────────────────────────────────────
-    for i, cycle_num in enumerate(sorted(cycle_count_data.unique())):
-        mask = cycle_count_data == cycle_num
-        torque_cycle = torque_data[mask]
-
-        n_points = len(torque_cycle)
-        if n_points == 0:
-            # Skip empty cycles (shouldn't happen, but better to be safe)
-            continue
-
-        # Compute slice boundaries — each third is as equal as integer division allows
-        third_len = max(1, n_points // 3)
-        first_slice  = slice(0, third_len)
-        middle_slice = slice(third_len, 2 * third_len)
-
-        torque_first_third  = torque_cycle.iloc[first_slice]
-        torque_middle_third = torque_cycle.iloc[middle_slice]
-
-        # ── Determine BTO and BTC values ──────────────────────────────────
-        bto = torque_first_third.min().round(1)
-        btc = torque_middle_third.max().round(1)
-
-        # Record the row indices at which these extremes occur -------------
-        bto_indicies.append(int(torque_first_third.idxmin()))
-        btc_indicies.append(int(torque_middle_third.idxmax()))
-
-        # Write results back into *additional_info* (row offset by +1) -----
-        additional_info.iloc[i + 1, 1] = bto
-        additional_info.iloc[i + 1, 2] = btc
-
     y_min, y_max = axes['left'].get_ylim()
     for idx in bto_indicies:
         x = cleaned_data['Datetime'].iloc[idx]
@@ -116,8 +83,7 @@ def axis_location(active_channels):
 
     return CHANNEL_AXIS_LOCATION_MAP
 
-def plot_channel_data(active_channels, program_name, cleaned_data, raw_data, additional_info, test_metadata):
-    key_time_indicies = None  # Initialize to None
+def plot_channel_data(active_channels, program_name, cleaned_data, test_metadata):
     data_for_plot = cleaned_data.copy()
     data_for_plot['Datetime'] = pd.to_datetime(data_for_plot['Datetime'], format='%d/%m/%Y %H:%M:%S.%f')
 
@@ -226,11 +192,6 @@ def plot_channel_data(active_channels, program_name, cleaned_data, raw_data, add
         x_max = data_for_plot['Datetime'].max()
         x_ticks = pd.date_range(start=x_min, end=x_max, periods=10)
         ax.set_xticks(x_ticks)
-
-        if program_name in ("Holds-Seat", "Holds-Body"):
-            annotate_holds(axes, cleaned_data, key_time_indicies)
-        elif program_name == "Open-Close":
-            annotate_open_close(axes, cleaned_data, raw_data, additional_info)
 
     # Dynamically set legend columns and bottom margin
     max_cols = 5
