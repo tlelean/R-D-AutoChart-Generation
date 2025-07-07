@@ -6,6 +6,18 @@ import pandas as pd
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import landscape, A4
 from reportlab.lib.utils import ImageReader
+from reportlab.platypus import Table, TableStyle
+
+def locate_key_time_rows(cleaned_data, key_time_points):
+    time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
+    key_time_indicies = key_time_points.copy()
+    date_time_index = cleaned_data.set_index('Datetime')
+
+    for col in time_columns:
+        key_time_points.at[0, col] = pd.to_datetime(key_time_points.at[0, col], format='%d/%m/%Y %H:%M:%S.%f', errors='coerce', dayfirst=True)
+        key_time_indicies.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
+        
+    return key_time_indicies
 
 def insert_plot_and_logo(figure, pdf, is_gui):
     """
@@ -90,7 +102,7 @@ def draw_layout_boxes(pdf):
         (15, 66.5, 600, 418.5),     # Graph
         (15, 15, 600, 51.5),        # Graph Index
         (630, 271.66, 197, 17.5),   # Test Pressures
-        (630, 225.83, 197, 35),        # Breakout Torque
+        (630, 225.83, 197, 35),     # Breakout Torque
         (630, 35, 197, 180),        # 3rd Party Stamp
         (630, 300, 197, 185)        # Info Right
     ]
@@ -172,7 +184,7 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
         (685, 22.5, test_metadata.at['Operative', 1], light_blue, False),
     ]
 
-def build_program_specific_info(program_name, additional_info_indicies, additional_info_value, cleaned_data, black, light_blue):
+def build_program_specific_info(program_name, additional_info, cleaned_data, black, light_blue, pdf_canvas):
     positions = []
 
     #------------------------------------------------------------------------------
@@ -188,8 +200,10 @@ def build_program_specific_info(program_name, additional_info_indicies, addition
 
     elif program_name == "Holds-Seat" or program_name == "Holds-Body":
 
-        indices = additional_info_indicies.iloc[0]
-        main_ch = additional_info_value.iloc[0]['Main Channel']
+        key_time_indicies = locate_key_time_rows(cleaned_data, additional_info)
+
+        indices = key_time_indicies.iloc[0]
+        main_ch = key_time_indicies.iloc[0]['Main Channel']
         for label, ypos, col in [
             ("Start of Stabilisation", 56.5, 'Start of Stabilisation'),
             ("Start of Hold", 41.25, 'Start of Hold'),
@@ -214,15 +228,35 @@ def build_program_specific_info(program_name, additional_info_indicies, addition
 
     elif program_name == "Atmospheric Breakouts":
         
-        for i in range(3):
-            val = additional_info_value.iat[i, 1]
-            if val not in ['', 0, 0.0]:
-                positions.append(
-                    (20, 56.5 - i*15, f"Breakout {i+1}", black, False)
-                )
-                positions.append(
-                    (75, 56.5 - i*15, f"{val} ft.lbs", light_blue, False)
-                )
+        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
+
+        rows = len(data)
+        cols = len(data[0])
+
+        col_width = 600 / cols
+        row_height = 51.5 / rows
+
+        table = Table(
+            data,
+            colWidths=[col_width] * cols,
+            rowHeights=[row_height] * rows
+        )
+
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ])
+        table.setStyle(style)
+
+        table.wrapOn(pdf_canvas, 600, 51.5)
+        table.drawOn(pdf_canvas, 15, 15)
 
     #------------------------------------------------------------------------------
     # Program = Atmospheric Cyclic
@@ -230,15 +264,35 @@ def build_program_specific_info(program_name, additional_info_indicies, addition
 
     elif program_name == "Atmospheric Cyclic":
         
-        for i in range(len(additional_info_value.index)):
-            val = additional_info_value.iat[i, 1]
-            if val not in ['', 0, 0.0]:
-                positions.append(
-                    (20, 56.5 - i*15, f"Breakout {i+1}", black, False)
-                )
-                positions.append(
-                    (75, 56.5 - i*15, f"{val} ft.lbs", light_blue, False)
-                )
+        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
+
+        rows = len(data)
+        cols = len(data[0])
+
+        col_width = 600 / cols
+        row_height = 51.5 / rows
+
+        table = Table(
+            data,
+            colWidths=[col_width] * cols,
+            rowHeights=[row_height] * rows
+        )
+
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ])
+        table.setStyle(style)
+
+        table.wrapOn(pdf_canvas, 600, 51.5)
+        table.drawOn(pdf_canvas, 15, 15)
 
     #------------------------------------------------------------------------------
     # Program = Dynamic Cycles PR2
@@ -246,15 +300,35 @@ def build_program_specific_info(program_name, additional_info_indicies, addition
 
     elif program_name == "Dynamic Cycles PR2":
 
-        for i in range(3):
-            val = additional_info_value.iat[i, 1]
-            if val not in ['', 0, 0.0]:
-                positions.append(
-                    (20, 56.5 - i*15, f"Breakout {i+1}", black, False)
-                )
-                positions.append(
-                    (75, 56.5 - i*15, f"{val} ft.lbs", light_blue, False)
-                )
+        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
+
+        rows = len(data)
+        cols = len(data[0])
+
+        col_width = 600 / cols
+        row_height = 51.5 / rows
+
+        table = Table(
+            data,
+            colWidths=[col_width] * cols,
+            rowHeights=[row_height] * rows
+        )
+
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ])
+        table.setStyle(style)
+
+        table.wrapOn(pdf_canvas, 600, 51.5)
+        table.drawOn(pdf_canvas, 15, 15)
 
     #------------------------------------------------------------------------------
     # Program = Dynamic Cycles Petrobras
@@ -262,15 +336,35 @@ def build_program_specific_info(program_name, additional_info_indicies, addition
 
     elif program_name == "Dynamic Cycles Petrobras":
 
-        for i in range(3):
-            val = additional_info_value.iat[i, 1]
-            if val not in ['', 0, 0.0]:
-                positions.append(
-                    (20, 56.5 - i*15, f"Breakout {i+1}", black, False)
-                )
-                positions.append(
-                    (75, 56.5 - i*15, f"{val} ft.lbs", light_blue, False)
-                )
+        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
+
+        rows = len(data)
+        cols = len(data[0])
+
+        col_width = 600 / cols
+        row_height = 51.5 / rows
+
+        table = Table(
+            data,
+            colWidths=[col_width] * cols,
+            rowHeights=[row_height] * rows
+        )
+
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ])
+        table.setStyle(style)
+
+        table.wrapOn(pdf_canvas, 600, 51.5)
+        table.drawOn(pdf_canvas, 15, 15)
 
     #------------------------------------------------------------------------------
     # Program = Pulse Cycles
@@ -285,23 +379,69 @@ def build_program_specific_info(program_name, additional_info_indicies, addition
 
     elif program_name == "Signatures":
 
-        for i in range(len(additional_info_value.index)):
-            val = additional_info_value.iat[i, 1]
-            if val not in ['', 0, 0.0]:
-                positions.append(
-                    (20, 56.5 - i*15, f"Breakout {i+1}", black, False)
-                )
-                positions.append(
-                    (75, 56.5 - i*15, f"{val} ft.lbs", light_blue, False)
-                )
+        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
+
+        rows = len(data)
+        cols = len(data[0])
+
+        col_width = 600 / cols
+        row_height = 51.5 / rows
+
+        table = Table(
+            data,
+            colWidths=[col_width] * cols,
+            rowHeights=[row_height] * rows
+        )
+
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ])
+        table.setStyle(style)
+
+        table.wrapOn(pdf_canvas, 600, 51.5)
+        table.drawOn(pdf_canvas, 15, 15)
 
     #------------------------------------------------------------------------------
     # Program = Open-Close
     #------------------------------------------------------------------------------
 
     elif program_name == "Open-Close":
-        pass
-
+        data = additional_info.astype(str).values.tolist()
+    
+        rows = len(data)
+        cols = len(data[0]) if rows > 0 else 1
+    
+        col_width = 600 / cols
+        row_height = 51.5 / rows if rows > 0 else 51.5
+    
+        table = Table(
+            data,
+            colWidths=[col_width] * cols,
+            rowHeights=[row_height] * rows
+        )
+    
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.white),  # All rows white
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),   # All text black
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),     # All rows same font
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ])
+        table.setStyle(style)
+    
+        table.wrapOn(pdf_canvas, 600, 51.5)
+        table.drawOn(pdf_canvas, 15, 15)
+        
     #------------------------------------------------------------------------------
     # Program = Number of Turns
     #------------------------------------------------------------------------------
@@ -315,7 +455,7 @@ def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:
         draw_text_on_pdf(pdf, text, x, y, colour=colour, size=10, left_aligned=True, replace_empty=replace_empty)
 
-def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path, additional_info_indicies, additional_info_value, program_name):
+def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path, additional_info, program_name):
     pdf = canvas.Canvas(str(pdf_output_path), pagesize=landscape(A4))
     pdf.setStrokeColor(colors.black)
     draw_layout_boxes(pdf)
@@ -326,6 +466,6 @@ def draw_test_details(test_metadata, transducer_details, active_channels, cleane
     pdf_text_positions = build_static_text_positions(test_metadata, light_blue, black)
     pdf_text_positions += build_transducer_and_gauge_positions(used_transducers, light_blue)
     pdf_text_positions += build_torque_and_stamp_positions(transducer_details, test_metadata, light_blue, black)
-    pdf_text_positions += build_program_specific_info(program_name, additional_info_indicies, additional_info_value, cleaned_data, black, light_blue)
+    pdf_text_positions += build_program_specific_info(program_name, additional_info, cleaned_data, black, light_blue, pdf)
     draw_all_text(pdf, pdf_text_positions)
     return pdf

@@ -25,15 +25,15 @@ def main():
         # primary_data_file, test_details_file, pdf_output_path = get_file_paths(args.file_path1, args.file_path2, args.file_path3)
 
         # For testing purposes, hardcode the file paths
-        primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1.3/1.3_Data_4-7-2025_12-16-32.csv"
-        test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1.3/1.3_Test_Details_4-7-2025_12-16-32.csv"
+        primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1.5/1.5_Data_7-7-2025_11-31-26.csv"
+        test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1.5/1.5_Test_Details_7-7-2025_11-31-26.csv"
         pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/PDF")
 
         is_gui = True
 
         test_metadata, transducer_details, channels_to_record, program_name = load_test_information(test_details_file)
-        cleaned_data, active_channels = prepare_primary_data(primary_data_file, channels_to_record)
-        additional_info = load_additional_info(test_details_file, program_name, channels_to_record, cleaned_data)
+        cleaned_data, active_channels, raw_data = prepare_primary_data(primary_data_file, channels_to_record)
+        additional_info, btc_indicies, bto_indicies = load_additional_info(test_details_file, program_name, raw_data)
 
         program_name = test_metadata.at['Program Name', 1]
 
@@ -49,14 +49,12 @@ def main():
                 f"{test_metadata.at['Test Name', 1]}_"
                 f"{test_metadata.at['Date Time', 1]}.pdf"
                 )
-            
-            breakouts = additional_info
 
             # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, breakouts)
+            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
 
             # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, key_time_indicies, breakouts, program_name)
+            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
 
             # Add a PNG of the plot to the PDF
             insert_plot_and_logo(figure, pdf, is_gui)   
@@ -126,14 +124,12 @@ def main():
                 f"{test_metadata.at['Test Name', 1]}_"
                 f"{test_metadata.at['Date Time', 1]}.pdf"
                 )
-            
-            breakouts = additional_info
 
             # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, breakouts)
+            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
 
             # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, key_time_indicies, breakouts, program_name)
+            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
 
             # Add a PNG of the plot to the PDF
             insert_plot_and_logo(figure, pdf, is_gui)   
@@ -150,14 +146,12 @@ def main():
                 f"{test_metadata.at['Test Name', 1]}_"
                 f"{test_metadata.at['Date Time', 1]}.pdf"
                 )
-            
-            breakouts = additional_info
 
             # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, breakouts)
+            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
 
             # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, key_time_indicies, breakouts, program_name)
+            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
 
             # Add a PNG of the plot to the PDF
             insert_plot_and_logo(figure, pdf, is_gui)   
@@ -174,17 +168,15 @@ def main():
                 f"{test_metadata.at['Test Name', 1]}_"
                 f"{test_metadata.at['Date Time', 1]}.pdf"
                 )
-            
-            breakouts = additional_info
 
             # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, breakouts)
+            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
 
             # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, key_time_indicies, breakouts, program_name)
+            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
 
             # Add a PNG of the plot to the PDF
-            insert_plot_and_logo(figure, pdf, is_gui)   
+            insert_plot_and_logo(figure, pdf, is_gui)    
 
         #------------------------------------------------------------------------------
         # Program = Dynamic Cycles Petrobras
@@ -198,14 +190,12 @@ def main():
                 f"{test_metadata.at['Test Name', 1]}_"
                 f"{test_metadata.at['Date Time', 1]}.pdf"
                 )
-            
-            breakouts = additional_info
 
             # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, breakouts)
+            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
 
             # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, key_time_indicies, breakouts, program_name)
+            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
 
             # Add a PNG of the plot to the PDF
             insert_plot_and_logo(figure, pdf, is_gui)   
@@ -222,17 +212,15 @@ def main():
                 f"{test_metadata.at['Test Name', 1]}_"
                 f"{test_metadata.at['Date Time', 1]}.pdf"
                 )
-            
-            breakouts = additional_info
 
             # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, breakouts)
+            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
 
             # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, key_time_indicies, breakouts, program_name)
+            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
 
             # Add a PNG of the plot to the PDF
-            insert_plot_and_logo(figure, pdf, is_gui)  
+            insert_plot_and_logo(figure, pdf, is_gui)   
 
         #------------------------------------------------------------------------------
         # Program = Signatures
@@ -246,17 +234,15 @@ def main():
                 f"{test_metadata.at['Test Name', 1]}_"
                 f"{test_metadata.at['Date Time', 1]}.pdf"
                 )
-            
-            breakouts = additional_info
 
             # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, breakouts)
+            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
 
             # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, key_time_indicies, breakouts, program_name)
+            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
 
             # Add a PNG of the plot to the PDF
-            insert_plot_and_logo(figure, pdf, is_gui)  
+            insert_plot_and_logo(figure, pdf, is_gui)   
 
         #------------------------------------------------------------------------------
         # Program = Open-Close
@@ -270,14 +256,12 @@ def main():
                 f"{test_metadata.at['Test Name', 1]}_"
                 f"{test_metadata.at['Date Time', 1]}.pdf"
                 )
-            
-            breakouts = additional_info
 
             # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, breakouts)
+            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info, btc_indicies, bto_indicies, test_metadata)
 
             # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, key_time_indicies, breakouts, program_name)
+            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
 
             # Add a PNG of the plot to the PDF
             insert_plot_and_logo(figure, pdf, is_gui)   

@@ -1,6 +1,5 @@
 import pandas as pd
 from pathlib import Path
-from pandas.errors import EmptyDataError
 
 def get_file_paths(primary_data_path, test_details_path, output_pdf_path):
     """
@@ -113,7 +112,7 @@ def load_test_information(test_details_path):
         program_name
     )
 
-def load_additional_info(test_details_path, program_name, channels_to_record, cleaned_data):
+def load_additional_info(test_details_path, program_name, raw_data):
     """
     Loads additional info (holds, breakouts, etc.) depending on program type.
     Requires cleaned_data for breakouts.
@@ -122,54 +121,58 @@ def load_additional_info(test_details_path, program_name, channels_to_record, cl
         pd.DataFrame or None
     """
     def handle_holds():
-        try:
-            df = load_csv_file(test_details_path, header=0, skiprows=45)
-        except ValueError:
-            return None
-        if df is None or df.empty:
-            return None
+        df = load_csv_file(test_details_path, header=0, skiprows=45)
         return df.dropna(how='all').dropna(axis=1, how='all').fillna('').reset_index(drop=True)
 
     def handle_breakouts():
-        try:
-            additional_info = load_csv_file(test_details_path, header=None, skiprows=45)
-        except ValueError:
-            additional_info = None
-        if additional_info is not None and not additional_info.empty:
-            additional_info = additional_info.dropna(how='all').dropna(axis=1, how='all').fillna('').reset_index(drop=True)
-            return additional_info
-        # If breakouts are empty but expected, calculate from data
-        from plotter_info import CHANNEL_AXIS_NAMES_MAP
-        torque_channels = [ch for ch in channels_to_record.index
-                           if CHANNEL_AXIS_NAMES_MAP.get(ch) == "Torque" and channels_to_record.at[ch, 1] == True]
-        breakout_values = []
-        for ch in torque_channels:
-            # Find first period where Close is True
-            close_mask = cleaned_data['Close'] == True
-            if close_mask.any():
-                close_start = close_mask.idxmax()
-                close_block = cleaned_data.loc[close_start:]
-                close_block = close_block[close_block['Close'] == True]
-                bto = close_block[ch].abs().max()
-            else:
-                bto = None
+        additional_info = load_csv_file(
+            test_details_path,
+            header=None,
+            usecols=[0, 1, 2],
+            skiprows=45,
+        ).reset_index(drop=True)
 
-            # Find first period where Open is True
-            open_mask = cleaned_data['Open'] == True
-            if open_mask.any():
-                open_start = open_mask.idxmax()
-                open_block = cleaned_data.loc[open_start:]
-                open_block = open_block[open_block['Open'] == True]
-                btc = open_block[ch].abs().max()
-            else:
-                btc = None
+        bto_indicies: list[int] = []
+        btc_indicies: list[int] = []
 
-            breakout_values.append([ch, bto, btc])
-        if breakout_values:
-            additional_info = pd.DataFrame(breakout_values, columns=["Channel", "BTO (Break to Open)", "BTC (Break to Close)"])
-        else:
-            additional_info = None
-        return additional_info
+        # Early‑exit if data seem to be missing --------------------------------
+        if additional_info.iloc[1, 0] == "NaN":
+            return additional_info, bto_indicies, btc_indicies
+
+        torque_data = raw_data["Torque"]
+        cycle_count_data = raw_data["Cycle Count"]
+
+        # ── Process one cycle at a time ───────────────────────────────────────
+        for i, cycle_num in enumerate(sorted(cycle_count_data.unique())):
+            mask = cycle_count_data == cycle_num
+            torque_cycle = torque_data[mask]
+
+            n_points = len(torque_cycle)
+            if n_points == 0:
+                # Skip empty cycles (shouldn't happen, but better to be safe)
+                continue
+
+            # Compute slice boundaries — each third is as equal as integer division allows
+            third_len = max(1, n_points // 3)
+            first_slice  = slice(0, third_len)
+            middle_slice = slice(third_len, 2 * third_len)
+
+            torque_first_third  = torque_cycle.iloc[first_slice]
+            torque_middle_third = torque_cycle.iloc[middle_slice]
+
+            # ── Determine BTO and BTC values ──────────────────────────────────
+            bto = torque_first_third.min().round(1)
+            btc = torque_middle_third.max().round(1)
+
+            # Record the row indices at which these extremes occur -------------
+            bto_indicies.append(int(torque_first_third.idxmin()))
+            btc_indicies.append(int(torque_middle_third.idxmax()))
+
+            # Write results back into *additional_info* (row offset by +1) -----
+            additional_info.iloc[i + 1, 1] = bto
+            additional_info.iloc[i + 1, 2] = btc
+
+        return additional_info, bto_indicies, btc_indicies
 
     def handle_default():
         return None
@@ -186,9 +189,9 @@ def load_additional_info(test_details_path, program_name, channels_to_record, cl
         "Open-Close": handle_breakouts,
         "Number Of Turns": handle_default,
     }
-
     handler = program_handlers.get(program_name, handle_default)
     return handler()
+
 def prepare_primary_data(primary_data_path, channels_to_record):
     """
     Prepare and clean the primary CSV data, which now contains a single
@@ -241,4 +244,4 @@ def prepare_primary_data(primary_data_path, channels_to_record):
     columns_ordered = ['Datetime'] + [col for col in data_subset.columns if col != 'Datetime']
     data_subset = data_subset[columns_ordered]
 
-    return data_subset, active_channels
+    return data_subset, active_channels, raw_data

@@ -5,17 +5,6 @@ import pandas as pd
 from matplotlib.ticker import MultipleLocator
 from plotter_info import CHANNEL_COLOUR_MAP, CHANNEL_UNITS_MAP, CHANNEL_AXIS_NAMES_MAP, AXIS_COLOUR_MAP, AXIS_LOCATIONS, AXIS_PRIORITY
 
-def locate_key_time_rows(cleaned_data, key_time_points):
-    time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
-    key_time_indicies = key_time_points.copy()
-    date_time_index = cleaned_data.set_index('Datetime')
-
-    for col in time_columns:
-        key_time_points.at[0, col] = pd.to_datetime(key_time_points.at[0, col], format='%d/%m/%Y %H:%M:%S.%f', errors='coerce', dayfirst=True)
-        key_time_indicies.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
-        
-    return key_time_indicies
-
 def axis_location(active_channels):
     # Priority order for axis assignment
 
@@ -32,7 +21,7 @@ def axis_location(active_channels):
 
     return CHANNEL_AXIS_LOCATION_MAP
 
-def plot_channel_data(active_channels, program_name, cleaned_data, key_time_points):
+def plot_channel_data(active_channels, program_name, cleaned_data, key_time_points, bto_indicies=None, btc_indicies=None, test_metadata=None):
     key_time_indicies = None  # Initialize to None
     data_for_plot = cleaned_data.copy()
     data_for_plot['Datetime'] = pd.to_datetime(data_for_plot['Datetime'], format='%d/%m/%Y %H:%M:%S.%f')
@@ -125,8 +114,12 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
             ax.yaxis.set_major_locator(MultipleLocator(10))
         # Set pressure axis lower bound to 0 if this is a pressure axis
         if 'Pressure' in axis_name:
-            y_min, y_max = ax.get_ylim()
-            ax.set_ylim(0, y_max)
+            if test_metadata.get('Test Pressure', 0) == 0:
+                # keeps the plot looking tidy and the line perfectly flat
+                ax.set_ylim(-1, 1)        # or (0, 1) if you prefer starting at zero
+            else:
+                y_min, y_max = ax.get_ylim()
+                ax.set_ylim(0, y_max)
         if 'Valve State' in axis_name:
             ax.set_ylim(-0.05, 1.05)           # Use full axis height for plotting
             ax.set_yticks([0, 1])              # Only show 0 and 1 as ticks
@@ -152,8 +145,6 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
         #------------------------------------------------------------------------------
 
         if program_name == "Holds-Seat" or program_name == "Holds-Body":
-
-            key_time_indicies = locate_key_time_rows(cleaned_data, key_time_points)
 
             # Overlay key time points
             time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
@@ -220,7 +211,33 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
         #------------------------------------------------------------------------------
 
         elif program_name == "Open-Close":
-            pass
+            y_min, y_max = axes['left'].get_ylim()
+            for idx in bto_indicies:
+                x = cleaned_data['Datetime'].iloc[idx]
+                y = cleaned_data['Torque'].iloc[idx]
+                axes['left'].plot(x, y, marker='x', color='black', markersize=10)
+                axes['left'].text(
+                    x,
+                    y + (y_max - y_min) * 0.03,
+                    f"BTO",
+                    color='black',
+                    fontsize=10,
+                    ha='center',
+                    va='bottom'
+                )
+            for idx in btc_indicies:
+                x = cleaned_data['Datetime'].iloc[idx]
+                y = cleaned_data['Torque'].iloc[idx]
+                axes['left'].plot(x, y, marker='x', color='black', markersize=10)
+                axes['left'].text(
+                    x,
+                    y + (y_max - y_min) * 0.03,
+                    f"BTC",
+                    color='black',
+                    fontsize=10,
+                    ha='center',
+                    va='bottom'
+                )
         #------------------------------------------------------------------------------
         # Program = Number of Turns
         #------------------------------------------------------------------------------

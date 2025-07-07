@@ -24,7 +24,8 @@ CHANNEL_COLOUR_MAP = {
     'Chamber Temperature': '#cd5c5c', # Indian Red
     'Hyperbaric Temperature': '#696969', # Dim Grey
     'Close' : "#ff1493",               # Deep Pink
-    'Open' : '#1e90ff'                 # Dodger Blue
+    'Open' : '#1e90ff',                 # Dodger Blue
+    'Cycle Count': '#ffa500'          # Orange
 }
 
 CHANNEL_UNITS_MAP = {
@@ -52,7 +53,8 @@ CHANNEL_UNITS_MAP = {
     'Chamber Temperature': '°C',
     'Hyperbaric Temperature': '°C',
     'Close': '',
-    'Open': ''
+    'Open': '',
+    'Cycle Count': ''
 }
 
 CHANNEL_AXIS_NAMES_MAP = {
@@ -80,7 +82,8 @@ CHANNEL_AXIS_NAMES_MAP = {
     'Chamber Temperature': 'Temperature',
     'Hyperbaric Temperature': 'Temperature',
     'Close': 'Valve State',
-    'Open': 'Valve State'
+    'Open': 'Valve State',
+    'Cycle Count': 'Cycle Count'
 }
 
 AXIS_COLOUR_MAP = {
@@ -92,7 +95,8 @@ AXIS_COLOUR_MAP = {
     'Number Of Turns': '#000075',       # Navy Blue
     'Motor Speed': '#00a572',           # Emerald Green
     'Temperature': '#4363d8',           # Vivid Blue
-    'Valve State' : "#ff1493"
+    'Valve State' : "#ff1493",
+    'Cycle Count': '#ffa500'            # Orange
 }
 
 
@@ -106,6 +110,7 @@ AXIS_PRIORITY = [
     'Motor Speed', 
     'LVDT',
     'Valve State',
+    'Cycle Count',
     'Temperature'
 ]
 
