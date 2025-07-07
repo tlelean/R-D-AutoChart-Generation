@@ -5,6 +5,61 @@ import pandas as pd
 from matplotlib.ticker import MultipleLocator
 from plotter_info import CHANNEL_COLOUR_MAP, CHANNEL_UNITS_MAP, CHANNEL_AXIS_NAMES_MAP, AXIS_COLOUR_MAP, AXIS_LOCATIONS, AXIS_PRIORITY
 
+
+def annotate_holds(axes, cleaned_data, key_time_points, key_time_indicies):
+    """Annotate the plot for Holds programs."""
+    time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
+    key_labels = ["SOS", "SOH", "EOH"]
+    y_min, y_max = axes['left'].get_ylim()
+    for col in time_columns:
+        if key_time_indicies.iloc[0][col] == '':
+            continue
+        x = cleaned_data['Datetime'].loc[key_time_indicies.iloc[0][col]]
+        y = cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0][col]]
+        axes['left'].plot(x, y, marker='x', color='black', markersize=10)
+        axes['left'].text(
+            x,
+            y + (y_max - y_min) * 0.03,
+            f" {key_labels[time_columns.index(col)]}",
+            color='black',
+            fontsize=10,
+            ha='center',
+            va='bottom',
+        )
+
+
+def annotate_open_close(axes, cleaned_data, bto_indicies, btc_indicies):
+    """Annotate BTO/BTC markers for Open-Close program."""
+    y_min, y_max = axes['left'].get_ylim()
+    for idx in bto_indicies:
+        x = cleaned_data['Datetime'].iloc[idx]
+        y = cleaned_data['Torque'].iloc[idx]
+        ax = axes.get('right_1', axes['left'])
+        ax.plot(x, y, marker='x', color='black', markersize=10)
+        ax.text(
+            x,
+            y + (y_max - y_min) * 0.03,
+            "BTO",
+            color='black',
+            fontsize=10,
+            ha='center',
+            va='bottom',
+        )
+    for idx in btc_indicies:
+        x = cleaned_data['Datetime'].iloc[idx]
+        y = cleaned_data['Torque'].iloc[idx]
+        ax = axes.get('right_1', axes['left'])
+        ax.plot(x, y, marker='x', color='black', markersize=10)
+        ax.text(
+            x,
+            y + (y_max - y_min) * 0.03,
+            "BTC",
+            color='black',
+            fontsize=10,
+            ha='center',
+            va='bottom',
+        )
+
 def axis_location(active_channels):
     # Priority order for axis assignment
 
@@ -138,119 +193,10 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
         x_ticks = pd.date_range(start=x_min, end=x_max, periods=10)
         ax.set_xticks(x_ticks)
 
-        #------------------------------------------------------------------------------
-        # Program = Initial Cycle
-        #------------------------------------------------------------------------------
-
-        if program_name == "Initial Cycle":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Holds-Seat or Holds-Body
-        #------------------------------------------------------------------------------
-
-        if program_name == "Holds-Seat" or program_name == "Holds-Body":
-
-            # Overlay key time points
-            time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
-            key_labels = ['SOS', 'SOH', 'EOH']
-            y_min, y_max = axes['left'].get_ylim()
-            for col in time_columns:
-                if key_time_indicies.iloc[0][col] == '':
-                    continue
-                x = cleaned_data['Datetime'].loc[key_time_indicies.iloc[0][col]]
-                y = cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0][col]]
-                axes['left'].plot(x, y, marker='x', color='black', markersize=10)
-                axes['left'].text(
-                    x,
-                    y + (y_max - y_min) * 0.03,
-                    f" {key_labels[time_columns.index(col)]}",
-                    color='black',
-                    fontsize=10,
-                    ha='center',
-                    va='bottom'
-                )
-        #------------------------------------------------------------------------------
-        # Program = Atmospheric Breakouts
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Atmospheric Breakouts":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Atmospheric Cyclic
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Atmospheric Cyclic":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Dynamic Cycles PR2
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Dynamic Cycles PR2":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Dynamic Cycles Petrobras
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Dynamic Cycles Petrobras":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Pulse Cycles
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Pulse Cycles":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Signatures
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Signatures":
-            pass
-        #------------------------------------------------------------------------------
-        # Program = Open-Close
-        #------------------------------------------------------------------------------
-
+        if program_name in ("Holds-Seat", "Holds-Body"):
+            annotate_holds(axes, cleaned_data, key_time_points, key_time_indicies)
         elif program_name == "Open-Close":
-            y_min, y_max = axes['left'].get_ylim()
-            for idx in bto_indicies:
-                x = cleaned_data['Datetime'].iloc[idx]
-                y = cleaned_data['Torque'].iloc[idx]
-                ax = get_axis_for_channel('Torque')
-                ax.plot(x, y, marker='x', color='black', markersize=10)
-                ax.text(
-                    x,
-                    y + (y_max - y_min) * 0.03,
-                    f"BTO",
-                    color='black',
-                    fontsize=10,
-                    ha='center',
-                    va='bottom'
-                )
-            for idx in btc_indicies:
-                x = cleaned_data['Datetime'].iloc[idx]
-                y = cleaned_data['Torque'].iloc[idx]
-                ax = get_axis_for_channel('Torque')
-                ax.plot(x, y, marker='x', color='black', markersize=10)
-                ax.text(
-                    x,
-                    y + (y_max - y_min) * 0.03,
-                    f"BTC",
-                    color='black',
-                    fontsize=10,
-                    ha='center',
-                    va='bottom'
-                )
-        #------------------------------------------------------------------------------
-        # Program = Number of Turns
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Number Of Turns":
-            pass
+            annotate_open_close(axes, cleaned_data, bto_indicies or [], btc_indicies or [])
 
     # # Create a combined legend
     # fig.legend(plotted_lines, plotted_labels, loc='lower center', ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.02))

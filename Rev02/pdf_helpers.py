@@ -184,6 +184,60 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
         (685, 22.5, test_metadata.at['Operative', 1], light_blue, False),
     ]
 
+
+def draw_standard_table(pdf_canvas, additional_info):
+    """Render a standard headered table for additional info."""
+    data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
+    rows = len(data)
+    cols = len(data[0])
+    col_width = 600 / cols
+    row_height = 51.5 / rows
+    table = Table(
+        data,
+        colWidths=[col_width] * cols,
+        rowHeights=[row_height] * rows,
+    )
+    style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+    ])
+    table.setStyle(style)
+    table.wrapOn(pdf_canvas, 600, 51.5)
+    table.drawOn(pdf_canvas, 15, 15)
+
+
+def draw_open_close_table(pdf_canvas, additional_info):
+    """Render the simplified Open-Close table."""
+    data = additional_info.astype(str).values.tolist()
+    rows = len(data)
+    cols = len(data[0]) if rows > 0 else 1
+    col_width = 600 / cols
+    row_height = 51.5 / rows if rows > 0 else 51.5
+    table = Table(
+        data,
+        colWidths=[col_width] * cols,
+        rowHeights=[row_height] * rows,
+    )
+    style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+    ])
+    table.setStyle(style)
+    table.wrapOn(pdf_canvas, 600, 51.5)
+    table.drawOn(pdf_canvas, 15, 15)
+
 def build_program_specific_info(program_name, additional_info, cleaned_data, black, light_blue, pdf_canvas):
     positions = []
 
@@ -227,144 +281,28 @@ def build_program_specific_info(program_name, additional_info, cleaned_data, bla
     #------------------------------------------------------------------------------
 
     elif program_name == "Atmospheric Breakouts":
-        
-        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
-
-        rows = len(data)
-        cols = len(data[0])
-
-        col_width = 600 / cols
-        row_height = 51.5 / rows
-
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
+        draw_standard_table(pdf_canvas, additional_info)
 
     #------------------------------------------------------------------------------
     # Program = Atmospheric Cyclic
     #------------------------------------------------------------------------------
 
     elif program_name == "Atmospheric Cyclic":
-        
-        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
-
-        rows = len(data)
-        cols = len(data[0])
-
-        col_width = 600 / cols
-        row_height = 51.5 / rows
-
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
+        draw_standard_table(pdf_canvas, additional_info)
 
     #------------------------------------------------------------------------------
     # Program = Dynamic Cycles PR2
     #------------------------------------------------------------------------------
 
     elif program_name == "Dynamic Cycles PR2":
-
-        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
-
-        rows = len(data)
-        cols = len(data[0])
-
-        col_width = 600 / cols
-        row_height = 51.5 / rows
-
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
+        draw_standard_table(pdf_canvas, additional_info)
 
     #------------------------------------------------------------------------------
     # Program = Dynamic Cycles Petrobras
     #------------------------------------------------------------------------------
 
     elif program_name == "Dynamic Cycles Petrobras":
-
-        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
-
-        rows = len(data)
-        cols = len(data[0])
-
-        col_width = 600 / cols
-        row_height = 51.5 / rows
-
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
+        draw_standard_table(pdf_canvas, additional_info)
 
     #------------------------------------------------------------------------------
     # Program = Pulse Cycles
@@ -378,69 +316,14 @@ def build_program_specific_info(program_name, additional_info, cleaned_data, bla
     #------------------------------------------------------------------------------
 
     elif program_name == "Signatures":
-
-        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
-
-        rows = len(data)
-        cols = len(data[0])
-
-        col_width = 600 / cols
-        row_height = 51.5 / rows
-
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
+        draw_standard_table(pdf_canvas, additional_info)
 
     #------------------------------------------------------------------------------
     # Program = Open-Close
     #------------------------------------------------------------------------------
 
     elif program_name == "Open-Close":
-        data = additional_info.astype(str).values.tolist()
-    
-        rows = len(data)
-        cols = len(data[0]) if rows > 0 else 1
-    
-        col_width = 600 / cols
-        row_height = 51.5 / rows if rows > 0 else 51.5
-    
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-    
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.white),  # All rows white
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),   # All text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),     # All rows same font
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-    
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
+        draw_open_close_table(pdf_canvas, additional_info)
         
     #------------------------------------------------------------------------------
     # Program = Number of Turns

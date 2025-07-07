@@ -46,7 +46,6 @@ def handle_generic(
     )
     insert_plot_and_logo(figure, pdf, is_gui)
     return unique_path
-    return unique_path
 
 
 def handle_holds(
