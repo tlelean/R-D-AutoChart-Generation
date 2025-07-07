@@ -3,28 +3,38 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import MultipleLocator
-from plotter_info import CHANNEL_COLOUR_MAP, CHANNEL_UNITS_MAP, CHANNEL_AXIS_NAMES_MAP, AXIS_COLOUR_MAP, AXIS_LOCATIONS, AXIS_PRIORITY
+from plotter_info import (
+    CHANNEL_COLOUR_MAP,
+    CHANNEL_UNITS_MAP,
+    CHANNEL_AXIS_NAMES_MAP,
+    AXIS_COLOUR_MAP,
+    AXIS_LOCATIONS,
+    AXIS_PRIORITY,
+)
+from pdf_helpers import locate_key_time_rows
 
 
-def annotate_holds(axes, cleaned_data, key_time_indicies):
+def annotate_holds(axes, cleaned_data, key_time_indices):
     """Annotate the plot for Holds programs."""
     time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
     key_labels = ["SOS", "SOH", "EOH"]
-    y_min, y_max = axes['left'].get_ylim()
-    for col in time_columns:
-        if key_time_indicies.iloc[0][col] == '':
+    main_channel = key_time_indices.iloc[0]["Main Channel"]
+    y_min, y_max = axes["left"].get_ylim()
+    for col, label in zip(time_columns, key_labels):
+        idx = key_time_indices.iloc[0][col]
+        if idx == "":
             continue
-        x = cleaned_data['Datetime'].loc[key_time_indicies.iloc[0][col]]
-        y = cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0][col]]
-        axes['left'].plot(x, y, marker='x', color='black', markersize=10)
-        axes['left'].text(
+        x = cleaned_data["Datetime"].loc[idx]
+        y = cleaned_data[main_channel].loc[idx]
+        axes["left"].plot(x, y, marker="x", color="black", markersize=10)
+        axes["left"].text(
             x,
             y + (y_max - y_min) * 0.03,
-            f" {key_labels[time_columns.index(col)]}",
-            color='black',
+            f" {label}",
+            color="black",
             fontsize=10,
-            ha='center',
-            va='bottom',
+            ha="center",
+            va="bottom",
         )
 
 
@@ -117,7 +127,9 @@ def axis_location(active_channels):
     return CHANNEL_AXIS_LOCATION_MAP
 
 def plot_channel_data(active_channels, program_name, cleaned_data, raw_data, additional_info, test_metadata):
-    key_time_indicies = None  # Initialize to None
+    key_time_indices = None
+    if program_name in ("Holds-Seat", "Holds-Body"):
+        key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
     data_for_plot = cleaned_data.copy()
     data_for_plot['Datetime'] = pd.to_datetime(data_for_plot['Datetime'], format='%d/%m/%Y %H:%M:%S.%f')
 
@@ -228,7 +240,7 @@ def plot_channel_data(active_channels, program_name, cleaned_data, raw_data, add
         ax.set_xticks(x_ticks)
 
         if program_name in ("Holds-Seat", "Holds-Body"):
-            annotate_holds(axes, cleaned_data, key_time_indicies)
+            annotate_holds(axes, cleaned_data, key_time_indices)
         elif program_name == "Open-Close":
             annotate_open_close(axes, cleaned_data, raw_data, additional_info)
 

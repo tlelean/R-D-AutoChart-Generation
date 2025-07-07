@@ -46,6 +46,7 @@ def main():
             transducer_details=transducer_details,
             active_channels=active_channels,
             cleaned_data=cleaned_data,
+            raw_data=raw_data,
             additional_info=additional_info,
             is_gui=is_gui
         )
