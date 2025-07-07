@@ -9,23 +9,25 @@ from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Table, TableStyle
 
 def locate_key_time_rows(cleaned_data, key_time_points):
+    """Return indices of key time points closest to provided timestamps."""
+
     time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
-    key_time_indicies = key_time_points.copy()
+    key_time_indices = key_time_points.copy()
     date_time_index = cleaned_data.set_index('Datetime')
 
     for col in time_columns:
         key_time_points.at[0, col] = pd.to_datetime(key_time_points.at[0, col], format='%d/%m/%Y %H:%M:%S.%f', errors='coerce', dayfirst=True)
-        key_time_indicies.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
-        
-    return key_time_indicies
+        key_time_indices.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
+
+    return key_time_indices
 
 def locate_bto_btc_rows(raw_data, additional_info):
-    bto_indicies: list[int] = []
-    btc_indicies: list[int] = []
+    bto_indices: list[int] = []
+    btc_indices: list[int] = []
 
     # Early‑exit if data seem to be missing --------------------------------
     if additional_info.iloc[1, 0] == "NaN":
-        return additional_info, bto_indicies, btc_indicies
+        return additional_info, bto_indices, btc_indices
 
     torque_data = raw_data["Torque"]
     cycle_count_data = raw_data["Cycle Count"]
@@ -53,14 +55,14 @@ def locate_bto_btc_rows(raw_data, additional_info):
         btc = torque_middle_third.max().round(1)
 
         # Record the row indices at which these extremes occur -------------
-        bto_indicies.append(int(torque_first_third.idxmin()))
-        btc_indicies.append(int(torque_middle_third.idxmax()))
+        bto_indices.append(int(torque_first_third.idxmin()))
+        btc_indices.append(int(torque_middle_third.idxmax()))
 
         # Write results back into *additional_info* (row offset by +1) -----
         additional_info.iloc[i + 1, 1] = bto
         additional_info.iloc[i + 1, 2] = btc
 
-        return additional_info, bto_indicies, btc_indicies
+    return additional_info, bto_indices, btc_indices
 
 
 def insert_plot_and_logo(figure, pdf, is_gui):
@@ -191,36 +193,7 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
         (685, 22.5, test_metadata.at['Operative', 1], light_blue, False),
     ]
 
-
-def draw_standard_table(pdf_canvas, additional_info):
-    """Render a standard headered table for additional info."""
-    data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
-    rows = len(data)
-    cols = len(data[0])
-    col_width = 600 / cols
-    row_height = 51.5 / rows
-    table = Table(
-        data,
-        colWidths=[col_width] * cols,
-        rowHeights=[row_height] * rows,
-    )
-    style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-    ])
-    table.setStyle(style)
-    table.wrapOn(pdf_canvas, 600, 51.5)
-    table.drawOn(pdf_canvas, 15, 15)
-
-
-def draw_open_close_table(pdf_canvas, additional_info):
+def draw_breakouts_table(pdf_canvas, additional_info):
     """Render the simplified Open-Close table."""
     data = additional_info.astype(str).values.tolist()
     rows = len(data)
@@ -245,101 +218,26 @@ def draw_open_close_table(pdf_canvas, additional_info):
     table.wrapOn(pdf_canvas, 600, 51.5)
     table.drawOn(pdf_canvas, 15, 15)
 
-def build_program_specific_info(program_name, additional_info, cleaned_data, black, light_blue, pdf_canvas):
-    positions = []
-
-    #------------------------------------------------------------------------------
-    # Program = Initial Cycle
-    #------------------------------------------------------------------------------
-
-    if program_name == "Initial Cycle":
-        pass
-
-    #------------------------------------------------------------------------------
-    # Program = Holds-Seat or Holds-Body
-    #------------------------------------------------------------------------------  
-
-    elif program_name == "Holds-Seat" or program_name == "Holds-Body":
-
-        key_time_indicies = locate_key_time_rows(cleaned_data, additional_info)
-
-        indices = key_time_indicies.iloc[0]
-        main_ch = key_time_indicies.iloc[0]['Main Channel']
-        for label, ypos, col in [
-            ("Start of Stabilisation", 56.5, 'Start of Stabilisation'),
-            ("Start of Hold", 41.25, 'Start of Hold'),
-            ("End of Hold", 25, 'End of Hold')
-        ]:
-            idx = indices[col]
-            if idx != '':
-                time = cleaned_data.at[idx, 'Datetime'].strftime('%d/%m/%Y %H:%M:%S')
-                psi  = int(cleaned_data.at[idx, main_ch])
-                temp = cleaned_data.at[idx, 'Ambient Temperature']
-                positions.extend([
-                    (20, ypos, label, black, False),
-                    (120, ypos,
-                        f"{time}   {psi} psi   {temp}\u00B0C",
-                        light_blue, False
-                    )
-                ])
-
-    #------------------------------------------------------------------------------
-    # Program = Atmospheric Breakouts
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Atmospheric Breakouts":
-        draw_standard_table(pdf_canvas, additional_info)
-
-    #------------------------------------------------------------------------------
-    # Program = Atmospheric Cyclic
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Atmospheric Cyclic":
-        draw_standard_table(pdf_canvas, additional_info)
-
-    #------------------------------------------------------------------------------
-    # Program = Dynamic Cycles PR2
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Dynamic Cycles PR2":
-        draw_standard_table(pdf_canvas, additional_info)
-
-    #------------------------------------------------------------------------------
-    # Program = Dynamic Cycles Petrobras
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Dynamic Cycles Petrobras":
-        draw_standard_table(pdf_canvas, additional_info)
-
-    #------------------------------------------------------------------------------
-    # Program = Pulse Cycles
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Pulse Cycles":
-        pass
-    
-    #------------------------------------------------------------------------------
-    # Program = Signatures
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Signatures":
-        draw_standard_table(pdf_canvas, additional_info)
-
-    #------------------------------------------------------------------------------
-    # Program = Open-Close
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Open-Close":
-        draw_open_close_table(pdf_canvas, additional_info)
-        
-    #------------------------------------------------------------------------------
-    # Program = Number of Turns
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Number Of Turns":
-        pass
-    
-    return positions
+def draw_holds_table(key_time_indices, cleaned_data, positions, black, light_blue):
+    indices = key_time_indices.iloc[0]
+    main_ch = key_time_indices.iloc[0]['Main Channel']
+    for label, ypos, col in [
+        ("Start of Stabilisation", 56.5, 'Start of Stabilisation'),
+        ("Start of Hold", 41.25, 'Start of Hold'),
+        ("End of Hold", 25, 'End of Hold')
+    ]:
+        idx = indices[col]
+        if idx != '':
+            time = cleaned_data.at[idx, 'Datetime'].strftime('%d/%m/%Y %H:%M:%S')
+            psi  = int(cleaned_data.at[idx, main_ch])
+            temp = cleaned_data.at[idx, 'Ambient Temperature']
+            positions.extend([
+                (20, ypos, label, black, False),
+                (120, ypos,
+                    f"{time}   {psi} psi   {temp}\u00B0C",
+                    light_blue, False
+                )
+            ])
 
 def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:
@@ -356,6 +254,5 @@ def draw_test_details(test_metadata, transducer_details, active_channels, cleane
     pdf_text_positions = build_static_text_positions(test_metadata, light_blue, black)
     pdf_text_positions += build_transducer_and_gauge_positions(used_transducers, light_blue)
     pdf_text_positions += build_torque_and_stamp_positions(transducer_details, test_metadata, light_blue, black)
-    pdf_text_positions += build_program_specific_info(program_name, additional_info, cleaned_data, black, light_blue, pdf)
     draw_all_text(pdf, pdf_text_positions)
     return pdf
