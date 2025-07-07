@@ -240,9 +240,16 @@ def plot_channel_data(active_channels, program_name, cleaned_data, raw_data, add
         ax.set_xticks(x_ticks)
 
         if program_name in ("Holds-Seat", "Holds-Body"):
-            annotate_holds(axes, cleaned_data, key_time_indices)
+            annotate_holds(
+                axes=axes, 
+                cleaned_data=cleaned_data, 
+                key_time_indices=key_time_indices)
         elif program_name == "Open-Close":
-            annotate_open_close(axes, cleaned_data, raw_data, additional_info)
+            annotate_open_close(
+                axes=axes, 
+                cleaned_data=cleaned_data, 
+                raw_data=raw_data, 
+                additional_info=additional_info)
 
     # Dynamically set legend columns and bottom margin
     max_cols = 5

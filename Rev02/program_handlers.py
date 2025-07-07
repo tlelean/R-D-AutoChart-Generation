@@ -31,21 +31,21 @@ def handle_generic(
     """Default handler used by many programs."""
     unique_path = build_output_path(pdf_output_path, test_metadata)
     figure = plot_channel_data(
-        active_channels,
-        program_name,
-        cleaned_data,
-        raw_data,
-        additional_info,
-        test_metadata,
+        active_channels=active_channels,
+        program_name=program_name,
+        cleaned_data=cleaned_data,
+        raw_data=raw_data,
+        additional_info=additional_info,
+        test_metadata=test_metadata,
     )
     pdf = draw_test_details(
-        test_metadata,
-        transducer_details,
-        active_channels,
-        cleaned_data,
-        unique_path,
-        additional_info,
-        program_name,
+        test_metadata=test_metadata,
+        transducer_details=transducer_details,
+        active_channels=active_channels,
+        cleaned_data=cleaned_data,
+        unique_path=unique_path,
+        additional_info=additional_info,
+        program_name=program_name,
     )
     insert_plot_and_logo(figure, pdf, is_gui)
     return unique_path
@@ -129,12 +129,12 @@ def handle_breakouts(
     """Handler for breakout programs."""
     unique_path = build_output_path(pdf_output_path, test_metadata)
     figure = plot_channel_data(
-        active_channels,
-        program_name,
-        cleaned_data,
-        raw_data,
-        additional_info,
-        test_metadata,
+        active_channels=active_channels,
+        program_name=program_name,
+        cleaned_data=cleaned_data,
+        raw_data=raw_data,
+        additional_info=additional_info,
+        test_metadata=test_metadata,
     )
     pdf = draw_test_details(
         test_metadata,
