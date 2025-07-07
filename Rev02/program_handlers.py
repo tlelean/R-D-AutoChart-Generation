@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Callable, Dict, Any
 from graph_plotter import plot_channel_data, annotate_holds, annotate_breakouts
-from pdf_helpers import draw_test_details, insert_plot_and_logo, locate_key_time_rows, locate_bto_btc_rows
+from pdf_helpers import draw_test_details, insert_plot_and_logo, locate_key_time_rows, locate_bto_btc_rows, draw_holds_table, draw_breakouts_table
 
 def build_output_path(base_path: Path, test_metadata) -> Path:
     """Construct the output PDF path from metadata."""
@@ -88,7 +88,10 @@ def handle_holds(
                 single_info,
                 program_name,
             )
-            insert_plot_and_logo(figure, pdf, is_gui)
+            
+            #draw_holds_table()
+
+            insert_plot_and_logo(figure, pdf, is_gui)            
     else:
         unique_path = build_output_path(pdf_output_path, test_metadata)
         single_info = additional_info
@@ -115,6 +118,9 @@ def handle_holds(
             single_info,
             program_name,
         )
+
+        #draw_holds_table()
+
         insert_plot_and_logo(figure, pdf, is_gui)
 
     return unique_path
@@ -159,7 +165,10 @@ def handle_breakouts(
         additional_info,
         program_name,
     )
+    draw_breakouts_table(pdf, additional_info)
+
     insert_plot_and_logo(figure, pdf, is_gui)
+
     return unique_path
 
 

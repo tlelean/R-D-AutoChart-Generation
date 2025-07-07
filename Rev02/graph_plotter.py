@@ -45,12 +45,12 @@ def annotate_breakouts(axes, cleaned_data, bto_indices, btc_indices):
         ax.plot(x, y, marker='x', color='black', markersize=10)
         ax.text(
             x,
-            y + (y_max - y_min) * 0.03,
+            y - (y_max - y_min) * 0.03,
             "BTO",
             color='black',
             fontsize=10,
             ha='center',
-            va='bottom',
+            va='top',
         )
     for idx in btc_indices:
         x = cleaned_data['Datetime'].iloc[idx]
