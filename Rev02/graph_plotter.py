@@ -55,6 +55,11 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
             axes[axis].spines['right'].set_position(('axes', 1.4))
         # Add more elifs for more right axes if needed
 
+    def get_axis_for_channel(channel):
+        axis_type = CHANNEL_AXIS_NAMES_MAP.get(channel)
+        axis_loc = axis_map.get(axis_type, 'left')
+        return axes[axis_loc]
+
     # Track used axes for legend
     plotted_lines = []
     plotted_labels = []
@@ -116,7 +121,7 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
         if 'Pressure' in axis_name:
             if test_metadata.get('Test Pressure', 0) == 0:
                 # keeps the plot looking tidy and the line perfectly flat
-                ax.set_ylim(-1, 1)        # or (0, 1) if you prefer starting at zero
+                ax.set_ylim(-1, 100)        # or (0, 1) if you prefer starting at zero
             else:
                 y_min, y_max = ax.get_ylim()
                 ax.set_ylim(0, y_max)
@@ -215,8 +220,9 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
             for idx in bto_indicies:
                 x = cleaned_data['Datetime'].iloc[idx]
                 y = cleaned_data['Torque'].iloc[idx]
-                axes['left'].plot(x, y, marker='x', color='black', markersize=10)
-                axes['left'].text(
+                ax = get_axis_for_channel('Torque')
+                ax.plot(x, y, marker='x', color='black', markersize=10)
+                ax.text(
                     x,
                     y + (y_max - y_min) * 0.03,
                     f"BTO",
@@ -228,8 +234,9 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
             for idx in btc_indicies:
                 x = cleaned_data['Datetime'].iloc[idx]
                 y = cleaned_data['Torque'].iloc[idx]
-                axes['left'].plot(x, y, marker='x', color='black', markersize=10)
-                axes['left'].text(
+                ax = get_axis_for_channel('Torque')
+                ax.plot(x, y, marker='x', color='black', markersize=10)
+                ax.text(
                     x,
                     y + (y_max - y_min) * 0.03,
                     f"BTC",
