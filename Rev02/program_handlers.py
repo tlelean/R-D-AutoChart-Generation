@@ -1,7 +1,21 @@
+"""Program specific handlers for creating PDFs."""
+
 from pathlib import Path
-from typing import Callable, Dict, Any
-from graph_plotter import plot_channel_data, annotate_holds, annotate_breakouts
-from pdf_helpers import draw_test_details, insert_plot_and_logo, locate_key_time_rows, locate_bto_btc_rows, draw_holds_table, draw_breakouts_table
+from typing import Any, Callable, Dict
+
+from graph_plotter import (
+    annotate_breakouts,
+    annotate_holds,
+    plot_channel_data,
+)
+from pdf_helpers import (
+    draw_breakouts_table,
+    draw_holds_table,
+    draw_test_details,
+    insert_plot_and_logo,
+    locate_bto_btc_rows,
+    locate_key_time_rows,
+)
 
 def build_output_path(base_path: Path, test_metadata) -> Path:
     """Construct the output PDF path from metadata."""

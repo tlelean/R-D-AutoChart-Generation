@@ -1,11 +1,13 @@
-import matplotlib.pyplot as plt
+"""Utilities for creating PDF reports from test data."""
+
 import io
+import matplotlib.pyplot as plt
+import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.colors import Color
-import pandas as pd
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import landscape, A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 
 def locate_key_time_rows(cleaned_data, key_time_points):
@@ -16,8 +18,16 @@ def locate_key_time_rows(cleaned_data, key_time_points):
     date_time_index = cleaned_data.set_index('Datetime')
 
     for col in time_columns:
-        key_time_points.at[0, col] = pd.to_datetime(key_time_points.at[0, col], format='%d/%m/%Y %H:%M:%S.%f', errors='coerce', dayfirst=True)
-        key_time_indices.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
+        key_time_points.at[0, col] = pd.to_datetime(
+            key_time_points.at[0, col],
+            format="%d/%m/%Y %H:%M:%S.%f",
+            errors="coerce",
+            dayfirst=True,
+        )
+        key_time_indices.at[0, col] = date_time_index.index.get_indexer(
+            [key_time_points.at[0, col]],
+            method="nearest",
+        )[0]
 
     return key_time_indices
 
@@ -71,9 +81,29 @@ def insert_plot_and_logo(figure, pdf, is_gui):
     png_figure.seek(0)
     plt.close(figure)
     fig_img = ImageReader(png_figure)
-    pdf.drawImage(fig_img, 16, 67.5, 598, 416.5, preserveAspectRatio=False, mask='auto')
-    image_path = 'V:/Userdoc/R & D/Logos/R&D_Page_2.png' if is_gui else '/var/opt/codesys/PlcLogic/R&D_Page_2.png'
-    pdf.drawImage(image_path, 629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
+    pdf.drawImage(
+        fig_img,
+        16,
+        67.5,
+        598,
+        416.5,
+        preserveAspectRatio=False,
+        mask="auto",
+    )
+    image_path = (
+        "V:/Userdoc/R & D/Logos/R&D_Page_2.png"
+        if is_gui
+        else "/var/opt/codesys/PlcLogic/R&D_Page_2.png"
+    )
+    pdf.drawImage(
+        image_path,
+        629,
+        515,
+        197,
+        65,
+        preserveAspectRatio=True,
+        mask="auto",
+    )
     pdf.save()
 
 def draw_bounding_box(pdf_canvas, x, y, width, height):
@@ -81,7 +111,17 @@ def draw_bounding_box(pdf_canvas, x, y, width, height):
     pdf_canvas.rect(x, y, width, height)
 
 
-def draw_text_on_pdf(pdf_canvas, text, x, y, font="Helvetica", colour='black', size=10, left_aligned=False, replace_empty=False):
+def draw_text_on_pdf(
+    pdf_canvas,
+    text,
+    x,
+    y,
+    font="Helvetica",
+    colour="black",
+    size=10,
+    left_aligned=False,
+    replace_empty=False,
+):
 
     # Convert text to string or set to "" if None
     text = "" if text is None else str(text)
@@ -119,15 +159,21 @@ def draw_layout_boxes(pdf):
         draw_bounding_box(pdf, *box)
 
 def draw_headers(pdf, test_metadata, cleaned_data, light_blue):
-    draw_text_on_pdf(pdf,
-        f"{test_metadata.at['Test Section Number', 1]} {test_metadata.at['Test Name', 1]}",
-        315, 500, font="Helvetica-Bold", size=16)
     draw_text_on_pdf(
         pdf,
-        cleaned_data.at[0, 'Datetime'].strftime('%d/%m/%Y'),
-        487.5, 539.375,
+        f"{test_metadata.at['Test Section Number', 1]} {test_metadata.at['Test Name', 1]}",
+        315,
+        500,
+        font="Helvetica-Bold",
+        size=16,
+    )
+    draw_text_on_pdf(
+        pdf,
+        cleaned_data.at[0, "Datetime"].strftime("%d/%m/%Y"),
+        487.5,
+        539.375,
         colour=light_blue,
-        left_aligned=True
+        left_aligned=True,
     )
     draw_text_on_pdf(pdf, "Data Recording Equipment Used", 728.5, 475, "Helvetica-Bold", size=12)
     draw_text_on_pdf(pdf, "3rd Party Stamp and Date", 728.5, 45, "Helvetica-Bold", size=12)
