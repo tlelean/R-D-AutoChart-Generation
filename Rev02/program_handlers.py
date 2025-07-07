@@ -29,7 +29,7 @@ def handle_generic(
 ):
     """Default handler used by many programs."""
     unique_path = build_output_path(pdf_output_path, test_metadata)
-    figure, key_indices = plot_channel_data(
+    figure = plot_channel_data(
         active_channels,
         program_name,
         cleaned_data,
@@ -67,7 +67,7 @@ def handle_holds(
             test_metadata.at['Test Section Number', 1] = f"{title_prefix}.{index + 1}"
             unique_path = build_output_path(pdf_output_path, test_metadata)
             single_info = additional_info.loc[[index]]
-            figure, key_indices = plot_channel_data(
+            figure = plot_channel_data(
                 active_channels=active_channels,
                 program_name=program_name,
                 cleaned_data=cleaned_data,
@@ -87,7 +87,7 @@ def handle_holds(
     else:
         unique_path = build_output_path(pdf_output_path, test_metadata)
         single_info = additional_info
-        figure, key_indices = plot_channel_data(
+        figure = plot_channel_data(
             active_channels,
             program_name,
             cleaned_data,
@@ -117,20 +117,17 @@ def handle_breakouts(
     cleaned_data,
     additional_info,
     is_gui: bool,
-    btc_indicies,
-    bto_indicies,
     **kwargs,
 ):
     """Handler for breakout programs."""
     unique_path = build_output_path(pdf_output_path, test_metadata)
-    figure, key_indices = plot_channel_data(
+    figure = plot_channel_data(
         active_channels,
         program_name,
         cleaned_data,
+        raw_data,
         additional_info,
-        btc_indicies=btc_indicies,
-        bto_indicies=bto_indicies,
-        test_metadata=test_metadata,
+        test_metadata,
     )
     pdf = draw_test_details(
         test_metadata,

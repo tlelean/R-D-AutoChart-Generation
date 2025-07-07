@@ -58,88 +58,24 @@ def load_test_information(test_details_path):
     channels_to_record.set_index(0, inplace=True)
     channels_to_record.fillna('', inplace=True)
 
+    additional_info = (
+        load_csv_file(
+            test_details_path,
+            header=None,
+            usecols=[0, 1, 2],
+            skiprows=45,
+        ).reset_index(drop=True)
+    )
+
     program_name = test_metadata.at['Program Name', 1]
 
     return (
         test_metadata,
         transducer_details,
         channels_to_record,
+        additional_info,
         program_name
     )
-
-def load_additional_info(test_details_path, program_name, raw_data):
-
-    def handle_holds():
-        df = load_csv_file(test_details_path, header=0, skiprows=45)
-        return df.dropna(how='all').dropna(axis=1, how='all').fillna('').reset_index(drop=True)
-
-    def handle_breakouts():
-        additional_info = load_csv_file(
-            test_details_path,
-            header=None,
-            usecols=[0, 1, 2],
-            skiprows=45,
-        ).reset_index(drop=True)
-
-        bto_indicies: list[int] = []
-        btc_indicies: list[int] = []
-
-        # Early‑exit if data seem to be missing --------------------------------
-        if additional_info.iloc[1, 0] == "NaN":
-            return additional_info, bto_indicies, btc_indicies
-
-        torque_data = raw_data["Torque"]
-        cycle_count_data = raw_data["Cycle Count"]
-
-        # ── Process one cycle at a time ───────────────────────────────────────
-        for i, cycle_num in enumerate(sorted(cycle_count_data.unique())):
-            mask = cycle_count_data == cycle_num
-            torque_cycle = torque_data[mask]
-
-            n_points = len(torque_cycle)
-            if n_points == 0:
-                # Skip empty cycles (shouldn't happen, but better to be safe)
-                continue
-
-            # Compute slice boundaries — each third is as equal as integer division allows
-            third_len = max(1, n_points // 3)
-            first_slice  = slice(0, third_len)
-            middle_slice = slice(third_len, 2 * third_len)
-
-            torque_first_third  = torque_cycle.iloc[first_slice]
-            torque_middle_third = torque_cycle.iloc[middle_slice]
-
-            # ── Determine BTO and BTC values ──────────────────────────────────
-            bto = torque_first_third.min().round(1)
-            btc = torque_middle_third.max().round(1)
-
-            # Record the row indices at which these extremes occur -------------
-            bto_indicies.append(int(torque_first_third.idxmin()))
-            btc_indicies.append(int(torque_middle_third.idxmax()))
-
-            # Write results back into *additional_info* (row offset by +1) -----
-            additional_info.iloc[i + 1, 1] = bto
-            additional_info.iloc[i + 1, 2] = btc
-
-        return additional_info, bto_indicies, btc_indicies
-
-    def handle_default():
-        return None
-
-    program_handlers = {
-        "Holds-Seat": handle_holds,
-        "Holds-Body": handle_holds,
-        "Atmospheric Breakouts": handle_breakouts,
-        "Atmospheric Cyclic": handle_breakouts,
-        "Dynamic Cycles PR2": handle_breakouts,
-        "Dynamic Cycles Petrobras": handle_breakouts,
-        "Pulse Cycles": handle_default,
-        "Signatures": handle_default,
-        "Open-Close": handle_breakouts,
-        "Number Of Turns": handle_default,
-    }
-    handler = program_handlers.get(program_name, handle_default)
-    return handler()
 
 def prepare_primary_data(primary_data_path, channels_to_record):
 

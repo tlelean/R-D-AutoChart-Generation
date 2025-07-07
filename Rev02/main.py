@@ -1,7 +1,7 @@
 import fitz
 import argparse
 from pathlib import Path
-from data_loading import get_file_paths, load_test_information, load_additional_info, prepare_primary_data
+from data_loading import get_file_paths, load_test_information, prepare_primary_data
 from program_handlers import HANDLERS
 
 def main():
@@ -30,9 +30,8 @@ def main():
 
         is_gui = True
 
-        test_metadata, transducer_details, channels_to_record, program_name = load_test_information(test_details_file)
+        test_metadata, transducer_details, channels_to_record, program_name, additional_info = load_test_information(test_details_file)
         cleaned_data, active_channels, raw_data = prepare_primary_data(primary_data_file, channels_to_record)
-        additional_info, btc_indicies, bto_indicies = load_additional_info(test_details_file, program_name, raw_data)
 
         program_name = test_metadata.at['Program Name', 1]
 
@@ -48,9 +47,7 @@ def main():
             active_channels=active_channels,
             cleaned_data=cleaned_data,
             additional_info=additional_info,
-            is_gui=is_gui,
-            btc_indicies=btc_indicies,
-            bto_indicies=bto_indicies,
+            is_gui=is_gui
         )
 
         # Extra copy if not GUI
