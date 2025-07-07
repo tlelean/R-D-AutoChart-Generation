@@ -26,12 +26,10 @@ def handle_generic(
 ):
     """Default handler used by many programs."""
     unique_path = build_output_path(pdf_output_path, test_metadata)
-    figure = plot_channel_data(
+    figure, axes = plot_channel_data(
         active_channels=active_channels,
         program_name=program_name,
         cleaned_data=cleaned_data,
-        raw_data=raw_data,
-        additional_info=additional_info,
         test_metadata=test_metadata,
     )
     pdf = draw_test_details(
@@ -67,20 +65,19 @@ def handle_holds(
             test_metadata.at['Test Section Number', 1] = f"{title_prefix}.{index + 1}"
             unique_path = build_output_path(pdf_output_path, test_metadata)
             single_info = additional_info.loc[[index]]
-            figure = plot_channel_data(
+            figure, axes = plot_channel_data(
                 active_channels,
                 program_name,
                 cleaned_data,
-                raw_data,
-                single_info,
                 test_metadata,
             )
             key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
 
             annotate_holds(
-                axes=axes, 
-                cleaned_data=cleaned_data, 
-                key_time_indices=key_time_indices)
+                axes=axes,
+                cleaned_data=cleaned_data,
+                key_time_indices=key_time_indices,
+            )
             
             pdf = draw_test_details(
                 test_metadata,
@@ -95,20 +92,19 @@ def handle_holds(
     else:
         unique_path = build_output_path(pdf_output_path, test_metadata)
         single_info = additional_info
-        figure = plot_channel_data(
+        figure, axes = plot_channel_data(
             active_channels,
             program_name,
             cleaned_data,
-            raw_data,
-            single_info,
             test_metadata,
         )
         key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
 
         annotate_holds(
-            axes=axes, 
-            cleaned_data=cleaned_data, 
-            key_time_indices=key_time_indices)
+            axes=axes,
+            cleaned_data=cleaned_data,
+            key_time_indices=key_time_indices,
+        )
         
         pdf = draw_test_details(
             test_metadata,
@@ -138,22 +134,20 @@ def handle_breakouts(
 ):
     """Handler for breakout programs."""
     unique_path = build_output_path(pdf_output_path, test_metadata)
-    figure = plot_channel_data(
+    figure, axes = plot_channel_data(
         active_channels=active_channels,
         program_name=program_name,
         cleaned_data=cleaned_data,
-        raw_data=raw_data,
-        additional_info=additional_info,
         test_metadata=test_metadata,
     )
 
-    additional_info, bto_indicies, btc_indicies = locate_bto_btc_rows(raw_data, additional_info)
+    additional_info, bto_indices, btc_indices = locate_bto_btc_rows(raw_data, additional_info)
 
     annotate_breakouts(
-        axes=axes, 
-        cleaned_data=cleaned_data, 
-        bto_indicies=bto_indicies,
-        btc_indicies=btc_indicies,
+        axes=axes,
+        cleaned_data=cleaned_data,
+        bto_indices=bto_indices,
+        btc_indices=btc_indices,
     )
     
     pdf = draw_test_details(

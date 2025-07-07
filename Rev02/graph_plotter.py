@@ -35,10 +35,10 @@ def annotate_holds(axes, cleaned_data, key_time_indices):
             va="bottom",
         )
 
-def annotate_breakouts(axes, cleaned_data, bto_indicies, btc_indicies):
+def annotate_breakouts(axes, cleaned_data, bto_indices, btc_indices):
     """Annotate BTO/BTC markers for Open-Close program."""
     y_min, y_max = axes['left'].get_ylim()
-    for idx in bto_indicies:
+    for idx in bto_indices:
         x = cleaned_data['Datetime'].iloc[idx]
         y = cleaned_data['Torque'].iloc[idx]
         ax = axes.get('right_1', axes['left'])
@@ -52,7 +52,7 @@ def annotate_breakouts(axes, cleaned_data, bto_indicies, btc_indicies):
             ha='center',
             va='bottom',
         )
-    for idx in btc_indicies:
+    for idx in btc_indices:
         x = cleaned_data['Datetime'].iloc[idx]
         y = cleaned_data['Torque'].iloc[idx]
         ax = axes.get('right_1', axes['left'])
@@ -84,6 +84,8 @@ def axis_location(active_channels):
     return CHANNEL_AXIS_LOCATION_MAP
 
 def plot_channel_data(active_channels, program_name, cleaned_data, test_metadata):
+    """Return matplotlib figure and axes for the given channel data."""
+
     data_for_plot = cleaned_data.copy()
     data_for_plot['Datetime'] = pd.to_datetime(data_for_plot['Datetime'], format='%d/%m/%Y %H:%M:%S.%f')
 
@@ -97,23 +99,14 @@ def plot_channel_data(active_channels, program_name, cleaned_data, test_metadata
     axis_label_map = {}
 
     # Create additional axes as needed
-    for axis in set(axis_map.values()):
-        if axis == 'left':
+    for axis_name in set(axis_map.values()):
+        if axis_name == "left":
             continue
-        if axis == 'right_1':
-            axes[axis] = ax_main.twinx()
-        elif axis == 'right_2':
-            axes[axis] = ax_main.twinx()
-            axes[axis].spines['right'].set_position(('axes', 1.1))
-        elif axis == 'right_3':
-            axes[axis] = ax_main.twinx()
-            axes[axis].spines['right'].set_position(('axes', 1.2))
-        elif axis == 'right_4':
-            axes[axis] = ax_main.twinx()
-            axes[axis].spines['right'].set_position(('axes', 1.3))
-        elif axis == 'right_5':
-            axes[axis] = ax_main.twinx()
-            axes[axis].spines['right'].set_position(('axes', 1.4))
+        ax = ax_main.twinx()
+        if axis_name.startswith("right_"):
+            idx = int(axis_name.split("_")[1])
+            ax.spines["right"].set_position(("axes", 1 + 0.1 * (idx - 1)))
+        axes[axis_name] = ax
 
     # Track used axes for legend
     plotted_lines = []
@@ -211,5 +204,6 @@ def plot_channel_data(active_channels, program_name, cleaned_data, test_metadata
         bbox_to_anchor=(0.5, legend_y)
     )
     plt.tight_layout(rect=[0, bottom_margin, 1, 1])
-    
-    return fig
+
+    # Return both the figure and the axes dictionary for further annotation
+    return fig, axes

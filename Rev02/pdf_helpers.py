@@ -9,23 +9,25 @@ from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Table, TableStyle
 
 def locate_key_time_rows(cleaned_data, key_time_points):
+    """Return indices of key time points closest to provided timestamps."""
+
     time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
-    key_time_indicies = key_time_points.copy()
+    key_time_indices = key_time_points.copy()
     date_time_index = cleaned_data.set_index('Datetime')
 
     for col in time_columns:
         key_time_points.at[0, col] = pd.to_datetime(key_time_points.at[0, col], format='%d/%m/%Y %H:%M:%S.%f', errors='coerce', dayfirst=True)
-        key_time_indicies.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
-        
-    return key_time_indicies
+        key_time_indices.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
+
+    return key_time_indices
 
 def locate_bto_btc_rows(raw_data, additional_info):
-    bto_indicies: list[int] = []
-    btc_indicies: list[int] = []
+    bto_indices: list[int] = []
+    btc_indices: list[int] = []
 
     # Early‑exit if data seem to be missing --------------------------------
     if additional_info.iloc[1, 0] == "NaN":
-        return additional_info, bto_indicies, btc_indicies
+        return additional_info, bto_indices, btc_indices
 
     torque_data = raw_data["Torque"]
     cycle_count_data = raw_data["Cycle Count"]
@@ -53,14 +55,14 @@ def locate_bto_btc_rows(raw_data, additional_info):
         btc = torque_middle_third.max().round(1)
 
         # Record the row indices at which these extremes occur -------------
-        bto_indicies.append(int(torque_first_third.idxmin()))
-        btc_indicies.append(int(torque_middle_third.idxmax()))
+        bto_indices.append(int(torque_first_third.idxmin()))
+        btc_indices.append(int(torque_middle_third.idxmax()))
 
         # Write results back into *additional_info* (row offset by +1) -----
         additional_info.iloc[i + 1, 1] = bto
         additional_info.iloc[i + 1, 2] = btc
 
-        return additional_info, bto_indicies, btc_indicies
+    return additional_info, bto_indices, btc_indices
 
 
 def insert_plot_and_logo(figure, pdf, is_gui):
@@ -261,10 +263,10 @@ def build_program_specific_info(program_name, additional_info, cleaned_data, bla
 
     elif program_name == "Holds-Seat" or program_name == "Holds-Body":
 
-        key_time_indicies = locate_key_time_rows(cleaned_data, additional_info)
+        key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
 
-        indices = key_time_indicies.iloc[0]
-        main_ch = key_time_indicies.iloc[0]['Main Channel']
+        indices = key_time_indices.iloc[0]
+        main_ch = key_time_indices.iloc[0]['Main Channel']
         for label, ypos, col in [
             ("Start of Stabilisation", 56.5, 'Start of Stabilisation'),
             ("Start of Hold", 41.25, 'Start of Hold'),
