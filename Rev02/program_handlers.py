@@ -1,0 +1,161 @@
+"""Handlers for program-specific processing steps."""
+
+from pathlib import Path
+from typing import Callable, Dict, Any
+
+from graph_plotter import plot_channel_data
+from pdf_helpers import draw_test_details, insert_plot_and_logo
+
+
+def build_output_path(base_path: Path, test_metadata) -> Path:
+    """Construct the output PDF path from metadata."""
+    return base_path / (
+        f"{test_metadata.at['Test Section Number', 1]}_"
+        f"{test_metadata.at['Test Name', 1]}_"
+        f"{test_metadata.at['Date Time', 1]}.pdf"
+    )
+
+
+def handle_generic(
+    program_name: str,
+    pdf_output_path: Path,
+    test_metadata,
+    transducer_details,
+    active_channels,
+    cleaned_data,
+    additional_info,
+    is_gui: bool,
+    **kwargs,
+):
+    """Default handler used by many programs."""
+    unique_path = build_output_path(pdf_output_path, test_metadata)
+    figure, key_indices = plot_channel_data(
+        active_channels,
+        program_name,
+        cleaned_data,
+        additional_info,
+    )
+    pdf = draw_test_details(
+        test_metadata,
+        transducer_details,
+        active_channels,
+        cleaned_data,
+        unique_path,
+        additional_info,
+        program_name,
+    )
+    insert_plot_and_logo(figure, pdf, is_gui)
+    return unique_path
+    return unique_path
+
+
+def handle_holds(
+    program_name: str,
+    pdf_output_path: Path,
+    test_metadata,
+    transducer_details,
+    active_channels,
+    cleaned_data,
+    additional_info,
+    is_gui: bool,
+    **kwargs,
+):
+    """Handler for Holds-Seat and Holds-Body."""
+    title_prefix = test_metadata.at['Test Section Number', 1]
+
+    if len(additional_info) > 1:
+        for index in additional_info.index:
+            test_metadata.at['Test Section Number', 1] = f"{title_prefix}.{index + 1}"
+            unique_path = build_output_path(pdf_output_path, test_metadata)
+            single_info = additional_info.loc[[index]]
+            figure, key_indices = plot_channel_data(
+                active_channels=active_channels,
+                program_name=program_name,
+                cleaned_data=cleaned_data,
+                key_time_points=single_info,
+            )
+            pdf = draw_test_details(
+                test_metadata,
+                transducer_details,
+                active_channels,
+                cleaned_data,
+                unique_path,
+                key_indices,
+                single_info,
+                program_name,
+            )
+            insert_plot_and_logo(figure, pdf, is_gui)
+    else:
+        unique_path = build_output_path(pdf_output_path, test_metadata)
+        single_info = additional_info
+        figure, key_indices = plot_channel_data(
+            active_channels,
+            program_name,
+            cleaned_data,
+            single_info,
+        )
+        pdf = draw_test_details(
+            test_metadata,
+            transducer_details,
+            active_channels,
+            cleaned_data,
+            unique_path,
+            key_indices,
+            single_info,
+            program_name,
+        )
+        insert_plot_and_logo(figure, pdf, is_gui)
+
+    return unique_path
+
+
+def handle_open_close(
+    program_name: str,
+    pdf_output_path: Path,
+    test_metadata,
+    transducer_details,
+    active_channels,
+    cleaned_data,
+    additional_info,
+    is_gui: bool,
+    btc_indicies,
+    bto_indicies,
+    **kwargs,
+):
+    """Handler for Open-Close program."""
+    unique_path = build_output_path(pdf_output_path, test_metadata)
+    figure, key_indices = plot_channel_data(
+        active_channels,
+        program_name,
+        cleaned_data,
+        additional_info,
+        btc_indicies=btc_indicies,
+        bto_indicies=bto_indicies,
+        test_metadata=test_metadata,
+    )
+    pdf = draw_test_details(
+        test_metadata,
+        transducer_details,
+        active_channels,
+        cleaned_data,
+        unique_path,
+        additional_info,
+        program_name,
+    )
+    insert_plot_and_logo(figure, pdf, is_gui)
+    return unique_path
+
+
+HANDLERS: Dict[str, Callable[..., Any]] = {
+    "Initial Cycle": handle_generic,
+    "Atmospheric Breakouts": handle_generic,
+    "Atmospheric Cyclic": handle_generic,
+    "Dynamic Cycles PR2": handle_generic,
+    "Dynamic Cycles Petrobras": handle_generic,
+    "Pulse Cycles": handle_generic,
+    "Signatures": handle_generic,
+    "Holds-Seat": handle_holds,
+    "Holds-Body": handle_holds,
+    "Open-Close": handle_open_close,
+    "Number Of Turns": lambda *a, **k: None,
+}
