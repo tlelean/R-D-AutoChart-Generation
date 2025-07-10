@@ -56,9 +56,7 @@ def handle_generic(
         transducer_details=transducer_details,
         active_channels=active_channels,
         cleaned_data=cleaned_data,
-        unique_path=unique_path,
-        additional_info=additional_info,
-        program_name=program_name,
+        pdf_output_path=unique_path,
     )
     insert_plot_and_logo(figure, pdf, is_gui)
     return unique_path
@@ -94,12 +92,13 @@ def handle_holds(
                 active_channels=active_channels,
                 cleaned_data=cleaned_data,
                 test_metadata=test_metadata,
-                result_df=single_info,
+                results_df=single_info,
             )
 
             plot_crosses(
                 df=key_time_indices,
                 channel=key_time_indices.iloc[0]['Main Channel'],
+                cleaned_data=cleaned_data,
                 ax=axes['left'],
             )
 
@@ -115,8 +114,6 @@ def handle_holds(
                 active_channels,
                 cleaned_data,
                 unique_path,
-                single_info,
-                program_name,
             )
 
             insert_plot_and_logo(figure, pdf, is_gui)            
@@ -133,12 +130,13 @@ def handle_holds(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
             test_metadata=test_metadata,
-            result_df=single_info,
+            results_df=single_info,
         )
 
         plot_crosses(
             df=key_time_indices,
             channel=key_time_indices.iloc[0]['Main Channel'],
+            cleaned_data=cleaned_data,
             ax=axes['left'],
         )
 
@@ -154,8 +152,6 @@ def handle_holds(
             active_channels,
             cleaned_data,
             unique_path,
-            single_info,
-            program_name,
         )
 
         insert_plot_and_logo(figure, pdf, is_gui)
@@ -190,6 +186,7 @@ def handle_breakouts(
     plot_crosses(
         df=breakout_indices,
         channel=raw_data["Torque"],
+        cleaned_data=cleaned_data,
         ax=axes['left'],
     )
 
@@ -206,8 +203,6 @@ def handle_breakouts(
         active_channels,
         cleaned_data,
         unique_path,
-        additional_info,
-        program_name,
     )
 
     draw_breakouts_table(pdf, additional_info)
@@ -261,6 +256,7 @@ def handle_signatures(
     plot_crosses(
         df=signature_indices,
         channel=channel,
+        cleaned_data=cleaned_data,
         ax=axes['left'],
     )
     
@@ -269,9 +265,7 @@ def handle_signatures(
         transducer_details=transducer_details,
         active_channels=active_channels,
         cleaned_data=cleaned_data,
-        unique_path=unique_path,
-        additional_info=additional_info,
-        program_name=program_name,
+        pdf_output_path=unique_path,
     )
     
     insert_plot_and_logo(figure, pdf, is_gui)

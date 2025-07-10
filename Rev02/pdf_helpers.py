@@ -16,12 +16,21 @@ def insert_plot_and_logo(figure, pdf, is_gui):
     png_figure.seek(0)
     plt.close(figure)
     fig_img = ImageReader(png_figure)
+    # pdf.drawImage(
+    #     fig_img,
+    #     16,
+    #     67.5,
+    #     598,
+    #     416.5,
+    #     preserveAspectRatio=False,
+    #     mask="auto",
+    # )
     pdf.drawImage(
         fig_img,
         16,
-        67.5,
+        16,
         598,
-        416.5,
+        468,
         preserveAspectRatio=False,
         mask="auto",
     )
@@ -224,7 +233,7 @@ def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:
         draw_text_on_pdf(pdf, text, x, y, colour=colour, size=10, left_aligned=True, replace_empty=replace_empty)
 
-def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path, additional_info, program_name):
+def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path):
     pdf = canvas.Canvas(str(pdf_output_path), pagesize=landscape(A4))
     pdf.setStrokeColor(colors.black)
     draw_layout_boxes(pdf)

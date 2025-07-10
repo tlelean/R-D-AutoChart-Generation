@@ -5,6 +5,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import MultipleLocator
+from matplotlib.table import Table
 
 from plotter_info import (
     CHANNEL_COLOUR_MAP,
@@ -15,12 +16,15 @@ from plotter_info import (
     AXIS_PRIORITY,
 )
 
-def plot_crosses(df, channel, ax):
+def plot_crosses(df, channel, cleaned_data, ax):
+    columns = [c for c in df.columns if c != "Cycle"]
     for row in df.index:
-        for col in df.columns:
+        for col in columns:
             idx = int(df.at[row, col])
-            ax.plot(idx, channel[idx], 'x')
-            ax.text(idx, channel[idx], col)
+            time_value = cleaned_data["Datetime"].iloc[idx]
+            label = col.removesuffix("_Index")
+            ax.plot(time_value, channel[idx], "x")
+            ax.text(time_value, channel[idx], label)
 
 def annotate_holds(axes, cleaned_data, key_time_indices):
     """Annotate the plot for Holds programs."""
@@ -217,23 +221,49 @@ def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
         bbox_to_anchor=(0.5, legend_y)
     )
 
-    pos = ax_main.get_position()
-    left_pad = 0.055
+    # pos = ax_main.get_position()
+    # left_pad = 0.055
 
-    # --- Bottom subplot: table ---
-    ax_table.axis('off')  # hide axes for the table
-    tbl = ax_table.table(
-        cellText=results_df.values,
-        colLabels=results_df.columns,
-        cellLoc='center',
-        bbox=[-pos.x0 + left_pad, 0.0, 1.0 + pos.x0 - left_pad, 1.0]
-    )
+    # # --- Bottom subplot: table ---
+    # ax_table.axis('off')  # hide axes for the table
+    # tbl = ax_table.table(
+    #     cellText=results_df.values,
+    #     colLabels=results_df.columns,
+    #     cellLoc='center',
+    #     bbox=[-pos.x0 + left_pad, 0.0, 1.0 + pos.x0 - left_pad, 1.0]
+    # )
 
-    tbl.auto_set_font_size(False)
+    # tbl.auto_set_font_size(False)
+    # tbl.set_fontsize(9)
+    # tbl.scale(1, 1.5)  # width, height
+
+    # Remove table Axes content
+    fig.delaxes(ax_table)
+
+    # Create a new invisible Axes just to anchor the table (no ticks, no frame)
+    ax_full_table = fig.add_axes([0, 0, 1, 0.12])  # [left, bottom, width, height] in figure fraction
+    ax_full_table.axis('off')
+
+    # Build manual table as a full-width figure-level artist
+    tbl = Table(ax_full_table, bbox=[0, 0, 1, 1])
+    cell_text = results_df.values
+    col_labels = results_df.columns
+    n_rows, n_cols = cell_text.shape
+
+    # Add headers
+    for col in range(n_cols):
+        tbl.add_cell(0, col, width=1/n_cols, height=0.2, text=col_labels[col], loc='center', facecolor='white')
+
+    # Add body cells
+    for row in range(n_rows):
+        for col in range(n_cols):
+            tbl.add_cell(row + 1, col, width=1/n_cols, height=0.2, text=cell_text[row, col], loc='center')
+
     tbl.set_fontsize(9)
-    tbl.scale(1, 1.5)  # width, height
+    ax_full_table.add_table(tbl)
 
-    plt.tight_layout(rect=[0, bottom_margin, 1, 1])
+    # plt.tight_layout(rect=[0, bottom_margin, 1, 1])
+    plt.tight_layout()
 
     # Return both the figure and the axes dictionary for further annotation
     return fig, axes
