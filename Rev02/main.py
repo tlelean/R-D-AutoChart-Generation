@@ -1,7 +1,13 @@
+"""Entry point for generating R&D test reports."""
+
 import fitz
-import argparse
 from pathlib import Path
-from data_loading import get_file_paths, load_test_information, prepare_primary_data
+
+from data_loading import (
+    get_file_paths,
+    load_test_information,
+    prepare_primary_data,
+)
 from program_handlers import HANDLERS
 
 def main():
@@ -24,14 +30,33 @@ def main():
         # primary_data_file, test_details_file, pdf_output_path = get_file_paths(args.file_path1, args.file_path2, args.file_path3)
 
         # For testing purposes, hardcode the file paths
-        primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1.5/1.5_Data_7-7-2025_11-31-26.csv"
-        test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1.5/1.5_Test_Details_7-7-2025_11-31-26.csv"
-        pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/PDF")
+        primary_data_file = (
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing "
+            "Number/Attempt Attempt/CSV/1.5/1.5_Data_7-7-2025_11-31-26.csv"
+        )
+        test_details_file = (
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing "
+            "Number/Attempt Attempt/CSV/1.5/1.5_Test_Details_7-7-2025_11-31-26.csv"
+        )
+        pdf_output_path = Path(
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing "
+            "Number/Attempt Attempt/PDF"
+        )
 
         is_gui = True
 
-        test_metadata, transducer_details, channels_to_record, additional_info, program_name = load_test_information(test_details_file)
-        cleaned_data, active_channels, raw_data = prepare_primary_data(primary_data_file, channels_to_record)
+        (
+            test_metadata,
+            transducer_details,
+            channels_to_record,
+            additional_info,
+            program_name,
+        ) = load_test_information(test_details_file)
+
+        cleaned_data, active_channels, raw_data = prepare_primary_data(
+            primary_data_file,
+            channels_to_record,
+        )
 
         program_name = test_metadata.at['Program Name', 1]
 
@@ -68,3 +93,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

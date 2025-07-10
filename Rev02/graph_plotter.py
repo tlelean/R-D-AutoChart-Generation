@@ -1,8 +1,11 @@
+"""Plotting utilities for R&D test reports."""
+
 import matplotlib
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import MultipleLocator
+
 from plotter_info import (
     CHANNEL_COLOUR_MAP,
     CHANNEL_UNITS_MAP,
@@ -12,8 +15,16 @@ from plotter_info import (
     AXIS_PRIORITY,
 )
 
+def plot_crosses(df, channel, ax):
+    for row in df.index:
+        for col in df.columns:
+            idx = int(df.at[row, col])
+            ax.plot(idx, channel[idx], 'x')
+            ax.text(idx, channel[idx], col)
+
 def annotate_holds(axes, cleaned_data, key_time_indices):
     """Annotate the plot for Holds programs."""
+
     time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
     key_labels = ["SOS", "SOH", "EOH"]
     main_channel = key_time_indices.iloc[0]["Main Channel"]
@@ -36,7 +47,8 @@ def annotate_holds(axes, cleaned_data, key_time_indices):
         )
 
 def annotate_breakouts(axes, cleaned_data, bto_indices, btc_indices):
-    """Annotate BTO/BTC markers for Open-Close program."""
+    """Annotate BTO/BTC markers for breakout programs."""
+
     y_min, y_max = axes['left'].get_ylim()
     for idx in bto_indices:
         x = cleaned_data['Datetime'].iloc[idx]
@@ -68,32 +80,33 @@ def annotate_breakouts(axes, cleaned_data, bto_indices, btc_indices):
         )
 
 def axis_location(active_channels):
-    # Priority order for axis assignment
+    """Map each active channel to an axis position."""
 
     axis_types = [CHANNEL_AXIS_NAMES_MAP.get(ch) for ch in active_channels]
     axis_types_set = set(axis_types)
 
-    # Only keep axis types that are present, in priority order
-    axis_types_present = [axis for axis in AXIS_PRIORITY if axis in axis_types_set]
+    axis_types_present = [a for a in AXIS_PRIORITY if a in axis_types_set]
 
-    # Assign locations dynamically
-    CHANNEL_AXIS_LOCATION_MAP = {}
-    for axis_type, axis_location in zip(axis_types_present, AXIS_LOCATIONS):
-        CHANNEL_AXIS_LOCATION_MAP[axis_type] = axis_location
+    channel_axis_location_map = {}
+    for axis_type, loc in zip(axis_types_present, AXIS_LOCATIONS):
+        channel_axis_location_map[axis_type] = loc
 
-    return CHANNEL_AXIS_LOCATION_MAP
+    return channel_axis_location_map
 
-def plot_channel_data(active_channels, program_name, cleaned_data, test_metadata):
+def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
     """Return matplotlib figure and axes for the given channel data."""
 
     data_for_plot = cleaned_data.copy()
-    data_for_plot['Datetime'] = pd.to_datetime(data_for_plot['Datetime'], format='%d/%m/%Y %H:%M:%S.%f')
+    data_for_plot["Datetime"] = pd.to_datetime(
+        data_for_plot["Datetime"],
+        format="%d/%m/%Y %H:%M:%S.%f",
+    )
 
     # Get axis mapping for each channel
     axis_map = axis_location(active_channels)
 
     # Prepare axes
-    fig, ax_main = plt.subplots(figsize=(11.96, 8.49))
+    fig, (ax_main, ax_table) = plt.subplots(2, 1, figsize=(11.96, 8.49), gridspec_kw={'height_ratios': [6, 1]}, dpi=500)
     axes = {'left': ax_main}
     color_map = {}
     axis_label_map = {}
@@ -203,6 +216,23 @@ def plot_channel_data(active_channels, program_name, cleaned_data, test_metadata
         frameon=False,
         bbox_to_anchor=(0.5, legend_y)
     )
+
+    pos = ax_main.get_position()
+    left_pad = 0.055
+
+    # --- Bottom subplot: table ---
+    ax_table.axis('off')  # hide axes for the table
+    tbl = ax_table.table(
+        cellText=results_df.values,
+        colLabels=results_df.columns,
+        cellLoc='center',
+        bbox=[-pos.x0 + left_pad, 0.0, 1.0 + pos.x0 - left_pad, 1.0]
+    )
+
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(9)
+    tbl.scale(1, 1.5)  # width, height
+
     plt.tight_layout(rect=[0, bottom_margin, 1, 1])
 
     # Return both the figure and the axes dictionary for further annotation

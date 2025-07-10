@@ -1,69 +1,14 @@
-import matplotlib.pyplot as plt
+"""Utilities for creating PDF reports from test data."""
+
 import io
+import matplotlib.pyplot as plt
+import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.colors import Color
-import pandas as pd
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import landscape, A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
-
-def locate_key_time_rows(cleaned_data, key_time_points):
-    """Return indices of key time points closest to provided timestamps."""
-
-    time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
-    key_time_indices = key_time_points.copy()
-    date_time_index = cleaned_data.set_index('Datetime')
-
-    for col in time_columns:
-        key_time_points.at[0, col] = pd.to_datetime(key_time_points.at[0, col], format='%d/%m/%Y %H:%M:%S.%f', errors='coerce', dayfirst=True)
-        key_time_indices.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
-
-    return key_time_indices
-
-def locate_bto_btc_rows(raw_data, additional_info):
-    bto_indices: list[int] = []
-    btc_indices: list[int] = []
-
-    # Early‑exit if data seem to be missing --------------------------------
-    if additional_info.iloc[1, 0] == "NaN":
-        return additional_info, bto_indices, btc_indices
-
-    torque_data = raw_data["Torque"]
-    cycle_count_data = raw_data["Cycle Count"]
-
-    # ── Process one cycle at a time ───────────────────────────────────────
-    for i, cycle_num in enumerate(sorted(cycle_count_data.unique())):
-        mask = cycle_count_data == cycle_num
-        torque_cycle = torque_data[mask]
-
-        n_points = len(torque_cycle)
-        if n_points == 0:
-            # Skip empty cycles (shouldn't happen, but better to be safe)
-            continue
-
-        # Compute slice boundaries — each third is as equal as integer division allows
-        third_len = max(1, n_points // 3)
-        first_slice  = slice(0, third_len)
-        middle_slice = slice(third_len, 2 * third_len)
-
-        torque_first_third  = torque_cycle.iloc[first_slice]
-        torque_middle_third = torque_cycle.iloc[middle_slice]
-
-        # ── Determine BTO and BTC values ──────────────────────────────────
-        bto = torque_first_third.min().round(1)
-        btc = torque_middle_third.max().round(1)
-
-        # Record the row indices at which these extremes occur -------------
-        bto_indices.append(int(torque_first_third.idxmin()))
-        btc_indices.append(int(torque_middle_third.idxmax()))
-
-        # Write results back into *additional_info* (row offset by +1) -----
-        additional_info.iloc[i + 1, 1] = bto
-        additional_info.iloc[i + 1, 2] = btc
-
-    return additional_info, bto_indices, btc_indices
-
 
 def insert_plot_and_logo(figure, pdf, is_gui):
     png_figure = io.BytesIO()
@@ -71,9 +16,29 @@ def insert_plot_and_logo(figure, pdf, is_gui):
     png_figure.seek(0)
     plt.close(figure)
     fig_img = ImageReader(png_figure)
-    pdf.drawImage(fig_img, 16, 67.5, 598, 416.5, preserveAspectRatio=False, mask='auto')
-    image_path = 'V:/Userdoc/R & D/Logos/R&D_Page_2.png' if is_gui else '/var/opt/codesys/PlcLogic/R&D_Page_2.png'
-    pdf.drawImage(image_path, 629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
+    pdf.drawImage(
+        fig_img,
+        16,
+        67.5,
+        598,
+        416.5,
+        preserveAspectRatio=False,
+        mask="auto",
+    )
+    image_path = (
+        "V:/Userdoc/R & D/Logos/R&D_Page_2.png"
+        if is_gui
+        else "/var/opt/codesys/PlcLogic/R&D_Page_2.png"
+    )
+    pdf.drawImage(
+        image_path,
+        629,
+        515,
+        197,
+        65,
+        preserveAspectRatio=True,
+        mask="auto",
+    )
     pdf.save()
 
 def draw_bounding_box(pdf_canvas, x, y, width, height):
@@ -81,7 +46,17 @@ def draw_bounding_box(pdf_canvas, x, y, width, height):
     pdf_canvas.rect(x, y, width, height)
 
 
-def draw_text_on_pdf(pdf_canvas, text, x, y, font="Helvetica", colour='black', size=10, left_aligned=False, replace_empty=False):
+def draw_text_on_pdf(
+    pdf_canvas,
+    text,
+    x,
+    y,
+    font="Helvetica",
+    colour="black",
+    size=10,
+    left_aligned=False,
+    replace_empty=False,
+):
 
     # Convert text to string or set to "" if None
     text = "" if text is None else str(text)
@@ -119,15 +94,21 @@ def draw_layout_boxes(pdf):
         draw_bounding_box(pdf, *box)
 
 def draw_headers(pdf, test_metadata, cleaned_data, light_blue):
-    draw_text_on_pdf(pdf,
-        f"{test_metadata.at['Test Section Number', 1]} {test_metadata.at['Test Name', 1]}",
-        315, 500, font="Helvetica-Bold", size=16)
     draw_text_on_pdf(
         pdf,
-        cleaned_data.at[0, 'Datetime'].strftime('%d/%m/%Y'),
-        487.5, 539.375,
+        f"{test_metadata.at['Test Section Number', 1]} {test_metadata.at['Test Name', 1]}",
+        315,
+        500,
+        font="Helvetica-Bold",
+        size=16,
+    )
+    draw_text_on_pdf(
+        pdf,
+        cleaned_data.at[0, "Datetime"].strftime("%d/%m/%Y"),
+        487.5,
+        539.375,
         colour=light_blue,
-        left_aligned=True
+        left_aligned=True,
     )
     draw_text_on_pdf(pdf, "Data Recording Equipment Used", 728.5, 475, "Helvetica-Bold", size=12)
     draw_text_on_pdf(pdf, "3rd Party Stamp and Date", 728.5, 45, "Helvetica-Bold", size=12)
@@ -237,7 +218,7 @@ def draw_holds_table(key_time_indices, cleaned_data, positions, black, light_blu
                     f"{time}   {psi} psi   {temp}\u00B0C",
                     light_blue, False
                 )
-            ])
+            ])    
 
 def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:
