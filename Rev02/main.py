@@ -1,9 +1,14 @@
+"""Entry point for generating R&D test reports."""
+
 import fitz
-import argparse
 from pathlib import Path
-from data_loading import get_file_paths, load_test_information, load_additional_info, prepare_primary_data
-from pdf_helpers import draw_test_details, insert_plot_and_logo
-from graph_plotter import plot_channel_data
+
+from data_loading import (
+    get_file_paths,
+    load_test_information,
+    prepare_primary_data,
+)
+from program_handlers import HANDLERS
 
 def main():
     """
@@ -25,253 +30,51 @@ def main():
         # primary_data_file, test_details_file, pdf_output_path = get_file_paths(args.file_path1, args.file_path2, args.file_path3)
 
         # For testing purposes, hardcode the file paths
-        primary_data_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1.5/1.5_Data_7-7-2025_11-31-26.csv"
-        test_details_file = "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/1.5/1.5_Test_Details_7-7-2025_11-31-26.csv"
-        pdf_output_path = Path("V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/PDF")
+        primary_data_file = (
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing "
+            "Number/Attempt Attempt/CSV/1.5/1.5_Data_7-7-2025_11-31-26.csv"
+        )
+        test_details_file = (
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing "
+            "Number/Attempt Attempt/CSV/1.5/1.5_Test_Details_7-7-2025_11-31-26.csv"
+        )
+        pdf_output_path = Path(
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing "
+            "Number/Attempt Attempt/PDF"
+        )
 
         is_gui = True
 
-        test_metadata, transducer_details, channels_to_record, program_name = load_test_information(test_details_file)
-        cleaned_data, active_channels, raw_data = prepare_primary_data(primary_data_file, channels_to_record)
-        additional_info, btc_indicies, bto_indicies = load_additional_info(test_details_file, program_name, raw_data)
+        (
+            test_metadata,
+            transducer_details,
+            channels_to_record,
+            additional_info,
+            program_name,
+        ) = load_test_information(test_details_file)
+
+        cleaned_data, active_channels, raw_data = prepare_primary_data(
+            primary_data_file,
+            channels_to_record,
+        )
 
         program_name = test_metadata.at['Program Name', 1]
 
-        #------------------------------------------------------------------------------
-        # Program = Initial Cycle
-        #------------------------------------------------------------------------------
+        handler = HANDLERS.get(program_name)
+        if handler is None:
+            raise ValueError(f"Unsupported program: {program_name}")
 
-        if program_name == "Initial Cycle":
-
-            # Build the final PDF path using metadata
-            unique_pdf_output_path = pdf_output_path / (
-                f"{test_metadata.at['Test Section Number', 1]}_"
-                f"{test_metadata.at['Test Name', 1]}_"
-                f"{test_metadata.at['Date Time', 1]}.pdf"
-                )
-
-            # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
-
-            # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
-
-            # Add a PNG of the plot to the PDF
-            insert_plot_and_logo(figure, pdf, is_gui)   
-
-        #------------------------------------------------------------------------------
-        # Program = Holds-Seat or Holds-Body
-        #------------------------------------------------------------------------------  
-
-        elif program_name == "Holds-Seat" or program_name == "Holds-Body":
-
-            test_title_prefix = test_metadata.at['Test Section Number', 1]
-
-            if len(additional_info) > 1:
-                for index in additional_info.index:
-
-                    # Update the test metadata with the current test section number
-                    test_metadata.at['Test Section Number', 1] = f"{test_title_prefix}.{index + 1}"
-
-                    # Build the final PDF path using metadata
-                    unique_pdf_output_path = pdf_output_path / (
-                        f"{test_metadata.at['Test Section Number', 1]}_"
-                        f"{test_metadata.at['Test Name', 1]}_"
-                        f"{test_metadata.at['Date Time', 1]}.pdf"
-                        )
-
-                    # Filter the key time points to the current row (as a DataFrame)
-                    single_key_time_point = additional_info.loc[[index]]
-
-                    # Create a plot of pressures + temperatures
-                    figure, key_time_indicies = plot_channel_data(data=cleaned_data, active_channels=active_channels, program_name=program_name, cleaned_data=cleaned_data, key_time_points=single_key_time_point)
-
-                    # Create the PDF and draw the test details
-                    pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, key_time_indicies, single_key_time_point, program_name)
-
-                    # Add a PNG of the plot to the PDF
-                    insert_plot_and_logo(figure, pdf, is_gui)
-            else:
-                    
-                    # Build the final PDF path using metadata
-                    unique_pdf_output_path = pdf_output_path / (
-                        f"{test_metadata.at['Test Section Number', 1]}_"
-                        f"{test_metadata.at['Test Name', 1]}_"
-                        f"{test_metadata.at['Date Time', 1]}.pdf"
-                        )
-
-                    # Filter the key time points to the current row (as a DataFrame)
-                    single_key_time_point = additional_info
-
-                    # Create a plot of pressures + temperatures
-                    figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, single_key_time_point)
-
-                    # Create the PDF and draw the test details
-                    pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, key_time_indicies, single_key_time_point, program_name)
-
-                    # Add a PNG of the plot to the PDF
-                    insert_plot_and_logo(figure, pdf, is_gui)    
-
-        #------------------------------------------------------------------------------
-        # Program = Atmospheric Breakouts
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Atmospheric Breakouts":
-
-            # Build the final PDF path using metadata
-            unique_pdf_output_path = pdf_output_path / (
-                f"{test_metadata.at['Test Section Number', 1]}_"
-                f"{test_metadata.at['Test Name', 1]}_"
-                f"{test_metadata.at['Date Time', 1]}.pdf"
-                )
-
-            # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
-
-            # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
-
-            # Add a PNG of the plot to the PDF
-            insert_plot_and_logo(figure, pdf, is_gui)   
-
-        #------------------------------------------------------------------------------
-        # Program = Atmospheric Cyclic
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Atmospheric Cyclic":
-
-            # Build the final PDF path using metadata
-            unique_pdf_output_path = pdf_output_path / (
-                f"{test_metadata.at['Test Section Number', 1]}_"
-                f"{test_metadata.at['Test Name', 1]}_"
-                f"{test_metadata.at['Date Time', 1]}.pdf"
-                )
-
-            # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
-
-            # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
-
-            # Add a PNG of the plot to the PDF
-            insert_plot_and_logo(figure, pdf, is_gui)   
-
-        #------------------------------------------------------------------------------
-        # Program = Dynamic Cycles PR2
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Dynamic Cycles PR2":
-
-            # Build the final PDF path using metadata
-            unique_pdf_output_path = pdf_output_path / (
-                f"{test_metadata.at['Test Section Number', 1]}_"
-                f"{test_metadata.at['Test Name', 1]}_"
-                f"{test_metadata.at['Date Time', 1]}.pdf"
-                )
-
-            # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
-
-            # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
-
-            # Add a PNG of the plot to the PDF
-            insert_plot_and_logo(figure, pdf, is_gui)    
-
-        #------------------------------------------------------------------------------
-        # Program = Dynamic Cycles Petrobras
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Dynamic Cycles Petrobras":
-
-            # Build the final PDF path using metadata
-            unique_pdf_output_path = pdf_output_path / (
-                f"{test_metadata.at['Test Section Number', 1]}_"
-                f"{test_metadata.at['Test Name', 1]}_"
-                f"{test_metadata.at['Date Time', 1]}.pdf"
-                )
-
-            # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
-
-            # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
-
-            # Add a PNG of the plot to the PDF
-            insert_plot_and_logo(figure, pdf, is_gui)   
-
-        #------------------------------------------------------------------------------
-        # Program = Pulse Cycles
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Pulse Cycles":
-
-            # Build the final PDF path using metadata
-            unique_pdf_output_path = pdf_output_path / (
-                f"{test_metadata.at['Test Section Number', 1]}_"
-                f"{test_metadata.at['Test Name', 1]}_"
-                f"{test_metadata.at['Date Time', 1]}.pdf"
-                )
-
-            # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
-
-            # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
-
-            # Add a PNG of the plot to the PDF
-            insert_plot_and_logo(figure, pdf, is_gui)   
-
-        #------------------------------------------------------------------------------
-        # Program = Signatures
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Signatures":
-
-            # Build the final PDF path using metadata
-            unique_pdf_output_path = pdf_output_path / (
-                f"{test_metadata.at['Test Section Number', 1]}_"
-                f"{test_metadata.at['Test Name', 1]}_"
-                f"{test_metadata.at['Date Time', 1]}.pdf"
-                )
-
-            # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info)
-
-            # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
-
-            # Add a PNG of the plot to the PDF
-            insert_plot_and_logo(figure, pdf, is_gui)   
-
-        #------------------------------------------------------------------------------
-        # Program = Open-Close
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Open-Close":
-
-            # Build the final PDF path using metadata
-            unique_pdf_output_path = pdf_output_path / (
-                f"{test_metadata.at['Test Section Number', 1]}_"
-                f"{test_metadata.at['Test Name', 1]}_"
-                f"{test_metadata.at['Date Time', 1]}.pdf"
-                )
-
-            # Create a plot of pressures + temperatures
-            figure, key_time_indicies = plot_channel_data(active_channels, program_name, cleaned_data, additional_info, btc_indicies, bto_indicies, test_metadata)
-
-            # Create the PDF and draw the test details
-            pdf = draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, unique_pdf_output_path, additional_info, program_name)
-
-            # Add a PNG of the plot to the PDF
-            insert_plot_and_logo(figure, pdf, is_gui)   
-
-        #------------------------------------------------------------------------------
-        # Program = Number of Turns
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Number Of Turns":
-            pass
+        unique_pdf_output_path = handler(
+            program_name=program_name,
+            pdf_output_path=pdf_output_path,
+            test_metadata=test_metadata,
+            transducer_details=transducer_details,
+            active_channels=active_channels,
+            cleaned_data=cleaned_data,
+            raw_data=raw_data,
+            additional_info=additional_info,
+            is_gui=is_gui
+        )
 
         # Extra copy if not GUI
         if not is_gui:
@@ -290,3 +93,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

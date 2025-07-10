@@ -10,7 +10,7 @@ if program_name == "Initial Cycle":
 #------------------------------------------------------------------------------  
 
 elif program_name == "Holds-Seat" or program_name == "Holds-Body":
-    passs
+    pass
 
 #------------------------------------------------------------------------------
 # Program = Atmospheric Breakouts

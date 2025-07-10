@@ -1,78 +1,62 @@
-import matplotlib.pyplot as plt
+"""Utilities for creating PDF reports from test data."""
+
 import io
+import matplotlib.pyplot as plt
+import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.colors import Color
-import pandas as pd
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import landscape, A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 
-def locate_key_time_rows(cleaned_data, key_time_points):
-    time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
-    key_time_indicies = key_time_points.copy()
-    date_time_index = cleaned_data.set_index('Datetime')
-
-    for col in time_columns:
-        key_time_points.at[0, col] = pd.to_datetime(key_time_points.at[0, col], format='%d/%m/%Y %H:%M:%S.%f', errors='coerce', dayfirst=True)
-        key_time_indicies.at[0, col] = date_time_index.index.get_indexer([key_time_points.at[0, col]], method='nearest')[0]
-        
-    return key_time_indicies
-
 def insert_plot_and_logo(figure, pdf, is_gui):
-    """
-    Convert a matplotlib Figure to a BytesIO stream (PNG format),
-    for later embedding into a PDF.
-
-    Parameters:
-        figure (matplotlib.figure.Figure): The matplotlib figure to convert.
-
-    Returns:
-        io.BytesIO: A binary stream containing the rendered PNG.
-    """
     png_figure = io.BytesIO()
     figure.savefig(png_figure, format='PNG', bbox_inches='tight', dpi=500)
     png_figure.seek(0)
     plt.close(figure)
     fig_img = ImageReader(png_figure)
-    pdf.drawImage(fig_img, 16, 67.5, 598, 416.5, preserveAspectRatio=False, mask='auto')
-    image_path = 'V:/Userdoc/R & D/Logos/R&D_Page_2.png' if is_gui else '/var/opt/codesys/PlcLogic/R&D_Page_2.png'
-    pdf.drawImage(image_path, 629, 515, 197, 65, preserveAspectRatio=True, mask='auto')
+    pdf.drawImage(
+        fig_img,
+        16,
+        67.5,
+        598,
+        416.5,
+        preserveAspectRatio=False,
+        mask="auto",
+    )
+    image_path = (
+        "V:/Userdoc/R & D/Logos/R&D_Page_2.png"
+        if is_gui
+        else "/var/opt/codesys/PlcLogic/R&D_Page_2.png"
+    )
+    pdf.drawImage(
+        image_path,
+        629,
+        515,
+        197,
+        65,
+        preserveAspectRatio=True,
+        mask="auto",
+    )
     pdf.save()
 
 def draw_bounding_box(pdf_canvas, x, y, width, height):
-    """
-    Draw a rectangular bounding box on the PDF canvas.
-
-    Parameters:
-        pdf_canvas (reportlab.pdfgen.canvas.Canvas): The PDF canvas.
-        x (float): X-coordinate of the lower-left corner.
-        y (float): Y-coordinate of the lower-left corner.
-        width (float): The width of the rectangle.
-        height (float): The height of the rectangle.
-    """
     pdf_canvas.setLineWidth(0.5)
     pdf_canvas.rect(x, y, width, height)
 
 
-def draw_text_on_pdf(pdf_canvas, text, x, y, font="Helvetica", colour='black', size=10, left_aligned=False, replace_empty=False):
-    """
-    Draw text onto the PDF canvas, with options for alignment (left or centre).
-    
-    If the text is a Timestamp, it can optionally preserve only the date (dd/mm/yyyy) 
-    or include milliseconds precision to 3 decimal places.
-
-    Parameters:
-        pdf_canvas (reportlab.pdfgen.canvas.Canvas): The PDF canvas to draw upon.
-        text (str or pd.Timestamp): The text (or datetime) to be printed.
-        x (float): Horizontal reference (centre or left).
-        y (float): Vertical centre position.
-        font (str): Font name (default: Helvetica).
-        colour (str): Text colour (default: black).
-        size (int): Font size (default: 10).
-        left_aligned (bool): If True, text is left-aligned; otherwise it is centred.
-        date_only (bool): If True, only the date (dd/mm/yyyy) is shown for datetime inputs.
-    """
+def draw_text_on_pdf(
+    pdf_canvas,
+    text,
+    x,
+    y,
+    font="Helvetica",
+    colour="black",
+    size=10,
+    left_aligned=False,
+    replace_empty=False,
+):
 
     # Convert text to string or set to "" if None
     text = "" if text is None else str(text)
@@ -110,15 +94,21 @@ def draw_layout_boxes(pdf):
         draw_bounding_box(pdf, *box)
 
 def draw_headers(pdf, test_metadata, cleaned_data, light_blue):
-    draw_text_on_pdf(pdf,
-        f"{test_metadata.at['Test Section Number', 1]} {test_metadata.at['Test Name', 1]}",
-        315, 500, font="Helvetica-Bold", size=16)
     draw_text_on_pdf(
         pdf,
-        cleaned_data.at[0, 'Datetime'].strftime('%d/%m/%Y'),
-        487.5, 539.375,
+        f"{test_metadata.at['Test Section Number', 1]} {test_metadata.at['Test Name', 1]}",
+        315,
+        500,
+        font="Helvetica-Bold",
+        size=16,
+    )
+    draw_text_on_pdf(
+        pdf,
+        cleaned_data.at[0, "Datetime"].strftime("%d/%m/%Y"),
+        487.5,
+        539.375,
         colour=light_blue,
-        left_aligned=True
+        left_aligned=True,
     )
     draw_text_on_pdf(pdf, "Data Recording Equipment Used", 728.5, 475, "Helvetica-Bold", size=12)
     draw_text_on_pdf(pdf, "3rd Party Stamp and Date", 728.5, 45, "Helvetica-Bold", size=12)
@@ -184,278 +174,51 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
         (685, 22.5, test_metadata.at['Operative', 1], light_blue, False),
     ]
 
-def build_program_specific_info(program_name, additional_info, cleaned_data, black, light_blue, pdf_canvas):
-    positions = []
+def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
+    # 1) Build a list-of-lists with the header as the first row
+    header = list(dataframe.columns.astype(str))
+    body   = dataframe.astype(str).values.tolist()
+    data   = [header] + body
 
-    #------------------------------------------------------------------------------
-    # Program = Initial Cycle
-    #------------------------------------------------------------------------------
+    # 2) Recompute rows/cols
+    rows = len(data)
+    cols = len(data[0])  # guaranteed >= 1
 
-    if program_name == "Initial Cycle":
-        pass
+    # 3) Compute uniform cell sizes
+    col_width  = width  / cols
+    row_height = height / rows
 
-    #------------------------------------------------------------------------------
-    # Program = Holds-Seat or Holds-Body
-    #------------------------------------------------------------------------------  
+    # 4) Create the Table
+    table = Table(
+        data,
+        colWidths  =[col_width ] * cols,
+        rowHeights =[row_height] * rows,
+    )
 
-    elif program_name == "Holds-Seat" or program_name == "Holds-Body":
+    # 5) Style: give the header a grey background, rest white
+    style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.white),  # header row
+        ('TEXTCOLOR',  (0, 0), (-1, 0), colors.black),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),     # body
+        ('TEXTCOLOR',  (0, 1), (-1, -1), colors.black),
+        ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME',   (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE',   (0, 0), (-1, -1), 8),
+        ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
+    ])
+    table.setStyle(style)
 
-        key_time_indicies = locate_key_time_rows(cleaned_data, additional_info)
+    # 6) Draw it
+    table.wrapOn(pdf_canvas, width, height)
+    table.drawOn(pdf_canvas, x, y)
 
-        indices = key_time_indicies.iloc[0]
-        main_ch = key_time_indicies.iloc[0]['Main Channel']
-        for label, ypos, col in [
-            ("Start of Stabilisation", 56.5, 'Start of Stabilisation'),
-            ("Start of Hold", 41.25, 'Start of Hold'),
-            ("End of Hold", 25, 'End of Hold')
-        ]:
-            idx = indices[col]
-            if idx != '':
-                time = cleaned_data.at[idx, 'Datetime'].strftime('%d/%m/%Y %H:%M:%S')
-                psi  = int(cleaned_data.at[idx, main_ch])
-                temp = cleaned_data.at[idx, 'Ambient Temperature']
-                positions.extend([
-                    (20, ypos, label, black, False),
-                    (120, ypos,
-                        f"{time}   {psi} psi   {temp}\u00B0C",
-                        light_blue, False
-                    )
-                ])
-
-    #------------------------------------------------------------------------------
-    # Program = Atmospheric Breakouts
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Atmospheric Breakouts":
-        
-        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
-
-        rows = len(data)
-        cols = len(data[0])
-
-        col_width = 600 / cols
-        row_height = 51.5 / rows
-
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
-
-    #------------------------------------------------------------------------------
-    # Program = Atmospheric Cyclic
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Atmospheric Cyclic":
-        
-        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
-
-        rows = len(data)
-        cols = len(data[0])
-
-        col_width = 600 / cols
-        row_height = 51.5 / rows
-
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
-
-    #------------------------------------------------------------------------------
-    # Program = Dynamic Cycles PR2
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Dynamic Cycles PR2":
-
-        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
-
-        rows = len(data)
-        cols = len(data[0])
-
-        col_width = 600 / cols
-        row_height = 51.5 / rows
-
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
-
-    #------------------------------------------------------------------------------
-    # Program = Dynamic Cycles Petrobras
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Dynamic Cycles Petrobras":
-
-        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
-
-        rows = len(data)
-        cols = len(data[0])
-
-        col_width = 600 / cols
-        row_height = 51.5 / rows
-
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
-
-    #------------------------------------------------------------------------------
-    # Program = Pulse Cycles
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Pulse Cycles":
-        pass
-    
-    #------------------------------------------------------------------------------
-    # Program = Signatures
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Signatures":
-
-        data = [list(additional_info.columns)] + additional_info.astype(str).values.tolist()
-
-        rows = len(data)
-        cols = len(data[0])
-
-        col_width = 600 / cols
-        row_height = 51.5 / rows
-
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.325, 0.529, 0.761)),  # header blue
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),  # header text white
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),  # body text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
-
-    #------------------------------------------------------------------------------
-    # Program = Open-Close
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Open-Close":
-        data = additional_info.astype(str).values.tolist()
-    
-        rows = len(data)
-        cols = len(data[0]) if rows > 0 else 1
-    
-        col_width = 600 / cols
-        row_height = 51.5 / rows if rows > 0 else 51.5
-    
-        table = Table(
-            data,
-            colWidths=[col_width] * cols,
-            rowHeights=[row_height] * rows
-        )
-    
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.white),  # All rows white
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),   # All text black
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),     # All rows same font
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ])
-        table.setStyle(style)
-    
-        table.wrapOn(pdf_canvas, 600, 51.5)
-        table.drawOn(pdf_canvas, 15, 15)
-        
-    #------------------------------------------------------------------------------
-    # Program = Number of Turns
-    #------------------------------------------------------------------------------
-
-    elif program_name == "Number Of Turns":
-        pass
-    
-    return positions
 
 def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:
         draw_text_on_pdf(pdf, text, x, y, colour=colour, size=10, left_aligned=True, replace_empty=replace_empty)
 
-def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path, additional_info, program_name):
+def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path):
     pdf = canvas.Canvas(str(pdf_output_path), pagesize=landscape(A4))
     pdf.setStrokeColor(colors.black)
     draw_layout_boxes(pdf)
@@ -466,6 +229,5 @@ def draw_test_details(test_metadata, transducer_details, active_channels, cleane
     pdf_text_positions = build_static_text_positions(test_metadata, light_blue, black)
     pdf_text_positions += build_transducer_and_gauge_positions(used_transducers, light_blue)
     pdf_text_positions += build_torque_and_stamp_positions(transducer_details, test_metadata, light_blue, black)
-    pdf_text_positions += build_program_specific_info(program_name, additional_info, cleaned_data, black, light_blue, pdf)
     draw_all_text(pdf, pdf_text_positions)
     return pdf

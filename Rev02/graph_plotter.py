@@ -1,30 +1,74 @@
+"""Plotting utilities for R&D test reports."""
+
 import matplotlib
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import MultipleLocator
-from plotter_info import CHANNEL_COLOUR_MAP, CHANNEL_UNITS_MAP, CHANNEL_AXIS_NAMES_MAP, AXIS_COLOUR_MAP, AXIS_LOCATIONS, AXIS_PRIORITY
+
+from plotter_info import (
+    CHANNEL_COLOUR_MAP,
+    CHANNEL_UNITS_MAP,
+    CHANNEL_AXIS_NAMES_MAP,
+    AXIS_COLOUR_MAP,
+    AXIS_LOCATIONS,
+    AXIS_PRIORITY,
+)
+
+def plot_crosses(df, channel, data, ax):
+    idx_cols = [c for c in df.columns if c.endswith("_Index")]
+    y_series = data[channel].to_numpy()
+    for col in idx_cols:
+        idxs = df[col].astype(int)
+        for idx in idxs:
+            t = data["Datetime"].iat[idx]
+            y = y_series[idx]
+            # compute rough slope
+            if 0 < idx < len(y_series)-1:
+                slope = y_series[idx+1] - y_series[idx-1]
+            else:
+                slope = 0
+            # choose offset above or below
+            offset = 5 if slope >= 0 else -5
+            va = 'bottom' if offset > 0 else 'top'
+
+            ax.plot(t, y,
+                    marker='x',
+                    linestyle='none',
+                    markersize=8,
+                    color='black')
+            ax.annotate(
+                col.removesuffix("_Index"),
+                xy=(t, y),
+                xytext=(0, offset),
+                textcoords='offset points',
+                ha='center',
+                va=va,
+                fontsize=10,
+            )
 
 def axis_location(active_channels):
-    # Priority order for axis assignment
+    """Map each active channel to an axis position."""
 
     axis_types = [CHANNEL_AXIS_NAMES_MAP.get(ch) for ch in active_channels]
     axis_types_set = set(axis_types)
 
-    # Only keep axis types that are present, in priority order
-    axis_types_present = [axis for axis in AXIS_PRIORITY if axis in axis_types_set]
+    axis_types_present = [a for a in AXIS_PRIORITY if a in axis_types_set]
 
-    # Assign locations dynamically
-    CHANNEL_AXIS_LOCATION_MAP = {}
-    for axis_type, axis_location in zip(axis_types_present, AXIS_LOCATIONS):
-        CHANNEL_AXIS_LOCATION_MAP[axis_type] = axis_location
+    channel_axis_location_map = {}
+    for axis_type, loc in zip(axis_types_present, AXIS_LOCATIONS):
+        channel_axis_location_map[axis_type] = loc
 
-    return CHANNEL_AXIS_LOCATION_MAP
+    return channel_axis_location_map
 
-def plot_channel_data(active_channels, program_name, cleaned_data, key_time_points, bto_indicies=None, btc_indicies=None, test_metadata=None):
-    key_time_indicies = None  # Initialize to None
+def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
+    """Return matplotlib figure and axes for the given channel data."""
+
     data_for_plot = cleaned_data.copy()
-    data_for_plot['Datetime'] = pd.to_datetime(data_for_plot['Datetime'], format='%d/%m/%Y %H:%M:%S.%f')
+    data_for_plot["Datetime"] = pd.to_datetime(
+        data_for_plot["Datetime"],
+        format="%d/%m/%Y %H:%M:%S.%f",
+    )
 
     # Get axis mapping for each channel
     axis_map = axis_location(active_channels)
@@ -36,29 +80,14 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
     axis_label_map = {}
 
     # Create additional axes as needed
-    for axis in set(axis_map.values()):
-        if axis == 'left':
+    for axis_name in set(axis_map.values()):
+        if axis_name == "left":
             continue
-        if axis == 'right_1':
-            axes[axis] = ax_main.twinx()
-        elif axis == 'right_2':
-            axes[axis] = ax_main.twinx()
-            axes[axis].spines['right'].set_position(('axes', 1.1))
-        elif axis == 'right_3':
-            axes[axis] = ax_main.twinx()
-            axes[axis].spines['right'].set_position(('axes', 1.2))
-        elif axis == 'right_4':
-            axes[axis] = ax_main.twinx()
-            axes[axis].spines['right'].set_position(('axes', 1.3))
-        elif axis == 'right_5':
-            axes[axis] = ax_main.twinx()
-            axes[axis].spines['right'].set_position(('axes', 1.4))
-        # Add more elifs for more right axes if needed
-
-    def get_axis_for_channel(channel):
-        axis_type = CHANNEL_AXIS_NAMES_MAP.get(channel)
-        axis_loc = axis_map.get(axis_type, 'left')
-        return axes[axis_loc]
+        ax = ax_main.twinx()
+        if axis_name.startswith("right_"):
+            idx = int(axis_name.split("_")[1])
+            ax.spines["right"].set_position(("axes", 1 + 0.1 * (idx - 1)))
+        axes[axis_name] = ax
 
     # Track used axes for legend
     plotted_lines = []
@@ -138,124 +167,6 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
         x_ticks = pd.date_range(start=x_min, end=x_max, periods=10)
         ax.set_xticks(x_ticks)
 
-        #------------------------------------------------------------------------------
-        # Program = Initial Cycle
-        #------------------------------------------------------------------------------
-
-        if program_name == "Initial Cycle":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Holds-Seat or Holds-Body
-        #------------------------------------------------------------------------------
-
-        if program_name == "Holds-Seat" or program_name == "Holds-Body":
-
-            # Overlay key time points
-            time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
-            key_labels = ['SOS', 'SOH', 'EOH']
-            y_min, y_max = axes['left'].get_ylim()
-            for col in time_columns:
-                if key_time_indicies.iloc[0][col] == '':
-                    continue
-                x = cleaned_data['Datetime'].loc[key_time_indicies.iloc[0][col]]
-                y = cleaned_data[key_time_points.iloc[0]['Main Channel']].loc[key_time_indicies.iloc[0][col]]
-                axes['left'].plot(x, y, marker='x', color='black', markersize=10)
-                axes['left'].text(
-                    x,
-                    y + (y_max - y_min) * 0.03,
-                    f" {key_labels[time_columns.index(col)]}",
-                    color='black',
-                    fontsize=10,
-                    ha='center',
-                    va='bottom'
-                )
-        #------------------------------------------------------------------------------
-        # Program = Atmospheric Breakouts
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Atmospheric Breakouts":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Atmospheric Cyclic
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Atmospheric Cyclic":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Dynamic Cycles PR2
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Dynamic Cycles PR2":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Dynamic Cycles Petrobras
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Dynamic Cycles Petrobras":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Pulse Cycles
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Pulse Cycles":
-            pass
-
-        #------------------------------------------------------------------------------
-        # Program = Signatures
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Signatures":
-            pass
-        #------------------------------------------------------------------------------
-        # Program = Open-Close
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Open-Close":
-            y_min, y_max = axes['left'].get_ylim()
-            for idx in bto_indicies:
-                x = cleaned_data['Datetime'].iloc[idx]
-                y = cleaned_data['Torque'].iloc[idx]
-                ax = get_axis_for_channel('Torque')
-                ax.plot(x, y, marker='x', color='black', markersize=10)
-                ax.text(
-                    x,
-                    y + (y_max - y_min) * 0.03,
-                    f"BTO",
-                    color='black',
-                    fontsize=10,
-                    ha='center',
-                    va='bottom'
-                )
-            for idx in btc_indicies:
-                x = cleaned_data['Datetime'].iloc[idx]
-                y = cleaned_data['Torque'].iloc[idx]
-                ax = get_axis_for_channel('Torque')
-                ax.plot(x, y, marker='x', color='black', markersize=10)
-                ax.text(
-                    x,
-                    y + (y_max - y_min) * 0.03,
-                    f"BTC",
-                    color='black',
-                    fontsize=10,
-                    ha='center',
-                    va='bottom'
-                )
-        #------------------------------------------------------------------------------
-        # Program = Number of Turns
-        #------------------------------------------------------------------------------
-
-        elif program_name == "Number Of Turns":
-            pass
-
-    # # Create a combined legend
-    # fig.legend(plotted_lines, plotted_labels, loc='lower center', ncol=5, frameon=False, bbox_to_anchor=(0.5, 0.02))
-    # plt.tight_layout(rect=[0, 0.05, 1, 1])
-
     # Dynamically set legend columns and bottom margin
     max_cols = 5
     n_channels = len(plotted_labels)
@@ -273,8 +184,7 @@ def plot_channel_data(active_channels, program_name, cleaned_data, key_time_poin
         frameon=False,
         bbox_to_anchor=(0.5, legend_y)
     )
+
     plt.tight_layout(rect=[0, bottom_margin, 1, 1])
 
-    # plt.show()
-    
-    return fig, key_time_indicies
+    return fig, axes, axis_map
