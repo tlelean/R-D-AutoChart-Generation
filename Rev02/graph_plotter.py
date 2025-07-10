@@ -15,6 +15,13 @@ from plotter_info import (
     AXIS_PRIORITY,
 )
 
+def plot_crosses(df, channel, ax):
+    for row in df.index:
+        for col in df.columns:
+            idx = int(df.at[row, col])
+            ax.plot(idx, channel[idx], 'x')
+            ax.text(idx, channel[idx], col)
+
 def annotate_holds(axes, cleaned_data, key_time_indices):
     """Annotate the plot for Holds programs."""
 
@@ -40,7 +47,7 @@ def annotate_holds(axes, cleaned_data, key_time_indices):
         )
 
 def annotate_breakouts(axes, cleaned_data, bto_indices, btc_indices):
-    """Annotate BTO/BTC markers for Open-Close program."""
+    """Annotate BTO/BTC markers for breakout programs."""
 
     y_min, y_max = axes['left'].get_ylim()
     for idx in bto_indices:
@@ -86,7 +93,7 @@ def axis_location(active_channels):
 
     return channel_axis_location_map
 
-def plot_channel_data(active_channels, program_name, cleaned_data, test_metadata):
+def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
     """Return matplotlib figure and axes for the given channel data."""
 
     data_for_plot = cleaned_data.copy()
@@ -99,7 +106,7 @@ def plot_channel_data(active_channels, program_name, cleaned_data, test_metadata
     axis_map = axis_location(active_channels)
 
     # Prepare axes
-    fig, ax_main = plt.subplots(figsize=(11.96, 8.49))
+    fig, (ax_main, ax_table) = plt.subplots(2, 1, figsize=(11.96, 8.49), gridspec_kw={'height_ratios': [6, 1]}, dpi=500)
     axes = {'left': ax_main}
     color_map = {}
     axis_label_map = {}
@@ -209,6 +216,23 @@ def plot_channel_data(active_channels, program_name, cleaned_data, test_metadata
         frameon=False,
         bbox_to_anchor=(0.5, legend_y)
     )
+
+    pos = ax_main.get_position()
+    left_pad = 0.055
+
+    # --- Bottom subplot: table ---
+    ax_table.axis('off')  # hide axes for the table
+    tbl = ax_table.table(
+        cellText=results_df.values,
+        colLabels=results_df.columns,
+        cellLoc='center',
+        bbox=[-pos.x0 + left_pad, 0.0, 1.0 + pos.x0 - left_pad, 1.0]
+    )
+
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(9)
+    tbl.scale(1, 1.5)  # width, height
+
     plt.tight_layout(rect=[0, bottom_margin, 1, 1])
 
     # Return both the figure and the axes dictionary for further annotation
