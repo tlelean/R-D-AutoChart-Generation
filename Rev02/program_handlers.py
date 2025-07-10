@@ -4,13 +4,11 @@ from pathlib import Path
 from typing import Any, Callable, Dict
 
 from graph_plotter import (
-    annotate_breakouts,
-    annotate_holds,
     plot_channel_data,
     plot_crosses,
 )
 from pdf_helpers import (
-    draw_breakouts_table,
+    draw_table,
     draw_test_details,
     insert_plot_and_logo,
 )
@@ -44,7 +42,7 @@ def handle_generic(
     """Default handler used by many programs."""
     unique_path = build_output_path(pdf_output_path, test_metadata)
 
-    figure, axes = plot_channel_data(
+    figure, axes, axis_map = plot_channel_data(
         active_channels=active_channels,
         cleaned_data=cleaned_data,
         test_metadata=test_metadata,
@@ -88,7 +86,7 @@ def handle_holds(
 
             key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
 
-            figure, axes = plot_channel_data(
+            figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=cleaned_data,
                 test_metadata=test_metadata,
@@ -98,15 +96,9 @@ def handle_holds(
             plot_crosses(
                 df=key_time_indices,
                 channel=key_time_indices.iloc[0]['Main Channel'],
-                cleaned_data=cleaned_data,
-                ax=axes['left'],
+                data=cleaned_data,
+                ax=axes[axis_map["Pressure"]],
             )
-
-            # annotate_holds(
-            #     axes=axes,
-            #     cleaned_data=cleaned_data,
-            #     key_time_indices=key_time_indices,
-            # )
             
             pdf = draw_test_details(
                 test_metadata,
@@ -115,6 +107,10 @@ def handle_holds(
                 cleaned_data,
                 unique_path,
             )
+
+            draw_table(
+                pdf_canvas=pdf,
+                dataframe=single_info)
 
             insert_plot_and_logo(figure, pdf, is_gui)            
     else:
@@ -126,7 +122,7 @@ def handle_holds(
 
         key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
 
-        figure, axes = plot_channel_data(
+        figure, axes, axis_map = plot_channel_data(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
             test_metadata=test_metadata,
@@ -136,15 +132,9 @@ def handle_holds(
         plot_crosses(
             df=key_time_indices,
             channel=key_time_indices.iloc[0]['Main Channel'],
-            cleaned_data=cleaned_data,
-            ax=axes['left'],
+            data=cleaned_data,
+            ax=axes[axis_map["Pressure"]],
         )
-
-        # annotate_holds(
-        #     axes=axes,
-        #     cleaned_data=cleaned_data,
-        #     key_time_indices=key_time_indices,
-        # )
         
         pdf = draw_test_details(
             test_metadata,
@@ -153,6 +143,10 @@ def handle_holds(
             cleaned_data,
             unique_path,
         )
+
+        draw_table(
+            pdf_canvas=pdf,
+            dataframe=single_info)
 
         insert_plot_and_logo(figure, pdf, is_gui)
 
@@ -176,7 +170,7 @@ def handle_breakouts(
 
     breakout_values, breakout_indices = locate_bto_btc_rows(raw_data)
 
-    figure, axes = plot_channel_data(
+    figure, axes, axis_map = plot_channel_data(
         active_channels=active_channels,
         cleaned_data=cleaned_data,
         test_metadata=test_metadata,
@@ -185,17 +179,10 @@ def handle_breakouts(
 
     plot_crosses(
         df=breakout_indices,
-        channel=raw_data["Torque"],
-        cleaned_data=cleaned_data,
-        ax=axes['left'],
+        channel="Torque",
+        data=cleaned_data,
+        ax=axes[axis_map["Torque"]],
     )
-
-    # annotate_breakouts(
-    #     axes=axes,
-    #     cleaned_data=cleaned_data,
-    #     bto_indices=bto_indices,
-    #     btc_indices=btc_indices,
-    # )
     
     pdf = draw_test_details(
         test_metadata,
@@ -205,7 +192,9 @@ def handle_breakouts(
         unique_path,
     )
 
-    draw_breakouts_table(pdf, additional_info)
+    draw_table(
+        pdf_canvas=pdf,
+        dataframe=breakout_values)
 
     insert_plot_and_logo(figure, pdf, is_gui)
 
@@ -240,24 +229,25 @@ def handle_signatures(
         signature_key_points = torque_signature_values
         signature_indices = torque_signature_indices
         channel = raw_data["Torque"]
+        ax = axes[axis_map["Torque"]]
     else:
         signature_key_points = actuator_signature_values
         signature_indices = actuator_signature_indices
         channel = raw_data["Actuator"]
+        ax = axes[axis_map["Pressure"]]
 
-    figure, axes = plot_channel_data(
+    figure, axes, axis_map = plot_channel_data(
         active_channels=active_channels,
         cleaned_data=cleaned_data,
         test_metadata=test_metadata,
         results_df=signature_key_points
     )
 
-
     plot_crosses(
         df=signature_indices,
         channel=channel,
-        cleaned_data=cleaned_data,
-        ax=axes['left'],
+        data=cleaned_data,
+        ax=ax,
     )
     
     pdf = draw_test_details(
@@ -267,6 +257,10 @@ def handle_signatures(
         cleaned_data=cleaned_data,
         pdf_output_path=unique_path,
     )
+
+    draw_table(
+        pdf_canvas=pdf,
+        dataframe=signature_key_points)
     
     insert_plot_and_logo(figure, pdf, is_gui)
     

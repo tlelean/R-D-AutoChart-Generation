@@ -91,14 +91,14 @@ def locate_bto_btc_rows(raw_data):
     # Get precomputed cycle boundaries
     indices_ranges, _ = find_cycle_breakpoints(raw_data)
 
-    for cycle, start_idx, one_third_idx, _, two_third_idx, end_idx in indices_ranges.itertuples(index=False, name=None):
+    for cycle, start_idx, one_third_idx, middle_idx, two_third_idx, end_idx in indices_ranges.itertuples(index=False, name=None):
         # 1st third for BTO
         torque_first = torque_series.loc[start_idx:one_third_idx]
         bto = torque_first.min().round(1)
         bto_index = torque_first.idxmin()
 
         # 3rd third for BTC
-        torque_third = torque_series.loc[two_third_idx:end_idx]
+        torque_third = torque_series.loc[middle_idx:two_third_idx]
         btc = torque_third.max().round(1)
         btc_index = torque_third.idxmax()
 

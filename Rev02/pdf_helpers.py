@@ -16,21 +16,12 @@ def insert_plot_and_logo(figure, pdf, is_gui):
     png_figure.seek(0)
     plt.close(figure)
     fig_img = ImageReader(png_figure)
-    # pdf.drawImage(
-    #     fig_img,
-    #     16,
-    #     67.5,
-    #     598,
-    #     416.5,
-    #     preserveAspectRatio=False,
-    #     mask="auto",
-    # )
     pdf.drawImage(
         fig_img,
         16,
-        16,
+        67.5,
         598,
-        468,
+        416.5,
         preserveAspectRatio=False,
         mask="auto",
     )
@@ -183,51 +174,45 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
         (685, 22.5, test_metadata.at['Operative', 1], light_blue, False),
     ]
 
-def draw_breakouts_table(pdf_canvas, additional_info):
-    """Render the simplified Open-Close table."""
-    data = additional_info.astype(str).values.tolist()
+def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
+    # 1) Build a list-of-lists with the header as the first row
+    header = list(dataframe.columns.astype(str))
+    body   = dataframe.astype(str).values.tolist()
+    data   = [header] + body
+
+    # 2) Recompute rows/cols
     rows = len(data)
-    cols = len(data[0]) if rows > 0 else 1
-    col_width = 600 / cols
-    row_height = 51.5 / rows if rows > 0 else 51.5
+    cols = len(data[0])  # guaranteed >= 1
+
+    # 3) Compute uniform cell sizes
+    col_width  = width  / cols
+    row_height = height / rows
+
+    # 4) Create the Table
     table = Table(
         data,
-        colWidths=[col_width] * cols,
-        rowHeights=[row_height] * rows,
+        colWidths  =[col_width ] * cols,
+        rowHeights =[row_height] * rows,
     )
+
+    # 5) Style: give the header a grey background, rest white
     style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.white),  # header row
+        ('TEXTCOLOR',  (0, 0), (-1, 0), colors.black),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),     # body
+        ('TEXTCOLOR',  (0, 1), (-1, -1), colors.black),
+        ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME',   (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE',   (0, 0), (-1, -1), 8),
+        ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
     ])
     table.setStyle(style)
-    table.wrapOn(pdf_canvas, 600, 51.5)
-    table.drawOn(pdf_canvas, 15, 15)
 
-def draw_holds_table(key_time_indices, cleaned_data, positions, black, light_blue):
-    indices = key_time_indices.iloc[0]
-    main_ch = key_time_indices.iloc[0]['Main Channel']
-    for label, ypos, col in [
-        ("Start of Stabilisation", 56.5, 'Start of Stabilisation'),
-        ("Start of Hold", 41.25, 'Start of Hold'),
-        ("End of Hold", 25, 'End of Hold')
-    ]:
-        idx = indices[col]
-        if idx != '':
-            time = cleaned_data.at[idx, 'Datetime'].strftime('%d/%m/%Y %H:%M:%S')
-            psi  = int(cleaned_data.at[idx, main_ch])
-            temp = cleaned_data.at[idx, 'Ambient Temperature']
-            positions.extend([
-                (20, ypos, label, black, False),
-                (120, ypos,
-                    f"{time}   {psi} psi   {temp}\u00B0C",
-                    light_blue, False
-                )
-            ])    
+    # 6) Draw it
+    table.wrapOn(pdf_canvas, width, height)
+    table.drawOn(pdf_canvas, x, y)
+
 
 def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:

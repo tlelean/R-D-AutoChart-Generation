@@ -5,7 +5,6 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import MultipleLocator
-from matplotlib.table import Table
 
 from plotter_info import (
     CHANNEL_COLOUR_MAP,
@@ -16,72 +15,37 @@ from plotter_info import (
     AXIS_PRIORITY,
 )
 
-def plot_crosses(df, channel, cleaned_data, ax):
-    columns = [c for c in df.columns if c != "Cycle"]
-    for row in df.index:
-        for col in columns:
-            idx = int(df.at[row, col])
-            time_value = cleaned_data["Datetime"].iloc[idx]
-            label = col.removesuffix("_Index")
-            ax.plot(time_value, channel[idx], "x")
-            ax.text(time_value, channel[idx], label)
+def plot_crosses(df, channel, data, ax):
+    idx_cols = [c for c in df.columns if c.endswith("_Index")]
+    y_series = data[channel].to_numpy()
+    for col in idx_cols:
+        idxs = df[col].astype(int)
+        for idx in idxs:
+            t = data["Datetime"].iat[idx]
+            y = y_series[idx]
+            # compute rough slope
+            if 0 < idx < len(y_series)-1:
+                slope = y_series[idx+1] - y_series[idx-1]
+            else:
+                slope = 0
+            # choose offset above or below
+            offset = 5 if slope >= 0 else -5
+            va = 'bottom' if offset > 0 else 'top'
 
-def annotate_holds(axes, cleaned_data, key_time_indices):
-    """Annotate the plot for Holds programs."""
-
-    time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
-    key_labels = ["SOS", "SOH", "EOH"]
-    main_channel = key_time_indices.iloc[0]["Main Channel"]
-    y_min, y_max = axes["left"].get_ylim()
-    for col, label in zip(time_columns, key_labels):
-        idx = key_time_indices.iloc[0][col]
-        if idx == "":
-            continue
-        x = cleaned_data["Datetime"].loc[idx]
-        y = cleaned_data[main_channel].loc[idx]
-        axes["left"].plot(x, y, marker="x", color="black", markersize=10)
-        axes["left"].text(
-            x,
-            y + (y_max - y_min) * 0.03,
-            f" {label}",
-            color="black",
-            fontsize=10,
-            ha="center",
-            va="bottom",
-        )
-
-def annotate_breakouts(axes, cleaned_data, bto_indices, btc_indices):
-    """Annotate BTO/BTC markers for breakout programs."""
-
-    y_min, y_max = axes['left'].get_ylim()
-    for idx in bto_indices:
-        x = cleaned_data['Datetime'].iloc[idx]
-        y = cleaned_data['Torque'].iloc[idx]
-        ax = axes.get('right_1', axes['left'])
-        ax.plot(x, y, marker='x', color='black', markersize=10)
-        ax.text(
-            x,
-            y - (y_max - y_min) * 0.03,
-            "BTO",
-            color='black',
-            fontsize=10,
-            ha='center',
-            va='top',
-        )
-    for idx in btc_indices:
-        x = cleaned_data['Datetime'].iloc[idx]
-        y = cleaned_data['Torque'].iloc[idx]
-        ax = axes.get('right_1', axes['left'])
-        ax.plot(x, y, marker='x', color='black', markersize=10)
-        ax.text(
-            x,
-            y + (y_max - y_min) * 0.03,
-            "BTC",
-            color='black',
-            fontsize=10,
-            ha='center',
-            va='bottom',
-        )
+            ax.plot(t, y,
+                    marker='x',
+                    linestyle='none',
+                    markersize=8,
+                    color='black')
+            ax.annotate(
+                col.removesuffix("_Index"),
+                xy=(t, y),
+                xytext=(0, offset),
+                textcoords='offset points',
+                ha='center',
+                va=va,
+                fontsize=10,
+            )
 
 def axis_location(active_channels):
     """Map each active channel to an axis position."""
@@ -110,7 +74,7 @@ def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
     axis_map = axis_location(active_channels)
 
     # Prepare axes
-    fig, (ax_main, ax_table) = plt.subplots(2, 1, figsize=(11.96, 8.49), gridspec_kw={'height_ratios': [6, 1]}, dpi=500)
+    fig, ax_main = plt.subplots(figsize=(11.96, 8.49))
     axes = {'left': ax_main}
     color_map = {}
     axis_label_map = {}
@@ -221,49 +185,6 @@ def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
         bbox_to_anchor=(0.5, legend_y)
     )
 
-    # pos = ax_main.get_position()
-    # left_pad = 0.055
+    plt.tight_layout(rect=[0, bottom_margin, 1, 1])
 
-    # # --- Bottom subplot: table ---
-    # ax_table.axis('off')  # hide axes for the table
-    # tbl = ax_table.table(
-    #     cellText=results_df.values,
-    #     colLabels=results_df.columns,
-    #     cellLoc='center',
-    #     bbox=[-pos.x0 + left_pad, 0.0, 1.0 + pos.x0 - left_pad, 1.0]
-    # )
-
-    # tbl.auto_set_font_size(False)
-    # tbl.set_fontsize(9)
-    # tbl.scale(1, 1.5)  # width, height
-
-    # Remove table Axes content
-    fig.delaxes(ax_table)
-
-    # Create a new invisible Axes just to anchor the table (no ticks, no frame)
-    ax_full_table = fig.add_axes([0, 0, 1, 0.12])  # [left, bottom, width, height] in figure fraction
-    ax_full_table.axis('off')
-
-    # Build manual table as a full-width figure-level artist
-    tbl = Table(ax_full_table, bbox=[0, 0, 1, 1])
-    cell_text = results_df.values
-    col_labels = results_df.columns
-    n_rows, n_cols = cell_text.shape
-
-    # Add headers
-    for col in range(n_cols):
-        tbl.add_cell(0, col, width=1/n_cols, height=0.2, text=col_labels[col], loc='center', facecolor='white')
-
-    # Add body cells
-    for row in range(n_rows):
-        for col in range(n_cols):
-            tbl.add_cell(row + 1, col, width=1/n_cols, height=0.2, text=cell_text[row, col], loc='center')
-
-    tbl.set_fontsize(9)
-    ax_full_table.add_table(tbl)
-
-    # plt.tight_layout(rect=[0, bottom_margin, 1, 1])
-    plt.tight_layout()
-
-    # Return both the figure and the axes dictionary for further annotation
-    return fig, axes
+    return fig, axes, axis_map
