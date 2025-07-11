@@ -96,8 +96,9 @@ def draw_layout_boxes(pdf):
         (15, 515, 600, 65),         # Info Top Left
         (15, 66.5, 600, 418.5),     # Graph
         (15, 15, 600, 51.5),        # Graph Index
-        (630, 271.66, 197, 17.5),   # Test Pressures
-        (630, 225.83, 197, 35),     # Breakout Torque
+        (630, 278.75, 197, 17.5),   # Cycle Count
+        (630, 257.5, 197, 17.5),    # Test Pressure
+        (630, 218.75, 197, 35),     # Breakout Torque
         (630, 35, 197, 180),        # 3rd Party Stamp
         (630, 300, 197, 185)        # Info Right
     ]
@@ -151,12 +152,14 @@ def build_static_text_positions(test_metadata, light_blue, black):
         (402.5, 523.125, "Valve Drawing No.", black, False),
         (487.5, 523.125, test_metadata.at['Valve Drawing Number', 1], light_blue, True),
         # Pressures & torques
-        (635, 280.41, "Test Pressure", black, False),
-        (725, 280.41, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
-        (635, 252.08, "Breakout Torque", black, False),
-        (725, 252.08, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs", light_blue, True),
-        (635, 234.58, "Running Torque", black, False),
-        (725, 234.58, f"{test_metadata.at['Running Torque', 1]} ft.lbs", light_blue, True),
+        (635, 266.25, "Test Pressure", black, False),
+        (725, 266.25, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
+        (635, 287.5, "Cycle Count", black, False),
+        #(725, 286.25, ),
+        (635, 245, "Breakout Torque", black, False),
+        (725, 245, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] != "See Table" else "See Table", light_blue, True),
+        (635, 227.5, "Running Torque", black, False),
+        (725, 227.5, f"{test_metadata.at['Running Torque', 1]} ft.lbs" if test_metadata.at['Running Torque', 1] != "See Table" else "See Table", light_blue, True),
         (635, 457.5, "Data Logger", black, False),
         (725, 457.5, test_metadata.at['Data Logger', 1], light_blue, True),
         (635, 442.5, "Serial No.", black, False),
@@ -230,7 +233,10 @@ def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:
         draw_text_on_pdf(pdf, text, x, y, colour=colour, size=10, left_aligned=True, replace_empty=replace_empty)
 
-def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path):
+def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path, is_table):
+    if is_table:
+        test_metadata.at['Breakout Torque', 1] = 'See Table'
+        test_metadata.at['Running Torque', 1] = 'See Table'    
     pdf = canvas.Canvas(str(pdf_output_path), pagesize=landscape(A4))
     pdf.setStrokeColor(colors.black)
     draw_layout_boxes(pdf)

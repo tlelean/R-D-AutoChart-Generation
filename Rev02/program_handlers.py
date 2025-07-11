@@ -42,13 +42,15 @@ def handle_generic(
     **kwargs,
 ):
     """Default handler used by many programs."""
+    is_table = False
+
     unique_path = build_output_path(pdf_output_path, test_metadata)
 
     figure, axes, axis_map = plot_channel_data(
         active_channels=active_channels,
         cleaned_data=cleaned_data,
         test_metadata=test_metadata,
-        is_table=False,
+        is_table=is_table,
     )
 
     pdf = draw_test_details(
@@ -57,8 +59,10 @@ def handle_generic(
         active_channels=active_channels,
         cleaned_data=cleaned_data,
         pdf_output_path=unique_path,
+        is_table=is_table,
     )
-    insert_plot_and_logo(figure, pdf, is_gui, False)
+
+    insert_plot_and_logo(figure, pdf, is_gui, is_table)
     return unique_path
 
 
@@ -79,6 +83,7 @@ def handle_holds(
 
     if len(additional_info) > 1:
         for index in additional_info.index:
+            is_table = True
             test_metadata.at['Test Section Number', 1] = f"{title_prefix}.{index + 1}"
             unique_path = build_output_path(pdf_output_path, test_metadata)
 
@@ -90,7 +95,7 @@ def handle_holds(
                 active_channels=active_channels,
                 cleaned_data=cleaned_data,
                 test_metadata=test_metadata,
-                is_table=True,
+                is_table=is_table,
             )
 
             plot_crosses(
@@ -106,14 +111,17 @@ def handle_holds(
                 active_channels,
                 cleaned_data,
                 unique_path,
+                is_table,
             )
 
             draw_table(
                 pdf_canvas=pdf,
                 dataframe=single_info)
 
-            insert_plot_and_logo(figure, pdf, is_gui, True)            
+            insert_plot_and_logo(figure, pdf, is_gui, is_table)            
     else:
+        is_table=True
+
         unique_path = build_output_path(pdf_output_path, test_metadata)
 
         single_info = additional_info
@@ -124,7 +132,7 @@ def handle_holds(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
             test_metadata=test_metadata,
-            is_table=True,
+            is_table=is_table,
         )
 
         plot_crosses(
@@ -140,13 +148,14 @@ def handle_holds(
             active_channels,
             cleaned_data,
             unique_path,
+            is_table,
         )
 
         draw_table(
             pdf_canvas=pdf,
             dataframe=single_info)
 
-        insert_plot_and_logo(figure, pdf, is_gui, True)
+        insert_plot_and_logo(figure, pdf, is_gui, is_table)
 
     return unique_path
 
@@ -160,12 +169,13 @@ def handle_breakouts(
     cleaned_data,
     raw_data,
     additional_info,
+    channels_to_record,
     is_gui: bool,
     **kwargs,
 ):
     """Handler for breakout programs."""
 
-    breakout_values, breakout_indices = locate_bto_btc_rows(raw_data, additional_info)
+    breakout_values, breakout_indices = locate_bto_btc_rows(raw_data, additional_info, channels_to_record)
     cycle_ranges, max_cycle = find_cycle_breakpoints(raw_data)
 
     base_section = test_metadata.at['Test Name', 1]
@@ -207,11 +217,13 @@ def handle_breakouts(
             result_slice = breakout_values[breakout_values['Cycle'] == cycle]
             index_slice = breakout_indices[breakout_indices['Cycle'] == cycle]
 
+            is_table=True
+
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
                 test_metadata=meta,
-                is_table=True,
+                is_table=is_table,
             )
 
             plot_crosses(
@@ -227,11 +239,12 @@ def handle_breakouts(
                 active_channels,
                 data_slice,
                 unique_path,
+                is_table,
             )
 
             draw_table(pdf_canvas=pdf, dataframe=result_slice)
 
-            insert_plot_and_logo(figure, pdf, is_gui, True)
+            insert_plot_and_logo(figure, pdf, is_gui, is_table)
 
             generated_paths.append(unique_path)
 
@@ -243,11 +256,13 @@ def handle_breakouts(
             unique_path = build_output_path(pdf_output_path, meta)
             data_slice = slice_data(group)
 
+            is_table=False
+
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
                 test_metadata=meta,
-                is_table=False,
+                is_table=is_table,
             )
 
             pdf = draw_test_details(
@@ -256,11 +271,13 @@ def handle_breakouts(
                 active_channels,
                 data_slice,
                 unique_path,
+                is_table,
             )
 
-            insert_plot_and_logo(figure, pdf, is_gui, False)
+            insert_plot_and_logo(figure, pdf, is_gui, is_table)
             generated_paths.append(unique_path)
     else:
+        is_table=True
 
         unique_path = build_output_path(pdf_output_path, test_metadata)
 
@@ -268,7 +285,7 @@ def handle_breakouts(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
             test_metadata=test_metadata,
-            is_table=True,
+            is_table=is_table,
         )
 
         plot_crosses(
@@ -284,13 +301,14 @@ def handle_breakouts(
             active_channels,
             cleaned_data,
             unique_path,
+            is_table,
         )
 
         draw_table(
             pdf_canvas=pdf,
             dataframe=breakout_values)
 
-        insert_plot_and_logo(figure, pdf, is_gui, True)
+        insert_plot_and_logo(figure, pdf, is_gui, is_table)
 
         generated_paths.append(unique_path)
 
@@ -371,11 +389,13 @@ def handle_signatures(
             result_slice = values_df[values_df['Cycle'] == cycle]
             index_slice = indices_df[indices_df['Cycle'] == cycle]
 
+            is_table=True
+
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
                 test_metadata=meta,
-                is_table=True,
+                is_table=is_table,
             )
 
             plot_crosses(
@@ -391,11 +411,12 @@ def handle_signatures(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
                 pdf_output_path=unique_path,
+                is_table=is_table,
             )
 
             draw_table(pdf_canvas=pdf, dataframe=result_slice)
 
-            insert_plot_and_logo(figure, pdf, is_gui, True)
+            insert_plot_and_logo(figure, pdf, is_gui, is_table)
 
             generated_paths.append(unique_path)
 
@@ -410,11 +431,13 @@ def handle_signatures(
 
             data_slice = slice_data(group)
 
+            is_table=False
+
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
                 test_metadata=meta,
-                is_table=False,
+                is_table=is_table,
             )
 
             pdf = draw_test_details(
@@ -423,12 +446,15 @@ def handle_signatures(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
                 pdf_output_path=unique_path,
+                is_table=is_table,
             )
 
-            insert_plot_and_logo(figure, pdf, is_gui, False)
+            insert_plot_and_logo(figure, pdf, is_gui, is_table)
 
             generated_paths.append(unique_path)
     else:
+        is_table = False
+
         unique_path = build_output_path(pdf_output_path, test_metadata)
 
         if transducer_details.at["Torque", 2] is True:
@@ -444,7 +470,7 @@ def handle_signatures(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
             test_metadata=test_metadata,
-            is_table=True,
+            is_table=is_table,
         )
 
         if transducer_details.at["Torque", 2] is True:
@@ -465,13 +491,14 @@ def handle_signatures(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
             pdf_output_path=unique_path,
+            is_table=is_table,
         )
 
         draw_table(
             pdf_canvas=pdf,
             dataframe=signature_key_points)
         
-        insert_plot_and_logo(figure, pdf, is_gui, True)
+        insert_plot_and_logo(figure, pdf, is_gui, is_table)
 
         generated_paths.append(unique_path)
 
