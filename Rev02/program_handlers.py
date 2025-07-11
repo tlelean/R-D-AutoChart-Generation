@@ -48,7 +48,7 @@ def handle_generic(
         active_channels=active_channels,
         cleaned_data=cleaned_data,
         test_metadata=test_metadata,
-        results_df=None,
+        is_table=False,
     )
 
     pdf = draw_test_details(
@@ -58,7 +58,7 @@ def handle_generic(
         cleaned_data=cleaned_data,
         pdf_output_path=unique_path,
     )
-    insert_plot_and_logo(figure, pdf, is_gui)
+    insert_plot_and_logo(figure, pdf, is_gui, False)
     return unique_path
 
 
@@ -90,7 +90,7 @@ def handle_holds(
                 active_channels=active_channels,
                 cleaned_data=cleaned_data,
                 test_metadata=test_metadata,
-                results_df=single_info,
+                is_table=True,
             )
 
             plot_crosses(
@@ -112,7 +112,7 @@ def handle_holds(
                 pdf_canvas=pdf,
                 dataframe=single_info)
 
-            insert_plot_and_logo(figure, pdf, is_gui)            
+            insert_plot_and_logo(figure, pdf, is_gui, True)            
     else:
         unique_path = build_output_path(pdf_output_path, test_metadata)
 
@@ -124,7 +124,7 @@ def handle_holds(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
             test_metadata=test_metadata,
-            results_df=single_info,
+            is_table=True,
         )
 
         plot_crosses(
@@ -146,7 +146,7 @@ def handle_holds(
             pdf_canvas=pdf,
             dataframe=single_info)
 
-        insert_plot_and_logo(figure, pdf, is_gui)
+        insert_plot_and_logo(figure, pdf, is_gui, True)
 
     return unique_path
 
@@ -211,7 +211,7 @@ def handle_breakouts(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
                 test_metadata=meta,
-                results_df=result_slice,
+                is_table=True,
             )
 
             plot_crosses(
@@ -230,7 +230,9 @@ def handle_breakouts(
             )
 
             draw_table(pdf_canvas=pdf, dataframe=result_slice)
-            insert_plot_and_logo(figure, pdf, is_gui)
+
+            insert_plot_and_logo(figure, pdf, is_gui, True)
+
             generated_paths.append(unique_path)
 
         for i in range(0, len(remaining_cycles), 40):
@@ -245,7 +247,7 @@ def handle_breakouts(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
                 test_metadata=meta,
-                results_df=None,
+                is_table=False,
             )
 
             pdf = draw_test_details(
@@ -256,7 +258,7 @@ def handle_breakouts(
                 unique_path,
             )
 
-            insert_plot_and_logo(figure, pdf, is_gui)
+            insert_plot_and_logo(figure, pdf, is_gui, False)
             generated_paths.append(unique_path)
     else:
 
@@ -266,7 +268,7 @@ def handle_breakouts(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
             test_metadata=test_metadata,
-            results_df=breakout_values
+            is_table=True,
         )
 
         plot_crosses(
@@ -288,7 +290,8 @@ def handle_breakouts(
             pdf_canvas=pdf,
             dataframe=breakout_values)
 
-        insert_plot_and_logo(figure, pdf, is_gui)
+        insert_plot_and_logo(figure, pdf, is_gui, True)
+
         generated_paths.append(unique_path)
 
     return generated_paths
@@ -372,7 +375,7 @@ def handle_signatures(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
                 test_metadata=meta,
-                results_df=result_slice,
+                is_table=True,
             )
 
             plot_crosses(
@@ -391,7 +394,9 @@ def handle_signatures(
             )
 
             draw_table(pdf_canvas=pdf, dataframe=result_slice)
-            insert_plot_and_logo(figure, pdf, is_gui)
+
+            insert_plot_and_logo(figure, pdf, is_gui, True)
+
             generated_paths.append(unique_path)
 
         # Multi-cycle pages (40 at a time)
@@ -409,7 +414,7 @@ def handle_signatures(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
                 test_metadata=meta,
-                results_df=None,
+                is_table=False,
             )
 
             pdf = draw_test_details(
@@ -420,7 +425,8 @@ def handle_signatures(
                 pdf_output_path=unique_path,
             )
 
-            insert_plot_and_logo(figure, pdf, is_gui)
+            insert_plot_and_logo(figure, pdf, is_gui, False)
+
             generated_paths.append(unique_path)
     else:
         unique_path = build_output_path(pdf_output_path, test_metadata)
@@ -438,7 +444,7 @@ def handle_signatures(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
             test_metadata=test_metadata,
-            results_df=signature_key_points
+            is_table=True,
         )
 
         if transducer_details.at["Torque", 2] is True:
@@ -465,7 +471,7 @@ def handle_signatures(
             pdf_canvas=pdf,
             dataframe=signature_key_points)
         
-        insert_plot_and_logo(figure, pdf, is_gui)
+        insert_plot_and_logo(figure, pdf, is_gui, True)
 
         generated_paths.append(unique_path)
 

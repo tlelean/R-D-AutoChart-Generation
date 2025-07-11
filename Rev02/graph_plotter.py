@@ -16,36 +16,37 @@ from plotter_info import (
 )
 
 def plot_crosses(df, channel, data, ax):
-    idx_cols = [c for c in df.columns if c.endswith("_Index")]
-    for col in idx_cols:
-        idxs = df[col].astype(int)
-        for idx in idxs:
-            t = data["Datetime"].loc[idx]
-            y = data[channel].loc[idx]
-            # compute rough slope
-            if 0 < idx < len(data[channel])-1:
-                slope = data[channel].loc[idx+1] - data[channel].loc[idx-1]
-            else:
-                slope = 0
-            # choose offset above or below
-            offset = 5 if slope >= 0 else -5
-            va = 'bottom' if offset > 0 else 'top'
+    if df is not None:
+        idx_cols = [c for c in df.columns if c.endswith("_Index")]
+        for col in idx_cols:
+            idxs = df[col].astype(int)
+            for idx in idxs:
+                t = data["Datetime"].loc[idx]
+                y = data[channel].loc[idx]
+                # compute rough slope
+                if 0 < idx < len(data[channel])-1:
+                    slope = data[channel].loc[idx+1] - data[channel].loc[idx-1]
+                else:
+                    slope = 0
+                # choose offset above or below
+                offset = 5 if slope >= 0 else -5
+                va = 'bottom' if offset > 0 else 'top'
 
-            ax.plot(t, y,
-                    marker='x',
-                    linestyle='none',
-                    markersize=8,
-                    color='black')
-            ax.annotate(
-                col.removesuffix("_Index"),
-                xy=(t, y),
-                xytext=(0, offset),
-                textcoords='offset points',
-                ha='center',
-                va=va,
-                fontsize=10,
-            )
-
+                ax.plot(t, y,
+                        marker='x',
+                        linestyle='none',
+                        markersize=8,
+                        color='black')
+                ax.annotate(
+                    col.removesuffix("_Index"),
+                    xy=(t, y),
+                    xytext=(0, offset),
+                    textcoords='offset points',
+                    ha='center',
+                    va=va,
+                    fontsize=10,
+                )
+                
 def axis_location(active_channels):
     """Map each active channel to an axis position."""
 
@@ -60,7 +61,7 @@ def axis_location(active_channels):
 
     return channel_axis_location_map
 
-def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
+def plot_channel_data(active_channels, cleaned_data, test_metadata, is_table):
     """Return matplotlib figure and axes for the given channel data."""
 
     data_for_plot = cleaned_data.copy()
@@ -73,7 +74,10 @@ def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
     axis_map = axis_location(active_channels)
 
     # Prepare axes
-    fig, ax_main = plt.subplots(figsize=(11.96, 8.49))
+    if is_table:
+        fig, ax_main = plt.subplots(figsize=(11.96, 8.49))
+    else:
+        fig, ax_main = plt.subplots(figsize=(11.96, 9.37))
     axes = {'left': ax_main}
     color_map = {}
     axis_label_map = {}

@@ -10,21 +10,32 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 
-def insert_plot_and_logo(figure, pdf, is_gui):
+def insert_plot_and_logo(figure, pdf, is_gui, is_table):
     png_figure = io.BytesIO()
     figure.savefig(png_figure, format='PNG', bbox_inches='tight', dpi=500)
     png_figure.seek(0)
     plt.close(figure)
     fig_img = ImageReader(png_figure)
-    pdf.drawImage(
-        fig_img,
-        16,
-        67.5,
-        598,
-        416.5,
-        preserveAspectRatio=False,
-        mask="auto",
-    )
+    if is_table:
+        pdf.drawImage(
+            fig_img,
+            16,
+            67.5,
+            598,
+            416.5,
+            preserveAspectRatio=False,
+            mask="auto",
+        )
+    else:
+        pdf.drawImage(
+            fig_img,
+            16,
+            16,
+            598,
+            468,
+            preserveAspectRatio=False,
+            mask="auto",
+        )
     image_path = (
         "V:/Userdoc/R & D/Logos/R&D_Page_2.png"
         if is_gui
@@ -175,43 +186,44 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
     ]
 
 def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
-    # 1) Build a list-of-lists with the header as the first row
-    header = list(dataframe.columns.astype(str))
-    body   = dataframe.astype(str).values.tolist()
-    data   = [header] + body
+    if dataframe is not None:
+        # 1) Build a list-of-lists with the header as the first row
+        header = list(dataframe.columns.astype(str))
+        body   = dataframe.astype(str).values.tolist()
+        data   = [header] + body
 
-    # 2) Recompute rows/cols
-    rows = len(data)
-    cols = len(data[0])  # guaranteed >= 1
+        # 2) Recompute rows/cols
+        rows = len(data)
+        cols = len(data[0])  # guaranteed >= 1
 
-    # 3) Compute uniform cell sizes
-    col_width  = width  / cols
-    row_height = height / rows
+        # 3) Compute uniform cell sizes
+        col_width  = width  / cols
+        row_height = height / rows
 
-    # 4) Create the Table
-    table = Table(
-        data,
-        colWidths  =[col_width ] * cols,
-        rowHeights =[row_height] * rows,
-    )
+        # 4) Create the Table
+        table = Table(
+            data,
+            colWidths  =[col_width ] * cols,
+            rowHeights =[row_height] * rows,
+        )
 
-    # 5) Style: give the header a grey background, rest white
-    style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.white),  # header row
-        ('TEXTCOLOR',  (0, 0), (-1, 0), colors.black),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),     # body
-        ('TEXTCOLOR',  (0, 1), (-1, -1), colors.black),
-        ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME',   (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE',   (0, 0), (-1, -1), 8),
-        ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
-    ])
-    table.setStyle(style)
+        # 5) Style: give the header a grey background, rest white
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.white),  # header row
+            ('TEXTCOLOR',  (0, 0), (-1, 0), colors.black),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),     # body
+            ('TEXTCOLOR',  (0, 1), (-1, -1), colors.black),
+            ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME',   (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE',   (0, 0), (-1, -1), 8),
+            ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
+        ])
+        table.setStyle(style)
 
-    # 6) Draw it
-    table.wrapOn(pdf_canvas, width, height)
-    table.drawOn(pdf_canvas, x, y)
+        # 6) Draw it
+        table.wrapOn(pdf_canvas, width, height)
+        table.drawOn(pdf_canvas, x, y)
 
 
 def draw_all_text(pdf, pdf_text_positions):
