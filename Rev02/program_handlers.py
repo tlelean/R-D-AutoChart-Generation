@@ -28,7 +28,6 @@ def build_output_path(base_path: Path, test_metadata) -> Path:
     )
 
 def handle_generic(
-    program_name: str,
     pdf_output_path: Path,
     test_metadata,
     transducer_details,
@@ -61,7 +60,6 @@ def handle_generic(
 
 
 def handle_holds(
-    program_name: str,
     pdf_output_path: Path,
     test_metadata,
     transducer_details,
@@ -154,7 +152,6 @@ def handle_holds(
 
 
 def handle_breakouts(
-    program_name: str,
     pdf_output_path: Path,
     test_metadata,
     transducer_details,
@@ -201,7 +198,6 @@ def handle_breakouts(
     return unique_path
 
 def handle_signatures(
-    program_name: str,
     pdf_output_path: Path,
     test_metadata,
     transducer_details,
