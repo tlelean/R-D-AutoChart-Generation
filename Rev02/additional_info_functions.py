@@ -63,26 +63,27 @@ def find_elbow(data):
 
 def locate_key_time_rows(cleaned_data, additional_info):
     """Return indices of key time points closest to provided timestamps."""
+    if additional_info.iloc[1, 1] == "" or "NaN":
+        holds_indices = additional_info.copy()
+        holds_values = additional_info.copy()
+        date_time_index = cleaned_data.set_index('Datetime')
 
-    holds_indices = additional_info.copy()
-    holds_values = additional_info.copy()
-    date_time_index = cleaned_data.set_index('Datetime')
-
-    for row in range(1, len(holds_values)):
-        holds_values.at[row, 1] = pd.to_datetime(
-            holds_values.at[row, 1],
-            format="%d/%m/%Y %H:%M:%S.%f",
-            errors="coerce",
-            dayfirst=True,
-        )
-        holds_indices.at[row, 1] = date_time_index.index.get_indexer(
-            holds_values.iloc[row, 1],
-            method="nearest",
-        )[0]
-        holds_values.at[row, 2] = cleaned_data[holds_indices.iloc[row, 1]][holds_values.at[0, 2]]
-        holds_values.at[row, 3] = cleaned_data[holds_indices.iloc[row, 1]]["Body Temperature"]
-
-    return holds_indices, holds_values
+        for row in range(1, len(holds_values)):
+            holds_values.at[row, 1] = pd.to_datetime(
+                holds_values.at[row, 1],
+                format="%d/%m/%Y %H:%M:%S.%f",
+                errors="coerce",
+                dayfirst=True,
+            )
+            holds_indices.at[row, 1] = date_time_index.index.get_indexer(
+                holds_values.iloc[row, 1],
+                method="nearest",
+            )[0]
+            holds_values.at[row, 2] = cleaned_data[holds_indices.iloc[row, 1]][holds_values.at[0, 2]]
+            holds_values.at[row, 3] = cleaned_data[holds_indices.iloc[row, 1]]["Body Temperature"]
+        return holds_indices, holds_values
+    else:
+        return None, None
 
 def locate_bto_btc_rows(raw_data, additional_info):
     if additional_info.iloc[1, 1] == "" or "NaN":
@@ -121,7 +122,7 @@ def locate_bto_btc_rows(raw_data, additional_info):
             pd.DataFrame.from_records(breakout_indices),
         )
     else:
-        return additional_info, None
+        return None, None
 
 def locate_signature_key_points(
     transducer_details: pd.DataFrame,
