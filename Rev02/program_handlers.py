@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Any, Callable, Dict
+import math
 
 from graph_plotter import (
     plot_channel_data,
@@ -17,6 +18,7 @@ from additional_info_functions import (
     locate_bto_btc_rows,
     locate_key_time_rows,
     locate_signature_key_points,
+    find_cycle_breakpoints,
 )
 
 def build_output_path(base_path: Path, test_metadata) -> Path:
@@ -80,9 +82,7 @@ def handle_holds(
 
             single_info = additional_info.loc[[index]]
 
-            # locate_key_time_rows needs to to produce another dataframe which is the data needed to be drawn underneath the plot
-
-            key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
+            holds_indices, holds_values = locate_key_time_rows(cleaned_data, additional_info)
 
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
@@ -92,8 +92,8 @@ def handle_holds(
             )
 
             plot_crosses(
-                df=key_time_indices,
-                channel=key_time_indices.iloc[0]['Main Channel'],
+                df=holds_indices,
+                channel=cleaned_data[holds_values.at[0, 2]],
                 data=cleaned_data,
                 ax=axes[axis_map["Pressure"]],
             )
@@ -116,9 +116,7 @@ def handle_holds(
 
         single_info = additional_info
 
-        # locate_key_time_rows needs to to produce another dataframe which is the data needed to be drawn underneath the plot
-
-        key_time_indices = locate_key_time_rows(cleaned_data, additional_info)
+        holds_indices, holds_values = locate_key_time_rows(cleaned_data, additional_info)
 
         figure, axes, axis_map = plot_channel_data(
             active_channels=active_channels,
@@ -128,8 +126,8 @@ def handle_holds(
         )
 
         plot_crosses(
-            df=key_time_indices,
-            channel=key_time_indices.iloc[0]['Main Channel'],
+            df=holds_indices,
+            channel=cleaned_data[holds_values.at[0, 2]],
             data=cleaned_data,
             ax=axes[axis_map["Pressure"]],
         )
@@ -163,39 +161,134 @@ def handle_breakouts(
     **kwargs,
 ):
     """Handler for breakout programs."""
-    unique_path = build_output_path(pdf_output_path, test_metadata)
 
-    breakout_values, breakout_indices = locate_bto_btc_rows(raw_data)
+    breakout_values, breakout_indices = locate_bto_btc_rows(raw_data, additional_info)
+    cycle_ranges, max_cycle = find_cycle_breakpoints(raw_data)
 
-    figure, axes, axis_map = plot_channel_data(
-        active_channels=active_channels,
-        cleaned_data=cleaned_data,
-        test_metadata=test_metadata,
-        results_df=breakout_values
-    )
+    base_section = test_metadata.at['Test Name', 1]
+    all_cycles = list(range(1, max_cycle + 1))
 
-    plot_crosses(
-        df=breakout_indices,
-        channel="Torque",
-        data=cleaned_data,
-        ax=axes[axis_map["Torque"]],
-    )
-    
-    pdf = draw_test_details(
-        test_metadata,
-        transducer_details,
-        active_channels,
-        cleaned_data,
-        unique_path,
-    )
+    def cycle_str(cycles):
+        return str(cycles[0]) if len(cycles) == 1 else f"{cycles[0]}-{cycles[-1]}"
 
-    draw_table(
-        pdf_canvas=pdf,
-        dataframe=breakout_values)
+    def slice_data(cycles):
+        start_idx = cycle_ranges.loc[cycle_ranges['Cycle'] == cycles[0], 'Start Index'].iloc[0]
+        end_idx = cycle_ranges.loc[cycle_ranges['Cycle'] == cycles[-1], 'End Index'].iloc[0]
+        return cleaned_data.loc[start_idx:end_idx]
 
-    insert_plot_and_logo(figure, pdf, is_gui)
+    generated_paths = []
 
-    return unique_path
+    if max_cycle >= 10:
+        first_cycles = all_cycles[:3]
+        middle_start = max(0, (max_cycle // 2) - 1)
+        middle_cycles = all_cycles[middle_start:middle_start + 3]
+        last_cycles = all_cycles[-3:]
+
+        selected_cycles = []
+        for seq in (first_cycles, middle_cycles, last_cycles):
+            for c in seq:
+                if c not in selected_cycles:
+                    selected_cycles.append(c)
+
+        remaining_cycles = [c for c in all_cycles if c not in selected_cycles]
+
+        total_selected = len(selected_cycles)
+        total_remaining = math.ceil(len(remaining_cycles) / 40)
+        total_pages = total_selected + total_remaining
+
+        for page_idx, cycle in enumerate(selected_cycles, start=1):
+            meta = test_metadata.copy()
+            meta.at['Test Name', 1] = f"{base_section} Cycles {cycle_str(group)} (Page {page_idx} of {total_pages})"
+            unique_path = build_output_path(pdf_output_path, meta)
+            data_slice = slice_data([cycle])
+            result_slice = breakout_values[breakout_values['Cycle'] == cycle]
+            index_slice = breakout_indices[breakout_indices['Cycle'] == cycle]
+
+            figure, axes, axis_map = plot_channel_data(
+                active_channels=active_channels,
+                cleaned_data=data_slice,
+                test_metadata=meta,
+                results_df=result_slice,
+            )
+
+            plot_crosses(
+                df=index_slice,
+                channel='Torque',
+                data=data_slice,
+                ax=axes[axis_map['Torque']],
+            )
+
+            pdf = draw_test_details(
+                meta,
+                transducer_details,
+                active_channels,
+                data_slice,
+                unique_path,
+            )
+
+            draw_table(pdf_canvas=pdf, dataframe=result_slice)
+            insert_plot_and_logo(figure, pdf, is_gui)
+            generated_paths.append(unique_path)
+
+        for i in range(0, len(remaining_cycles), 40):
+            group = remaining_cycles[i:i + 40]
+            page_idx = total_selected + (i // 40) + 1
+            meta = test_metadata.copy()
+            meta.at['Test Name', 1] = f"{base_section} Cycles {cycle_str(group)} (Page {page_idx} of {total_pages})"
+            unique_path = build_output_path(pdf_output_path, meta)
+            data_slice = slice_data(group)
+
+            figure, axes, axis_map = plot_channel_data(
+                active_channels=active_channels,
+                cleaned_data=data_slice,
+                test_metadata=meta,
+                results_df=None,
+            )
+
+            pdf = draw_test_details(
+                meta,
+                transducer_details,
+                active_channels,
+                data_slice,
+                unique_path,
+            )
+
+            insert_plot_and_logo(figure, pdf, is_gui)
+            generated_paths.append(unique_path)
+    else:
+
+        unique_path = build_output_path(pdf_output_path, test_metadata)
+
+        figure, axes, axis_map = plot_channel_data(
+            active_channels=active_channels,
+            cleaned_data=cleaned_data,
+            test_metadata=test_metadata,
+            results_df=breakout_values
+        )
+
+        plot_crosses(
+            df=breakout_indices,
+            channel="Torque",
+            data=cleaned_data,
+            ax=axes[axis_map["Torque"]],
+        )
+        
+        pdf = draw_test_details(
+            test_metadata,
+            transducer_details,
+            active_channels,
+            cleaned_data,
+            unique_path,
+        )
+
+        draw_table(
+            pdf_canvas=pdf,
+            dataframe=breakout_values)
+
+        insert_plot_and_logo(figure, pdf, is_gui)
+        generated_paths.append(unique_path)
+
+    return generated_paths
 
 def handle_signatures(
     pdf_output_path: Path,
@@ -209,59 +302,170 @@ def handle_signatures(
     **kwargs,
 ):
     """Handler for Signatures program."""
-    unique_path = build_output_path(pdf_output_path, test_metadata)
 
     (
         torque_signature_values,
         torque_signature_indices,
         actuator_signature_values,
         actuator_signature_indices,
-    ) = locate_signature_key_points(
-        transducer_details,
-        raw_data
-    )
+    ) = locate_signature_key_points(transducer_details, raw_data)
+
+    cycle_ranges, max_cycle = find_cycle_breakpoints(raw_data)
+    base_section = test_metadata.at['Test Name', 1]
+    all_cycles = list(range(1, max_cycle + 1))
 
     if transducer_details.at["Torque", 2] is True:
-        signature_key_points = torque_signature_values
-        signature_indices = torque_signature_indices
-        channel = raw_data["Torque"]
-        ax = axes[axis_map["Torque"]]
+        values_df = torque_signature_values
+        indices_df = torque_signature_indices
+        plot_channel = 'Torque'
+        axis_key = 'Torque'
     else:
-        signature_key_points = actuator_signature_values
-        signature_indices = actuator_signature_indices
-        channel = raw_data["Actuator"]
-        ax = axes[axis_map["Pressure"]]
+        values_df = actuator_signature_values
+        indices_df = actuator_signature_indices
+        plot_channel = 'Actuator'
+        axis_key = 'Pressure'
 
-    figure, axes, axis_map = plot_channel_data(
-        active_channels=active_channels,
-        cleaned_data=cleaned_data,
-        test_metadata=test_metadata,
-        results_df=signature_key_points
-    )
+    def cycle_str(cycles):
+        return str(cycles[0]) if len(cycles) == 1 else f"{cycles[0]}-{cycles[-1]}"
 
-    plot_crosses(
-        df=signature_indices,
-        channel=channel,
-        data=cleaned_data,
-        ax=ax,
-    )
-    
-    pdf = draw_test_details(
-        test_metadata=test_metadata,
-        transducer_details=transducer_details,
-        active_channels=active_channels,
-        cleaned_data=cleaned_data,
-        pdf_output_path=unique_path,
-    )
+    def slice_data(cycles):
+        start_idx = cycle_ranges.loc[cycle_ranges['Cycle'] == cycles[0], 'Start Index'].iloc[0]
+        end_idx = cycle_ranges.loc[cycle_ranges['Cycle'] == cycles[-1], 'End Index'].iloc[0]
+        return cleaned_data.loc[start_idx:end_idx]
 
-    draw_table(
-        pdf_canvas=pdf,
-        dataframe=signature_key_points)
-    
-    insert_plot_and_logo(figure, pdf, is_gui)
-    
-    return unique_path
+    generated_paths = []
 
+    if max_cycle >= 10:
+        first_cycles = all_cycles[:3]
+        middle_start = max(0, (max_cycle // 2) - 1)
+        middle_cycles = all_cycles[middle_start:middle_start + 3]
+        last_cycles = all_cycles[-3:]
+
+        selected_cycles = []
+        for seq in (first_cycles, middle_cycles, last_cycles):
+            for c in seq:
+                if c not in selected_cycles:
+                    selected_cycles.append(c)
+
+        remaining_cycles = [c for c in all_cycles if c not in selected_cycles]
+
+        total_selected = len(selected_cycles)
+        total_remaining = math.ceil(len(remaining_cycles) / 40)
+        total_pages = total_selected + total_remaining
+
+        # Single-cycle pages
+        for page_idx, cycle in enumerate(selected_cycles, start=1):
+            meta = test_metadata.copy()
+            meta.at['Test Section Number', 1] = f"{base_section} Cycle {cycle_str([cycle])}"
+            meta.at['Test Name', 1] = f"{base_section} Cycle {cycle_str([cycle])} (Page {page_idx} of {total_pages})"
+            unique_path = build_output_path(pdf_output_path, meta)
+
+            data_slice = slice_data([cycle])
+            result_slice = values_df[values_df['Cycle'] == cycle]
+            index_slice = indices_df[indices_df['Cycle'] == cycle]
+
+            figure, axes, axis_map = plot_channel_data(
+                active_channels=active_channels,
+                cleaned_data=data_slice,
+                test_metadata=meta,
+                results_df=result_slice,
+            )
+
+            plot_crosses(
+                df=index_slice,
+                channel=plot_channel,
+                data=data_slice,
+                ax=axes[axis_map[axis_key]],
+            )
+
+            pdf = draw_test_details(
+                test_metadata=meta,
+                transducer_details=transducer_details,
+                active_channels=active_channels,
+                cleaned_data=data_slice,
+                pdf_output_path=unique_path,
+            )
+
+            draw_table(pdf_canvas=pdf, dataframe=result_slice)
+            insert_plot_and_logo(figure, pdf, is_gui)
+            generated_paths.append(unique_path)
+
+        # Multi-cycle pages (40 at a time)
+        for i in range(0, len(remaining_cycles), 40):
+            group = remaining_cycles[i:i + 40]
+            page_idx = total_selected + (i // 40) + 1
+            meta = test_metadata.copy()
+            meta.at['Test Section Number', 1] = f"{base_section} Cycles {cycle_str(group)}"
+            meta.at['Test Name', 1] = f"{base_section} Cycles {cycle_str(group)} (Page {page_idx} of {total_pages})"
+            unique_path = build_output_path(pdf_output_path, meta)
+
+            data_slice = slice_data(group)
+
+            figure, axes, axis_map = plot_channel_data(
+                active_channels=active_channels,
+                cleaned_data=data_slice,
+                test_metadata=meta,
+                results_df=None,
+            )
+
+            pdf = draw_test_details(
+                test_metadata=meta,
+                transducer_details=transducer_details,
+                active_channels=active_channels,
+                cleaned_data=data_slice,
+                pdf_output_path=unique_path,
+            )
+
+            insert_plot_and_logo(figure, pdf, is_gui)
+            generated_paths.append(unique_path)
+    else:
+        unique_path = build_output_path(pdf_output_path, test_metadata)
+
+        if transducer_details.at["Torque", 2] is True:
+            signature_key_points = torque_signature_values
+            signature_indices = torque_signature_indices
+            channel = raw_data["Torque"]
+        else:
+            signature_key_points = actuator_signature_values
+            signature_indices = actuator_signature_indices
+            channel = raw_data["Actuator"]
+
+        figure, axes, axis_map = plot_channel_data(
+            active_channels=active_channels,
+            cleaned_data=cleaned_data,
+            test_metadata=test_metadata,
+            results_df=signature_key_points
+        )
+
+        if transducer_details.at["Torque", 2] is True:
+            ax = axes[axis_map["Torque"]]
+        else:
+            ax = axes[axis_map["Pressure"]]
+
+        plot_crosses(
+            df=signature_indices,
+            channel=channel,
+            data=cleaned_data,
+            ax=ax,
+        )
+        
+        pdf = draw_test_details(
+            test_metadata=test_metadata,
+            transducer_details=transducer_details,
+            active_channels=active_channels,
+            cleaned_data=cleaned_data,
+            pdf_output_path=unique_path,
+        )
+
+        draw_table(
+            pdf_canvas=pdf,
+            dataframe=signature_key_points)
+        
+        insert_plot_and_logo(figure, pdf, is_gui)
+
+        generated_paths.append(unique_path)
+
+    return generated_paths
 
 HANDLERS: Dict[str, Callable[..., Any]] = {
     "Initial Cycle": handle_generic,

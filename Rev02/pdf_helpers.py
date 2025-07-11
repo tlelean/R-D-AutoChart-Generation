@@ -104,7 +104,7 @@ def draw_headers(pdf, test_metadata, cleaned_data, light_blue):
     )
     draw_text_on_pdf(
         pdf,
-        cleaned_data.at[0, "Datetime"].strftime("%d/%m/%Y"),
+        cleaned_data.iloc[0]["Datetime"].strftime("%d/%m/%Y"),
         487.5,
         539.375,
         colour=light_blue,
