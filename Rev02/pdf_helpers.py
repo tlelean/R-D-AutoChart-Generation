@@ -132,7 +132,7 @@ def prepare_transducer_dataframe(transducer_details, active_channels):
     used_transducers = pd.concat([used_transducers, empty_rows], ignore_index=True)
     return used_transducers
 
-def build_static_text_positions(test_metadata, light_blue, black):
+def build_static_text_positions(test_metadata, light_blue, black, max_cycle=None):
     return [
         # Left column
         (20, 571.875, "Test Procedure Reference", black, False),
@@ -155,7 +155,7 @@ def build_static_text_positions(test_metadata, light_blue, black):
         (635, 266.25, "Test Pressure", black, False),
         (725, 266.25, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
         (635, 287.5, "Cycle Count", black, False),
-        #(725, 286.25, ),
+        (725, 286.25, f"{max_cycle}" if max_cycle is not None else "", light_blue, True),
         (635, 245, "Breakout Torque", black, False),
         (725, 245, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] != "See Table" else "See Table", light_blue, True),
         (635, 227.5, "Running Torque", black, False),
@@ -233,7 +233,7 @@ def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:
         draw_text_on_pdf(pdf, text, x, y, colour=colour, size=10, left_aligned=True, replace_empty=replace_empty)
 
-def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path, is_table):
+def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path, is_table, raw_data):
     if is_table:
         test_metadata.at['Breakout Torque', 1] = 'See Table'
         test_metadata.at['Running Torque', 1] = 'See Table'    
@@ -244,7 +244,8 @@ def draw_test_details(test_metadata, transducer_details, active_channels, cleane
     black = Color(0, 0, 0)
     draw_headers(pdf, test_metadata, cleaned_data, light_blue)
     used_transducers = prepare_transducer_dataframe(transducer_details, active_channels)
-    pdf_text_positions = build_static_text_positions(test_metadata, light_blue, black)
+    max_cycle = int(raw_data["Cycle Count"].max())
+    pdf_text_positions = build_static_text_positions(test_metadata, light_blue, black, max_cycle)
     pdf_text_positions += build_transducer_and_gauge_positions(used_transducers, light_blue)
     pdf_text_positions += build_torque_and_stamp_positions(transducer_details, test_metadata, light_blue, black)
     draw_all_text(pdf, pdf_text_positions)

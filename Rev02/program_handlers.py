@@ -60,6 +60,7 @@ def handle_generic(
         cleaned_data=cleaned_data,
         pdf_output_path=unique_path,
         is_table=is_table,
+        raw_data=raw_data
     )
 
     insert_plot_and_logo(figure, pdf, is_gui, is_table)
@@ -112,6 +113,7 @@ def handle_holds(
                 cleaned_data,
                 unique_path,
                 is_table,
+                raw_data
             )
 
             draw_table(
@@ -149,6 +151,7 @@ def handle_holds(
             cleaned_data,
             unique_path,
             is_table,
+            raw_data
         )
 
         draw_table(
@@ -240,6 +243,7 @@ def handle_breakouts(
                 data_slice,
                 unique_path,
                 is_table,
+                raw_data
             )
 
             draw_table(pdf_canvas=pdf, dataframe=result_slice)
@@ -272,6 +276,7 @@ def handle_breakouts(
                 data_slice,
                 unique_path,
                 is_table,
+                raw_data
             )
 
             insert_plot_and_logo(figure, pdf, is_gui, is_table)
@@ -302,6 +307,7 @@ def handle_breakouts(
             cleaned_data,
             unique_path,
             is_table,
+            raw_data
         )
 
         draw_table(
@@ -412,6 +418,7 @@ def handle_signatures(
                 cleaned_data=data_slice,
                 pdf_output_path=unique_path,
                 is_table=is_table,
+                raw_data=raw_data
             )
 
             draw_table(pdf_canvas=pdf, dataframe=result_slice)
@@ -447,6 +454,7 @@ def handle_signatures(
                 cleaned_data=data_slice,
                 pdf_output_path=unique_path,
                 is_table=is_table,
+                raw_data=raw_data
             )
 
             insert_plot_and_logo(figure, pdf, is_gui, is_table)
@@ -492,6 +500,7 @@ def handle_signatures(
             cleaned_data=cleaned_data,
             pdf_output_path=unique_path,
             is_table=is_table,
+            raw_data=raw_data
         )
 
         draw_table(
