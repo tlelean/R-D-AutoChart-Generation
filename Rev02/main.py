@@ -78,13 +78,19 @@ def main():
 
         # Extra copy if not GUI
         if not is_gui:
-            doc = fitz.open(unique_pdf_output_path)
-            page = doc.load_page(0)       # or doc[0]
-            zoom_factor = 3
-            mat = fitz.Matrix(zoom_factor, zoom_factor)
-            pix = page.get_pixmap(matrix=mat)       # get the rasterised page
-            pix.save("/var/opt/codesys/PlcLogic/visu/pdf.png")
-            doc.close()
+            paths = (
+                unique_pdf_output_path
+                if isinstance(unique_pdf_output_path, list)
+                else [unique_pdf_output_path]
+            )
+            for pdf_path in paths:
+                doc = fitz.open(pdf_path)
+                page = doc.load_page(0)       # or doc[0]
+                zoom_factor = 3
+                mat = fitz.Matrix(zoom_factor, zoom_factor)
+                pix = page.get_pixmap(matrix=mat)       # get the rasterised page
+                pix.save("/var/opt/codesys/PlcLogic/visu/pdf.png")
+                doc.close()
 
         print("Done")     
 
