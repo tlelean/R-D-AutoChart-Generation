@@ -61,63 +61,67 @@ def find_elbow(data):
     idx = np.argmin(sd)
     return data[idx], idx
 
-def locate_key_time_rows(cleaned_data, key_time_points):
+def locate_key_time_rows(cleaned_data, additional_info):
     """Return indices of key time points closest to provided timestamps."""
 
-    time_columns = ["Start of Stabilisation", "Start of Hold", "End of Hold"]
-    key_time_indices = key_time_points.copy()
+    holds_indices = additional_info.copy()
+    holds_values = additional_info.copy()
     date_time_index = cleaned_data.set_index('Datetime')
 
-    for col in time_columns:
-        key_time_points.at[0, col] = pd.to_datetime(
-            key_time_points.at[0, col],
+    for row in range(1, len(holds_values)):
+        holds_values.at[row, 1] = pd.to_datetime(
+            holds_values.at[row, 1],
             format="%d/%m/%Y %H:%M:%S.%f",
             errors="coerce",
             dayfirst=True,
         )
-        key_time_indices.at[0, col] = date_time_index.index.get_indexer(
-            [key_time_points.at[0, col]],
+        holds_indices.at[row, 1] = date_time_index.index.get_indexer(
+            holds_values.iloc[row, 1],
             method="nearest",
         )[0]
+        holds_values.at[row, 2] = cleaned_data[holds_indices.iloc[row, 1]][holds_values.at[0, 2]]
+        holds_values.at[row, 3] = cleaned_data[holds_indices.iloc[row, 1]]["Body Temperature"]
 
-    return key_time_indices
+    return holds_indices, holds_values
 
-def locate_bto_btc_rows(raw_data):
-    breakout_values: List[Dict[str, Any]] = []
-    breakout_indices: List[Dict[str, Any]] = []
+def locate_bto_btc_rows(raw_data, additional_info):
+    if additional_info.iloc[1, 1] == "" or "NaN":
+        breakout_values: List[Dict[str, Any]] = []
+        breakout_indices: List[Dict[str, Any]] = []
 
-    torque_series = raw_data["Torque"]
+        torque_series = raw_data["Torque"]
 
-    # Get precomputed cycle boundaries
-    indices_ranges, _ = find_cycle_breakpoints(raw_data)
+        # Get precomputed cycle boundaries
+        indices_ranges, _ = find_cycle_breakpoints(raw_data)
 
-    for cycle, start_idx, one_third_idx, middle_idx, two_third_idx, end_idx in indices_ranges.itertuples(index=False, name=None):
-        # 1st third for BTO
-        torque_first = torque_series.loc[start_idx:one_third_idx]
-        bto = torque_first.min().round(1)
-        bto_index = torque_first.idxmin()
+        for cycle, start_idx, one_third_idx, middle_idx, two_third_idx, end_idx in indices_ranges.itertuples(index=False, name=None):
+            # 1st third for BTO
+            torque_first = torque_series.loc[start_idx:one_third_idx]
+            bto = torque_first.min().round(1)
+            bto_index = torque_first.idxmin()
 
-        # 3rd third for BTC
-        torque_third = torque_series.loc[middle_idx:two_third_idx]
-        btc = torque_third.max().round(1)
-        btc_index = torque_third.idxmax()
+            # 3rd third for BTC
+            torque_third = torque_series.loc[middle_idx:two_third_idx]
+            btc = torque_third.max().round(1)
+            btc_index = torque_third.idxmax()
 
-        # Store values
-        breakout_values.append({
-            "Cycle": cycle,
-            "BTO": bto,
-            "BTC": btc,
-        })
-        breakout_indices.append({
-            "Cycle": cycle,
-            "BTO_Index": bto_index,
-            "BTC_Index": btc_index,
-        })
-
-    return (
-        pd.DataFrame.from_records(breakout_values), 
-        pd.DataFrame.from_records(breakout_indices),
-    )
+            # Store values
+            breakout_values.append({
+                "Cycle": cycle,
+                "BTO": bto,
+                "BTC": btc,
+            })
+            breakout_indices.append({
+                "Cycle": cycle,
+                "BTO_Index": bto_index,
+                "BTC_Index": btc_index,
+            })
+        return (
+            pd.DataFrame.from_records(breakout_values), 
+            pd.DataFrame.from_records(breakout_indices),
+        )
+    else:
+        return additional_info, None
 
 def locate_signature_key_points(
     transducer_details: pd.DataFrame,

@@ -17,15 +17,14 @@ from plotter_info import (
 
 def plot_crosses(df, channel, data, ax):
     idx_cols = [c for c in df.columns if c.endswith("_Index")]
-    y_series = data[channel].to_numpy()
     for col in idx_cols:
         idxs = df[col].astype(int)
         for idx in idxs:
-            t = data["Datetime"].iat[idx]
-            y = y_series[idx]
+            t = data["Datetime"].loc[idx]
+            y = data[channel].loc[idx]
             # compute rough slope
-            if 0 < idx < len(y_series)-1:
-                slope = y_series[idx+1] - y_series[idx-1]
+            if 0 < idx < len(data[channel])-1:
+                slope = data[channel].loc[idx+1] - data[channel].loc[idx-1]
             else:
                 slope = 0
             # choose offset above or below
