@@ -85,8 +85,8 @@ def locate_key_time_rows(cleaned_data, additional_info):
     else:
         return None, None
 
-def locate_bto_btc_rows(raw_data, additional_info):
-    if additional_info.iloc[1, 1] == "" or "NaN":
+def locate_bto_btc_rows(raw_data, additional_info, channels_to_record):
+    if additional_info.iloc[1, 1] == "" or "NaN" and channels_to_record.iloc["Torque"][3]:
         breakout_values: List[Dict[str, Any]] = []
         breakout_indices: List[Dict[str, Any]] = []
 
