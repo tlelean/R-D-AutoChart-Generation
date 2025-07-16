@@ -32,14 +32,13 @@ def main():
 
         # For testing purposes, hardcode the file paths
         primary_data_file = (
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/Hyrdaulic Zero Pressure/30_Data_15-7-2025_10-43-48.csv"
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/Torque WP/50_Data_15-7-2025_15-8-29.csv"
         )
         test_details_file = (
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/Hyrdaulic Zero Pressure/30_Test_Details_15-7-2025_10-43-48.csv"
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/Torque WP/50_Test_Details_15-7-2025_15-8-29.csv"
         )
         pdf_output_path = Path(
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing "
-            "Number/Attempt Attempt/PDF"
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/PDF"
         )
 
         is_gui = True

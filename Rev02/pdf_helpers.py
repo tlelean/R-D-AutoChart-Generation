@@ -189,6 +189,16 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
     ]
 
 def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
+    """Render a pandas DataFrame as a table on the PDF canvas."""
+
+    # Drop columns that contain only NaN/None values
+    dataframe = dataframe.dropna(axis=1, how="all")
+
+    # Round numeric values to whole numbers for display
+    numeric_cols = dataframe.select_dtypes(include="number").columns
+    if not numeric_cols.empty:
+        dataframe[numeric_cols] = dataframe[numeric_cols].round(0).astype("Int64")
+
     if dataframe is not None:
         # 1) Build a list-of-lists with the header as the first row
         header = list(dataframe.columns.astype(str))

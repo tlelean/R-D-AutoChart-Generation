@@ -7,6 +7,7 @@ import math
 from graph_plotter import (
     plot_channel_data,
     plot_crosses,
+    #plot_cycle_lines,
 )
 from pdf_helpers import (
     draw_table,
@@ -181,7 +182,7 @@ def handle_breakouts(
     """Handler for breakout programs."""
 
     breakout_values, breakout_indices = locate_bto_btc_rows(raw_data, additional_info, channels_to_record)
-    cycle_ranges, max_cycle = find_cycle_breakpoints(raw_data)
+    cycle_ranges, max_cycle = find_cycle_breakpoints(raw_data, channels_to_record)
 
     base_section = test_metadata.at['Test Name', 1]
     all_cycles = list(range(1, max_cycle + 1))
@@ -344,11 +345,11 @@ def handle_signatures(
         actuator_signature_indices,
     ) = locate_signature_key_points(channels_to_record, raw_data)
 
-    cycle_ranges, max_cycle = find_cycle_breakpoints(raw_data)
+    cycle_ranges, max_cycle = find_cycle_breakpoints(raw_data, channels_to_record)
     base_section = test_metadata.at['Test Name', 1]
     all_cycles = list(range(1, max_cycle + 1))
 
-    if transducer_details.at["Torque", 2] is True:
+    if channels_to_record.at["Torque", 1]:
         values_df = torque_signature_values
         indices_df = torque_signature_indices
         plot_channel = 'Torque'
@@ -414,6 +415,12 @@ def handle_signatures(
                 ax=axes[axis_map[axis_key]],
             )
 
+            # plot_cycle_lines(
+            #     indices_df=cycle_ranges[cycle_ranges['Cycle'] == cycle],
+            #     data=data_slice,
+            #     axes=axes,
+            # )
+
             pdf = draw_test_details(
                 test_metadata=meta,
                 transducer_details=transducer_details,
@@ -464,11 +471,11 @@ def handle_signatures(
 
             generated_paths.append(unique_path)
     else:
-        is_table = False
+        is_table = True
 
         unique_path = build_output_path(pdf_output_path, test_metadata)
 
-        if transducer_details.at["Torque", 2] is True:
+        if channels_to_record.at["Torque", 1]:
             signature_key_points = torque_signature_values
             signature_indices = torque_signature_indices
         else:
@@ -482,7 +489,7 @@ def handle_signatures(
             is_table=is_table,
         )
 
-        if transducer_details.at["Torque", 2] is True:
+        if channels_to_record.at["Torque", 1]:
             ax = axes[axis_map["Torque"]]
         else:
             ax = axes[axis_map["Pressure"]]
@@ -493,6 +500,12 @@ def handle_signatures(
             data=cleaned_data,
             ax=ax,
         )
+
+        # plot_cycle_lines(
+        #     indices_df=cycle_ranges,
+        #     data=cleaned_data,
+        #     axes=axes,
+        # )
         
         pdf = draw_test_details(
             test_metadata=test_metadata,
