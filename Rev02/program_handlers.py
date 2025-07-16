@@ -38,6 +38,7 @@ def handle_generic(
     cleaned_data,
     raw_data,
     additional_info,
+    channels_to_record,
     is_gui: bool,
     **kwargs,
 ):
@@ -49,7 +50,7 @@ def handle_generic(
     figure, axes, axis_map = plot_channel_data(
         active_channels=active_channels,
         cleaned_data=cleaned_data,
-        test_metadata=test_metadata,
+        channels_to_record = channels_to_record,
         is_table=is_table,
     )
 
@@ -76,6 +77,7 @@ def handle_holds(
     cleaned_data,
     raw_data,
     additional_info,
+    channels_to_record,
     is_gui: bool,
     **kwargs,
 ):
@@ -95,13 +97,13 @@ def handle_holds(
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=cleaned_data,
-                test_metadata=test_metadata,
+                channels_to_record = channels_to_record,
                 is_table=is_table,
             )
 
             plot_crosses(
                 df=holds_indices,
-                channel=cleaned_data[holds_values.at[0, 2]],
+                channel=holds_values.at[0, 2],
                 data=cleaned_data,
                 ax=axes[axis_map["Pressure"]],
             )
@@ -133,13 +135,13 @@ def handle_holds(
         figure, axes, axis_map = plot_channel_data(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
-            test_metadata=test_metadata,
+            channels_to_record = channels_to_record,
             is_table=is_table,
         )
 
         plot_crosses(
             df=holds_indices,
-            channel=cleaned_data[holds_values.at[0, 2]],
+            channel=holds_values.at[0, 2],
             data=cleaned_data,
             ax=axes[axis_map["Pressure"]],
         )
@@ -225,7 +227,7 @@ def handle_breakouts(
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
-                test_metadata=meta,
+                channels_to_record = channels_to_record,
                 is_table=is_table,
             )
 
@@ -265,7 +267,7 @@ def handle_breakouts(
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
-                test_metadata=meta,
+                channels_to_record = channels_to_record,
                 is_table=is_table,
             )
 
@@ -289,7 +291,7 @@ def handle_breakouts(
         figure, axes, axis_map = plot_channel_data(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
-            test_metadata=test_metadata,
+            channels_to_record = channels_to_record,
             is_table=is_table,
         )
 
@@ -329,6 +331,7 @@ def handle_signatures(
     cleaned_data,
     raw_data,
     additional_info,
+    channels_to_record,
     is_gui: bool,
     **kwargs,
 ):
@@ -339,7 +342,7 @@ def handle_signatures(
         torque_signature_indices,
         actuator_signature_values,
         actuator_signature_indices,
-    ) = locate_signature_key_points(transducer_details, raw_data)
+    ) = locate_signature_key_points(channels_to_record, raw_data)
 
     cycle_ranges, max_cycle = find_cycle_breakpoints(raw_data)
     base_section = test_metadata.at['Test Name', 1]
@@ -400,7 +403,7 @@ def handle_signatures(
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
-                test_metadata=meta,
+                channels_to_record = channels_to_record,
                 is_table=is_table,
             )
 
@@ -443,7 +446,7 @@ def handle_signatures(
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
-                test_metadata=meta,
+                channels_to_record = channels_to_record,
                 is_table=is_table,
             )
 
@@ -468,16 +471,14 @@ def handle_signatures(
         if transducer_details.at["Torque", 2] is True:
             signature_key_points = torque_signature_values
             signature_indices = torque_signature_indices
-            channel = raw_data["Torque"]
         else:
             signature_key_points = actuator_signature_values
             signature_indices = actuator_signature_indices
-            channel = raw_data["Actuator"]
 
         figure, axes, axis_map = plot_channel_data(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
-            test_metadata=test_metadata,
+            channels_to_record = channels_to_record,
             is_table=is_table,
         )
 
@@ -488,7 +489,7 @@ def handle_signatures(
 
         plot_crosses(
             df=signature_indices,
-            channel=channel,
+            channel=plot_channel,
             data=cleaned_data,
             ax=ax,
         )

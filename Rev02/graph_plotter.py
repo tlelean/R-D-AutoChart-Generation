@@ -19,7 +19,7 @@ def plot_crosses(df, channel, data, ax):
     if df is not None:
         idx_cols = [c for c in df.columns if c.endswith("_Index")]
         for col in idx_cols:
-            idxs = df[col].astype(int)
+            idxs = df[col].dropna().astype(int)
             for idx in idxs:
                 t = data["Datetime"].loc[idx]
                 y = data[channel].loc[idx]
@@ -61,7 +61,7 @@ def axis_location(active_channels):
 
     return channel_axis_location_map
 
-def plot_channel_data(active_channels, cleaned_data, test_metadata, is_table):
+def plot_channel_data(active_channels, cleaned_data, channels_to_record, is_table):
     """Return matplotlib figure and axes for the given channel data."""
 
     data_for_plot = cleaned_data.copy()
@@ -151,11 +151,19 @@ def plot_channel_data(active_channels, cleaned_data, test_metadata, is_table):
             ax.yaxis.set_major_locator(MultipleLocator(10))
         # Set pressure axis lower bound to 0 if this is a pressure axis
         if 'Pressure' in axis_name:
-            if test_metadata.get('Test Pressure', 0) == 0:
-                # keeps the plot looking tidy and the line perfectly flat
-                ax.set_ylim(-1, 100)        # or (0, 1) if you prefer starting at zero
+            pressure_channels = [
+                ch for ch, axis in CHANNEL_AXIS_NAMES_MAP.items() if axis == "Pressure"
+            ]
+
+            all_pressure_near_zero = all(
+                cleaned_data[ch].mean() < 5 for ch in pressure_channels if ch in cleaned_data.columns
+            )
+
+            if all_pressure_near_zero:
+                # Keeps the 0-psi line tidy at the bottom
+                ax.set_ylim(-1, 100)
             else:
-                y_min, y_max = ax.get_ylim()
+                _, y_max = ax.get_ylim()
                 ax.set_ylim(0, y_max)
         if 'Valve State' in axis_name:
             ax.set_ylim(-0.05, 1.05)           # Use full axis height for plotting
