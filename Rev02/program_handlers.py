@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Any, Callable, Dict
 import math
+import pandas as pd
 
 from graph_plotter import (
     plot_channel_data,
@@ -20,6 +21,8 @@ from additional_info_functions import (
     locate_key_time_rows,
     locate_signature_key_points,
     find_cycle_breakpoints,
+    locate_calibration_points,
+    calculate_succesful_calibration
 )
 
 def build_output_path(base_path: Path, test_metadata) -> Path:
@@ -165,7 +168,6 @@ def handle_holds(
 
     return unique_path
 
-
 def handle_breakouts(
     program_name: str,
     pdf_output_path: Path,
@@ -179,56 +181,79 @@ def handle_breakouts(
     is_gui: bool,
     **kwargs,
 ):
-    """Handler for breakout programs."""
+    """Create breakout PDFs – grouped single‑page plots for first, middle and last cycles
+    (three cycles per graph), followed by multi‑cycle summary pages (40 cycles each)."""
 
-    breakout_values, breakout_indices = locate_bto_btc_rows(raw_data, additional_info, channels_to_record)
-    cycle_ranges, max_cycle = find_cycle_breakpoints(raw_data, channels_to_record)
-
-    base_section = test_metadata.at['Test Name', 1]
-    all_cycles = list(range(1, max_cycle + 1))
-
+    # ------------------------------------------------------------------
+    # 0. Helper functions
+    # ------------------------------------------------------------------
     def cycle_str(cycles):
-        return str(cycles[0]) if len(cycles) == 1 else f"{cycles[0]}-{cycles[-1]}"
+        if isinstance(cycles, int):
+            return str(cycles)
+        return str(cycles[0]) if len(cycles) == 1 else f"{cycles[0]}‑{cycles[-1]}"
 
     def slice_data(cycles):
-        start_idx = cycle_ranges.loc[cycle_ranges['Cycle'] == cycles[0], 'Start Index'].iloc[0]
-        end_idx = cycle_ranges.loc[cycle_ranges['Cycle'] == cycles[-1], 'End Index'].iloc[0]
+        start_idx = cycle_ranges.loc[cycle_ranges['Cycle'] == cycles[0], 'Start Index'].iat[0]
+        end_idx   = cycle_ranges.loc[cycle_ranges['Cycle'] == cycles[-1], 'End Index'].iat[0]
         return cleaned_data.loc[start_idx:end_idx]
 
+    # ------------------------------------------------------------------
+    # 1. Locate key rows & cycles
+    # ------------------------------------------------------------------
+    breakout_values, breakout_indices = locate_bto_btc_rows(
+        raw_data, additional_info, channels_to_record
+    )
+
+    cycle_ranges, max_cycle = find_cycle_breakpoints(raw_data, channels_to_record)
+
+    base_section   = test_metadata.at['Test Name', 1]
+    all_cycles     = list(range(1, max_cycle + 1))
     generated_paths = []
 
+    # Fallback if no breakout rows were found
+    if breakout_values is None or breakout_indices is None:
+        breakout_values  = pd.DataFrame(columns=['Cycle'])
+        breakout_indices = pd.DataFrame(columns=['Cycle'])
+
+    # ------------------------------------------------------------------
+    # 2. Decide which cycles belong to each group (first, middle, last)
+    # ------------------------------------------------------------------
     if max_cycle >= 10:
-        first_cycles = all_cycles[:3]
-        middle_start = max(0, (max_cycle // 2) - 1)
+        first_cycles  = all_cycles[:3]
+        middle_start  = max(0, (max_cycle // 2) - 1)
         middle_cycles = all_cycles[middle_start:middle_start + 3]
-        last_cycles = all_cycles[-3:]
+        last_cycles   = all_cycles[-3:]
 
-        selected_cycles = []
-        for seq in (first_cycles, middle_cycles, last_cycles):
-            for c in seq:
-                if c not in selected_cycles:
-                    selected_cycles.append(c)
+        grouped_cycles = [first_cycles, middle_cycles, last_cycles]
+        remaining_cycles = [c for c in all_cycles if c not in set().union(*grouped_cycles)]
 
-        remaining_cycles = [c for c in all_cycles if c not in selected_cycles]
+        total_group_pages = sum(1 for grp in grouped_cycles if grp)  # three, unless dataset very small
+        total_remaining_pages = math.ceil(len(remaining_cycles) / 40)
+        total_pages = total_group_pages + total_remaining_pages
 
-        total_selected = len(selected_cycles)
-        total_remaining = math.ceil(len(remaining_cycles) / 40)
-        total_pages = total_selected + total_remaining
+        # --------------------------------------------------------------
+        # 2a. Group‑of‑three pages (first, middle, last)
+        # --------------------------------------------------------------
+        page_idx = 1
+        for group in grouped_cycles:
+            if not group:
+                continue  # can happen if <3 cycles exist in a section
 
-        for page_idx, cycle in enumerate(selected_cycles, start=1):
             meta = test_metadata.copy()
-            meta.at['Test Name', 1] = f"{base_section} Cycles {cycle_str(group)} (Page {page_idx} of {total_pages})"
-            unique_path = build_output_path(pdf_output_path, meta)
-            data_slice = slice_data([cycle])
-            result_slice = breakout_values[breakout_values['Cycle'] == cycle]
-            index_slice = breakout_indices[breakout_indices['Cycle'] == cycle]
+            meta.at['Test Name', 1] = (
+                f"{base_section} Cycles {cycle_str(group)} "
+                f"(Page {page_idx} of {total_pages})"
+            )
+            unique_path  = build_output_path(pdf_output_path, meta)
+            data_slice   = slice_data(group)
+            result_slice = breakout_values [ breakout_values ['Cycle'].isin(group) ]
+            index_slice  = breakout_indices[ breakout_indices['Cycle'].isin(group) ]
 
-            is_table=True
-
+            is_table = True
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
-                channels_to_record = channels_to_record,
+                channels_to_record=channels_to_record,
                 is_table=is_table,
             )
 
@@ -246,29 +271,32 @@ def handle_breakouts(
                 data_slice,
                 unique_path,
                 is_table,
-                raw_data
+                raw_data,
             )
 
             draw_table(pdf_canvas=pdf, dataframe=result_slice)
-
             insert_plot_and_logo(figure, pdf, is_gui, is_table)
-
             generated_paths.append(unique_path)
+            page_idx += 1
 
+        # --------------------------------------------------------------
+        # 2b. Multi‑cycle pages (40 cycles at a time, no tables)
+        # --------------------------------------------------------------
         for i in range(0, len(remaining_cycles), 40):
-            group = remaining_cycles[i:i + 40]
-            page_idx = total_selected + (i // 40) + 1
-            meta = test_metadata.copy()
-            meta.at['Test Name', 1] = f"{base_section} Cycles {cycle_str(group)} (Page {page_idx} of {total_pages})"
+            group     = remaining_cycles[i:i + 40]
+            meta      = test_metadata.copy()
+            meta.at['Test Name', 1] = (
+                f"{base_section} Cycles {cycle_str(group)} "
+                f"(Page {page_idx} of {total_pages})"
+            )
             unique_path = build_output_path(pdf_output_path, meta)
-            data_slice = slice_data(group)
+            data_slice  = slice_data(group)
 
-            is_table=False
-
+            is_table = False
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
                 cleaned_data=data_slice,
-                channels_to_record = channels_to_record,
+                channels_to_record=channels_to_record,
                 is_table=is_table,
             )
 
@@ -279,30 +307,33 @@ def handle_breakouts(
                 data_slice,
                 unique_path,
                 is_table,
-                raw_data
+                raw_data,
             )
-
             insert_plot_and_logo(figure, pdf, is_gui, is_table)
             generated_paths.append(unique_path)
-    else:
-        is_table=True
+            page_idx += 1
 
+    # ------------------------------------------------------------------
+    # 3. Fewer than 10 cycles – one tabled page for everything
+    # ------------------------------------------------------------------
+    else:
+        is_table   = True
         unique_path = build_output_path(pdf_output_path, test_metadata)
 
         figure, axes, axis_map = plot_channel_data(
             active_channels=active_channels,
             cleaned_data=cleaned_data,
-            channels_to_record = channels_to_record,
+            channels_to_record=channels_to_record,
             is_table=is_table,
         )
 
         plot_crosses(
             df=breakout_indices,
-            channel="Torque",
+            channel='Torque',
             data=cleaned_data,
-            ax=axes[axis_map["Torque"]],
+            ax=axes[axis_map['Torque']],
         )
-        
+
         pdf = draw_test_details(
             test_metadata,
             transducer_details,
@@ -310,15 +341,10 @@ def handle_breakouts(
             cleaned_data,
             unique_path,
             is_table,
-            raw_data
+            raw_data,
         )
-
-        draw_table(
-            pdf_canvas=pdf,
-            dataframe=breakout_values)
-
+        draw_table(pdf_canvas=pdf, dataframe=breakout_values)
         insert_plot_and_logo(figure, pdf, is_gui, is_table)
-
         generated_paths.append(unique_path)
 
     return generated_paths
@@ -527,6 +553,74 @@ def handle_signatures(
 
     return generated_paths
 
+def handle_calibration(
+    program_name: str,
+    pdf_output_path: Path,
+    test_metadata,
+    transducer_details,
+    active_channels,
+    cleaned_data,
+    raw_data,
+    additional_info,
+    channels_to_record,
+    is_gui: bool,
+    **kwargs,
+):
+    
+    is_table=True
+
+    unique_path = build_output_path(pdf_output_path, test_metadata)
+
+    calibration_indices, _ = locate_calibration_points(cleaned_data, additional_info)
+
+    average_values = calculate_succesful_calibration(cleaned_data, calibration_indices, additional_info)
+
+    figure, axes, axis_map = plot_channel_data(
+        active_channels=active_channels,
+        cleaned_data=cleaned_data,
+        channels_to_record = channels_to_record,
+        is_table=is_table,
+    )
+
+    for phase in calibration_indices.index:
+        # grab the non‑NaN integer positions for this phase
+        positions = (
+            calibration_indices
+            .loc[phase]
+            .dropna()
+            .astype(int)
+            .tolist()
+        )
+        # now pull out the timestamps & values by position
+        times  = cleaned_data["Datetime"].iloc[positions]
+        values = cleaned_data[additional_info.at[0, 0]].iloc[positions]
+
+        # scatter them all at once
+        axes[axis_map["Pressure"]].scatter(
+            times,
+            values,
+            marker='x',
+            s=50,
+            color='black',
+            label=f'calib_{phase}'
+        )
+    
+    pdf = draw_test_details(
+        test_metadata,
+        transducer_details,
+        active_channels,
+        cleaned_data,
+        unique_path,
+        is_table,
+        raw_data
+    )
+
+    draw_table(
+        pdf_canvas=pdf,
+        dataframe=average_values)
+
+    insert_plot_and_logo(figure, pdf, is_gui, is_table)
+
 HANDLERS: Dict[str, Callable[..., Any]] = {
     "Initial Cycle": handle_generic,
     "Atmospheric Breakouts": handle_breakouts,
@@ -540,4 +634,5 @@ HANDLERS: Dict[str, Callable[..., Any]] = {
     "Holds-Body onto Seat": handle_holds,
     "Open-Close": handle_breakouts,
     "Number Of Turns": lambda *a, **k: None,
+    "Calibration": handle_calibration,
 }

@@ -64,14 +64,20 @@ def load_test_information(test_details_path: str):
     channels_to_record.set_index(0, inplace=True)
     channels_to_record.fillna('', inplace=True)
 
-    additional_info = (
-        load_csv_file(
-            test_details_path,
-            header=None,
-            usecols=[0, 1, 2],
-            skiprows=45,
-        ).reset_index(drop=True)
-    )
+    with open(test_details_path, 'r', encoding='utf-8') as f:
+        row_count = sum(1 for _ in f)
+
+    if row_count > 45:
+        additional_info = (
+            load_csv_file(
+                test_details_path,
+                header=None,
+                skiprows=45,
+            ).reset_index(drop=True)
+        )
+    else:
+        additional_info = pd.DataFrame()
+
     program_name = test_metadata.at["Program Name", 1]
 
     return (

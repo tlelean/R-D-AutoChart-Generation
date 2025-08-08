@@ -190,16 +190,8 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
 
 def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
     """Render a pandas DataFrame as a table on the PDF canvas."""
-
-    # Drop columns that contain only NaN/None values
-    dataframe = dataframe.dropna(axis=1, how="all")
-
-    # Round numeric values to whole numbers for display
-    numeric_cols = dataframe.select_dtypes(include="number").columns
-    if not numeric_cols.empty:
-        dataframe[numeric_cols] = dataframe[numeric_cols].round(0).astype("Int64")
-
     if dataframe is not None:
+        dataframe = dataframe.dropna(axis=1, how="all")
         # 1) Build a list-of-lists with the header as the first row
         header = list(dataframe.columns.astype(str))
         body   = dataframe.astype(str).values.tolist()
@@ -232,6 +224,24 @@ def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
             ('FONTSIZE',   (0, 0), (-1, -1), 8),
             ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
         ])
+
+        error_row_idx = None
+        for i, row_label in enumerate(dataframe.index):
+            if row_label == "Error %":
+                error_row_idx = i + 1
+                break
+
+        if error_row_idx is not None:
+            for col_idx, col_label in enumerate(header):
+                try:
+                    val = float(data[error_row_idx][col_idx])
+                    if abs(val) < 0.01:
+                        style.add('BACKGROUND', (col_idx, error_row_idx), (col_idx, error_row_idx), colors.limegreen)
+                    else:
+                        style.add('BACKGROUND', (col_idx, error_row_idx), (col_idx, error_row_idx), colors.red)
+                except Exception:
+                    pass 
+
         table.setStyle(style)
 
         # 6) Draw it

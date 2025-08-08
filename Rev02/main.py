@@ -32,13 +32,13 @@ def main():
 
         # For testing purposes, hardcode the file paths
         primary_data_file = (
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/Torque WP/50_Data_15-7-2025_15-8-29.csv"
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/250752/60910-283/Attempt 1/CSV/X.X/X.X._Data_7-8-2025_16-46-30.csv"
         )
         test_details_file = (
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/Torque WP/50_Test_Details_15-7-2025_15-8-29.csv"
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/250752/60910-283/Attempt 1/CSV/X.X/X.X._Test_Details_7-8-2025_16-46-30.csv"
         )
         pdf_output_path = Path(
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/PDF"
+            "V:/Userdoc/R & D/DAQ_Station/tlelean/250752/60910-283/Attempt 1/PDF"
         )
 
         is_gui = True
@@ -88,7 +88,7 @@ def main():
                 zoom_factor = 3
                 mat = fitz.Matrix(zoom_factor, zoom_factor)
                 pix = page.get_pixmap(matrix=mat)       # get the rasterised page
-                pix.save(f"/var/opt/codesys/PlcLogic/visu/pdf{idx}.png")
+                pix.save(f"/var/opt/codesys/PlcLogic/visu/pdf.png")
                 doc.close()
 
         print("Done")

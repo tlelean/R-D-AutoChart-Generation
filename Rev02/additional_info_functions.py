@@ -79,9 +79,65 @@ def find_below(data):
     idx = np.argmin(sd)
     return data.iloc[idx], idx
 
+def locate_calibration_points(cleaned_data, additional_info):
+
+    # Ensure Datetime is a datetime type
+    calibration_indices = pd.DataFrame(index=range(2), columns=[0, 1, 2, 3, 4, 5])
+    calibration_values = pd.DataFrame(index=range(2), columns=[0, 1, 2, 3, 4, 5])
+    calibration_times = pd.DataFrame(index=range(2), columns=[0, 1, 2, 3, 4, 5])
+    date_time_index = cleaned_data.set_index('Datetime')
+
+    for col in range(1, len(additional_info.columns)):
+        calibration_times.at[0, col] = pd.to_datetime(
+            additional_info.at[0, col],
+            format="%d/%m/%Y %H:%M:%S.%f",
+            errors="coerce",
+            dayfirst=True,
+        )
+        calibration_times.at[1, col] = calibration_times.at[0, col] + pd.Timedelta(seconds=10)
+        calibration_indices.at[0, col] = date_time_index.index.get_indexer(
+            [calibration_times.iloc[0, col]],
+            method="nearest",
+        )[0]
+        calibration_indices.at[1, col] = date_time_index.index.get_indexer(
+            [calibration_times.iloc[1, col]],
+            method="nearest",
+        )[0]
+        calibration_values.at[0, col] = cleaned_data.iloc[calibration_indices.iloc[0, col]][additional_info.at[0, 0]]
+        calibration_values.at[1, col] = cleaned_data.iloc[calibration_indices.iloc[1, col]][additional_info.at[0, 0]]
+    return calibration_indices, calibration_values
+
+def calculate_succesful_calibration(cleaned_data, calibration_indices, additional_info):
+    # Column labels: blank first column for row labels
+    average_values = pd.DataFrame(index=['', 'Measured', 'Expected', 'Error %'])
+
+    for i, col in enumerate(range(1, len(calibration_indices.columns))):
+        start_idx = calibration_indices.iloc[0, col]
+        end_idx = calibration_indices.iloc[1, col]
+        measured = cleaned_data.loc[start_idx:end_idx, additional_info.at[0, 0]].mean()
+        expected = (additional_info.at['', 0] / 4) * (col - 1)
+
+        measured_int = int(round(measured, 0))
+        expected_int = int(round(expected, 0))
+
+        average_values.at['Measured', [i + 1]] = measured_int
+        average_values.at['Expected', [i + 1]] = expected_int
+
+        if expected_int == 0:
+            average_values.at['Error %', [i + 1]] = float('NaN') if measured_int != 0 else 0.0
+        else:
+            error = ((measured_int - expected_int) / expected_int) * 100
+            average_values.at['Error %', [i + 1]] = round(error, 3)
+
+    average_values.insert(0, '', average_values.index)
+
+    return average_values
+
 def locate_key_time_rows(cleaned_data, additional_info):
     """Return indices of key time points closest to provided timestamps."""
-    if additional_info.iloc[1, 1] == "" or "NaN":
+    if additional_info.empty:
+        return None, None
+    elif additional_info.iloc[1, 1] == "" or "NaN":
         holds_indices = additional_info.copy()
         holds_values = additional_info.copy()
         date_time_index = cleaned_data.set_index('Datetime')
@@ -100,28 +156,28 @@ def locate_key_time_rows(cleaned_data, additional_info):
             holds_values.at[row, 2] = cleaned_data[holds_indices.iloc[row, 1]][holds_values.at[0, 2]]
             holds_values.at[row, 3] = cleaned_data[holds_indices.iloc[row, 1]]["Body Temperature"]
         return holds_indices, holds_values
-    else:
-        return None, None
 
 def locate_bto_btc_rows(raw_data, additional_info, channels_to_record):
-    if additional_info.iloc[1, 1] == "" or "NaN" and channels_to_record.loc["Torque"].iloc[0]:
+    if additional_info.empty:
+        return None, None
+    elif additional_info.shape == (1, 4) and channels_to_record.loc["Torque"].iloc[0]:
         breakout_values: List[Dict[str, Any]] = []
         breakout_indices: List[Dict[str, Any]] = []
 
         torque_series = raw_data["Torque"]
 
         # Get precomputed cycle boundaries
-        indices_ranges, _ = find_cycle_breakpoints(raw_data)
+        indices_ranges, _ = find_cycle_breakpoints(raw_data, channels_to_record)
 
         for cycle, start_idx, one_quarter, middle_idx, three_quarter, end_idx in indices_ranges.itertuples(index=False, name=None):
             # 1st third for BTO
             torque_first = torque_series.loc[start_idx:one_quarter]
-            bto = torque_first.min().round(1)
+            bto = torque_first.min().round(2)
             bto_index = torque_first.idxmin()
 
             # 3rd third for BTC
             torque_third = torque_series.loc[middle_idx:three_quarter]
-            btc = torque_third.max().round(1)
+            btc = torque_third.max().round(2)
             btc_index = torque_third.idxmax()
 
             # Store values
@@ -139,8 +195,6 @@ def locate_bto_btc_rows(raw_data, additional_info, channels_to_record):
             pd.DataFrame.from_records(breakout_values), 
             pd.DataFrame.from_records(breakout_indices),
         )
-    else:
-        return None, None
 
 def locate_signature_key_points(
     channels_to_record: pd.DataFrame,
@@ -156,7 +210,7 @@ def locate_signature_key_points(
             bs_slice = backseat_data.loc[:middle_idx]
             _, idx = find_above(bs_slice)
             abs_idx = bs_slice.index[idx]
-            return float(actuator_data.loc[abs_idx]), abs_idx
+            return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
     def find_a2(end_idx: int) -> Tuple[Optional[float], Optional[int]]:
@@ -164,7 +218,7 @@ def locate_signature_key_points(
         ac_slice = actuator_data.loc[:end_idx]
         _, idx = find_below(ac_slice)
         abs_idx = ac_slice.index[idx]
-        return float(actuator_data.loc[abs_idx]), abs_idx
+        return round(actuator_data.loc[abs_idx], 0), abs_idx
 
     def find_a3() -> Tuple[Optional[float], Optional[int]]:
         """Finds A3 (Downstream Elbow)."""
@@ -172,7 +226,7 @@ def locate_signature_key_points(
             ds_slice = downstream_data.loc[:middle_idx]
             _, idx = find_above(ds_slice)
             abs_idx = ds_slice.index[idx]
-            return float(actuator_data.loc[abs_idx]), abs_idx
+            return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
     def find_a4() -> Tuple[Optional[float], Optional[int]]:
@@ -181,7 +235,7 @@ def locate_signature_key_points(
             ds_slice = downstream_data.loc[:middle_idx]
             _, idx = find_below(ds_slice)
             abs_idx = ds_slice.index[idx]
-            return float(actuator_data.loc[abs_idx]), abs_idx
+            return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
     def find_a5(start_idx: int) -> Tuple[Optional[float], Optional[int]]:
@@ -189,14 +243,14 @@ def locate_signature_key_points(
         ac_slice = actuator_data.loc[start_idx:middle_idx]
         _, idx = find_above(ac_slice)
         abs_idx = ac_slice.index[idx]
-        return float(actuator_data.loc[abs_idx]), abs_idx
+        return round(actuator_data.loc[abs_idx], 0), abs_idx
 
     def find_r1(end_idx: int) -> Tuple[Optional[float], Optional[int]]:
         """Finds R1 (Actuator Elbow in return stroke)."""
         ac_slice = actuator_data.loc[middle_idx:end_idx]
         _, idx = find_above(ac_slice)
         abs_idx = ac_slice.index[idx]
-        return float(actuator_data.loc[abs_idx]), abs_idx
+        return round(actuator_data.loc[abs_idx], 0), abs_idx
 
     def find_r2() -> Tuple[Optional[float], Optional[int]]:
         """Finds R2 (Downstream Knee in return stroke)."""
@@ -204,7 +258,7 @@ def locate_signature_key_points(
             ds_slice = downstream_data.loc[middle_idx:]
             _, idx = find_below(ds_slice)
             abs_idx = ds_slice.index[idx]
-            return float(actuator_data.loc[abs_idx]), abs_idx
+            return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
     def find_r3() -> Tuple[Optional[float], Optional[int]]:
@@ -213,7 +267,7 @@ def locate_signature_key_points(
             ds_slice = downstream_data.loc[middle_idx:]
             _, idx = find_above(ds_slice)
             abs_idx = ds_slice.index[idx]
-            return float(actuator_data.loc[abs_idx]), abs_idx
+            return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
     def find_r4(r3_idx: int, r1_idx: int) -> Tuple[Optional[float], Optional[int]]:
@@ -227,13 +281,13 @@ def locate_signature_key_points(
             ac_slice = actuator_data.loc[r3_idx:]
         _, idx = find_below(ac_slice)
         abs_idx = ac_slice.index[idx]
-        return float(actuator_data.loc[abs_idx]), abs_idx
+        return round(actuator_data.loc[abs_idx], 0), abs_idx
 
     def find_bto() -> Tuple[float, int]:
         false_indices = close_data.index[~close_data.astype(bool)]
         end_rel_idx = false_indices[0] if not false_indices.empty else close_data.index[-1]
         tq_slice = torque_data.loc[:end_rel_idx]
-        val = round(tq_slice.min(), 1)
+        val = round(tq_slice.min(), 2)
         abs_idx = tq_slice.idxmin()
         return val, abs_idx
 
@@ -246,7 +300,7 @@ def locate_signature_key_points(
             _, start_idx = find_above(tq_slice1)
             start_idx = tq_slice1.index[start_idx]
             final_slice = torque_data.loc[start_idx:end_idx]
-            val = round(final_slice.min(), 1)
+            val = round(final_slice.min(), 2)
             abs_idx = final_slice.idxmin()
             return val, abs_idx
         return None, None
@@ -266,12 +320,12 @@ def locate_signature_key_points(
         end_idx = tq_slice.index[end_idx]
 
         final_slice = torque_data.loc[start_idx:end_idx-1]
-        val = round(final_slice.min(), 1)
+        val = round(final_slice.min(), 2)
         abs_idx = final_slice.idxmin()
         return val, abs_idx
 
     def find_jto() -> Tuple[float, int]:
-        val = round(torque_data.min(), 1)
+        val = round(torque_data.min(), 2)
         abs_idx = torque_data.idxmin()
         return val, abs_idx
 
@@ -280,7 +334,7 @@ def locate_signature_key_points(
         true_indices = open_data.index[open_data.astype(bool)]
         end_rel_idx = true_indices[-1] if not true_indices.empty else close_data.index[-1]
         tq_slice = torque_data.loc[:end_rel_idx]
-        val = round(tq_slice.max(), 1)
+        val = round(tq_slice.max(), 2)
         abs_idx = tq_slice.idxmax()
         return val, abs_idx
 
@@ -299,7 +353,7 @@ def locate_signature_key_points(
             end_idx = tq_slice.index[end_idx]
 
         final_slice = torque_data.loc[start_idx:end_idx-1]
-        val = round(final_slice.max(), 1)
+        val = round(final_slice.max(), 2)
         abs_idx = final_slice.idxmax()
         return val, abs_idx
 
@@ -314,13 +368,13 @@ def locate_signature_key_points(
             end_idx = tq_slice1.index[end_idx]
 
             final_slice = torque_data.loc[start_idx:end_idx]
-            val = round(final_slice.max(), 1)
+            val = round(final_slice.max(), 2)
             abs_idx = final_slice.idxmax()
             return val, abs_idx
         return None, None
 
     def find_jtc() -> Tuple[float, int]:
-        val = round(torque_data.max(), 1)
+        val = round(torque_data.max(), 2)
         abs_idx = torque_data.idxmax()
         return val, abs_idx
 
@@ -355,9 +409,9 @@ def locate_signature_key_points(
                 "RNO": rno,
                 "JTO": jto,
                 "BTC": btc,
+                "RNC": rnc,
                 "RPC": rpc,
                 "JTC": jtc,
-                "RNC": rnc,
             })
             torque_signature_indices.append({
                 "Cycle": cycle,
@@ -366,9 +420,9 @@ def locate_signature_key_points(
                 "RNO_Index": rno_idx,
                 "JTO_Index": jto_idx,
                 "BTC_Index": btc_idx,
-                "RPC_Index": rpc_idx,
-                "JTC_Index": jtc_idx,
                 "RNC_Index": rnc_idx,
+                "RPC_Index": rpc_idx,
+                "JTC_Index": jtc_idx,        
             })
         else:
             a1, a1_idx = find_a1()

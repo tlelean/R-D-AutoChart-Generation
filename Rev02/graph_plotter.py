@@ -6,9 +6,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import MultipleLocator
 
-from PySide6 import QtWidgets, QtGui
-QtGui.QApplication = QtWidgets.QApplication
-
 from plotter_info import (
     CHANNEL_COLOUR_MAP,
     CHANNEL_UNITS_MAP,
@@ -19,62 +16,67 @@ from plotter_info import (
 )
 
 def plot_crosses(df, channel, data, ax, label_positions=None):
-    label_positions = label_positions or {}
+    if df is not None:
+        label_positions = label_positions or {}
 
-    # Predefined annotation positions for all key points
-    predefined_positions = {
-        "A1": {"x_offset": -14.14, "y_offset": 0},
-        "A2": {"x_offset": -10, "y_offset": 10},
-        "A3": {"x_offset": 10,  "y_offset": 10},
-        "A4": {"x_offset": 0, "y_offset": -14.14},
-        "A5": {"x_offset": -10, "y_offset": 10},
-        "R1": {"x_offset": 10,  "y_offset": 10},
-        "R2": {"x_offset": -10, "y_offset": -10},
-        "R3": {"x_offset": 10,  "y_offset": 10},
-        "R4": {"x_offset": -10, "y_offset": -10},
-        "BTO": {"x_offset": 0,  "y_offset": -14.14},
-        "RPO": {"x_offset": 0, "y_offset": 14.14},
-        "RNO": {"x_offset": 0, "y_offset": 14.14},
-        "JTO": {"x_offset": 0,  "y_offset": -14.14},
-        "BTC": {"x_offset": 0, "y_offset": 14.14},
-        "RPC": {"x_offset": 0, "y_offset": -14.14},
-        "JTC": {"x_offset": 0,  "y_offset": 14.14},
-        "RNC": {"x_offset": 0, "y_offset": -14.14},
-    }
+        # Ensure the annotated axis is drawn above the others
+        ax.set_zorder(3)
+        ax.patch.set_visible(False)
 
-    idx_cols = [c for c in df.columns if c.endswith("_Index")]
+        # Predefined annotation positions for all key points
+        predefined_positions = {
+            "A1": {"x_offset": -14.14, "y_offset": 0},
+            "A2": {"x_offset": 10, "y_offset": -10},
+            "A3": {"x_offset": 10,  "y_offset": 10},
+            "A4": {"x_offset": 0, "y_offset": -14.14},
+            "A5": {"x_offset": -10, "y_offset": 10},
+            "R1": {"x_offset": 10,  "y_offset": 10},
+            "R2": {"x_offset": -10, "y_offset": -10},
+            "R3": {"x_offset": 10,  "y_offset": 10},
+            "R4": {"x_offset": -10, "y_offset": -10},
+            "BTO": {"x_offset": -10,  "y_offset": -10},
+            "RPO": {"x_offset": 0, "y_offset": -14.14},
+            "RNO": {"x_offset": 0, "y_offset": 14.14},
+            "JTO": {"x_offset": 0,  "y_offset": -14.14},
+            "BTC": {"x_offset": -10, "y_offset": 10},
+            "RPC": {"x_offset": 0, "y_offset": -14.14},
+            "JTC": {"x_offset": 0,  "y_offset": 14.14},
+            "RNC": {"x_offset": 0, "y_offset": -14.14},
+        }
 
-    for col in idx_cols:
-        label = col.removesuffix("_Index")
-        idxs = df[col].dropna().astype(int)
+        idx_cols = [c for c in df.columns if c.endswith("_Index")]
 
-        for idx in idxs:
-            t = data["Datetime"].loc[idx]
-            y = data[channel].loc[idx]
+        for col in idx_cols:
+            label = col.removesuffix("_Index")
+            idxs = df[col].dropna().astype(int)
 
-            # Use predefined first, then user-defined overrides if given
-            pos = label_positions.get(label, predefined_positions.get(label, {}))
-            offset_x = pos.get("x_offset", 0)
-            offset_y = pos.get("y_offset", 5)
+            for idx in idxs:
+                t = data["Datetime"].loc[idx]
+                y = data[channel].loc[idx]
 
-            ax.plot(
-                t, y,
-                marker='x',
-                linestyle='none',
-                markersize=8,
-                color='black',
-            )
-            ax.annotate(
-                label,
-                xy=(t, y),
-                xytext=(offset_x, offset_y),
-                textcoords="offset points",
-                ha="center",  # must be 'center', not 'centre'
-                va="center",
-                fontsize=10,
-            )
+                # Use predefined first, then user-defined overrides if given
+                pos = label_positions.get(label, predefined_positions.get(label, {}))
+                offset_x = pos.get("x_offset", 0)
+                offset_y = pos.get("y_offset", 5)
 
-    plt.show()
+                ax.plot(
+                    t, y,
+                    marker='x',
+                    linestyle='none',
+                    markersize=8,
+                    color='black',
+                )
+                ax.annotate(
+                    label,
+                    xy=(t, y),
+                    xytext=(offset_x, offset_y),
+                    textcoords="offset points",
+                    ha="center",  # must be 'center', not 'centre'
+                    va="center",
+                    fontsize=10,
+                )
+
+    #plt.show()
 
 
 # def plot_cycle_lines(indices_df, data, axes):
