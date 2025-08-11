@@ -61,11 +61,14 @@ def find_cycle_breakpoints(raw_data, channels_to_record):
 
 
 def signed_distances_to_baseline(y: pd.Series) -> np.ndarray:
-    x = np.arange(len(y))
-    m = (y.iloc[-1] - y.iloc[0]) / (len(y) - 1)
-    b = y.iloc[0]
-    # distance of each (x, y) to line y = m x + b
-    return ((m * x - y + b) / np.hypot(m, -1))
+    if len(y) < 2: 
+        return np.zeros(len(y))
+    else:
+        x = np.arange(len(y))
+        m = (y.iloc[-1] - y.iloc[0]) / (len(y) - 1)
+        b = y.iloc[0]
+        # distance of each (x, y) to line y = m x + b
+        return ((m * x - y + b) / np.hypot(m, -1))
 
 # Find the point in the given data that is furthest **above** the baseline.
 def find_above(data):
@@ -137,7 +140,7 @@ def locate_key_time_rows(cleaned_data, additional_info):
     """Return indices of key time points closest to provided timestamps."""
     if additional_info.empty:
         return None, None
-    elif additional_info.iloc[1, 1] == "" or "NaN":
+    else:
         holds_indices = additional_info.copy()
         holds_values = additional_info.copy()
         date_time_index = cleaned_data.set_index('Datetime')
@@ -153,14 +156,17 @@ def locate_key_time_rows(cleaned_data, additional_info):
                 holds_values.iloc[row, 1],
                 method="nearest",
             )[0]
-            holds_values.at[row, 2] = cleaned_data[holds_indices.iloc[row, 1]][holds_values.at[0, 2]]
-            holds_values.at[row, 3] = cleaned_data[holds_indices.iloc[row, 1]]["Body Temperature"]
+            rowpos = holds_indices.iloc[row, 1]
+            colpos_value = cleaned_data.columns.get_loc(holds_values.at[0, 2])
+            colpos_temp  = cleaned_data.columns.get_loc("Body Temperature")
+            holds_values.at[row, 2] = cleaned_data.iloc[rowpos, colpos_value]
+            holds_values.at[row, 3] = cleaned_data.iloc[rowpos, colpos_temp]
         return holds_indices, holds_values
 
 def locate_bto_btc_rows(raw_data, additional_info, channels_to_record):
     if additional_info.empty:
         return None, None
-    elif additional_info.shape == (1, 4) and channels_to_record.loc["Torque"].iloc[0]:
+    elif additional_info.shape == (1, 4) and channels_to_record.at["Torque", 1]:
         breakout_values: List[Dict[str, Any]] = []
         breakout_indices: List[Dict[str, Any]] = []
 

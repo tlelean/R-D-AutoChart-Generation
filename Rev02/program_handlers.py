@@ -96,7 +96,7 @@ def handle_holds(
 
             single_info = additional_info.loc[[index]]
 
-            holds_indices, holds_values = locate_key_time_rows(cleaned_data, additional_info)
+            holds_indices, holds_values = locate_key_time_rows(cleaned_data, single_info)
 
             figure, axes, axis_map = plot_channel_data(
                 active_channels=active_channels,
@@ -620,6 +620,8 @@ def handle_calibration(
         dataframe=average_values)
 
     insert_plot_and_logo(figure, pdf, is_gui, is_table)
+
+    return unique_path
 
 HANDLERS: Dict[str, Callable[..., Any]] = {
     "Initial Cycle": handle_generic,
