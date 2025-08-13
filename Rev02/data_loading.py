@@ -94,17 +94,9 @@ def prepare_primary_data(primary_data_path: str, channels_to_record: pd.DataFram
     # Load raw data (assumes the CSV has Datetime followed by channels)
     raw_data = load_csv_file(
         primary_data_path,
-        header=None,
-        parse_dates=[0],
+        header=0,
+        parse_dates=["Datetime"],
     ).iloc[:-1]
-
-    # Prepare a list of all expected columns: 'Datetime' + channel names
-    date_time_columns = ["Datetime"]
-    channel_names = channels_to_record.index.tolist()
-    all_headers = date_time_columns + channel_names
-
-    # Rename the columns in raw_data
-    raw_data.columns = all_headers
 
     # Identify which channels are actually recorded
     active_channels = channels_to_record[channels_to_record[1] == True].index.tolist()

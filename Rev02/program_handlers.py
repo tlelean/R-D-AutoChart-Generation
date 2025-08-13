@@ -625,6 +625,7 @@ def handle_calibration(
 
 HANDLERS: Dict[str, Callable[..., Any]] = {
     "Initial Cycle": handle_generic,
+    "Data Logger": handle_generic,
     "Atmospheric Breakouts": handle_breakouts,
     "Atmospheric Cyclic": handle_breakouts,
     "Dynamic Cycles PR2": handle_breakouts,
