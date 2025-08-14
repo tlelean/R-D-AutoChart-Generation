@@ -125,7 +125,7 @@ class Layout:
     GAUGE_COL_WIDTH = 50
     GAUGE_ROW_HEIGHT = 15
 
-def insert_plot_and_logo(figure, pdf, is_gui, is_table):
+def insert_plot_and_logo(figure, pdf, is_table):
     png_figure = io.BytesIO()
     figure.savefig(png_figure, format='PNG', bbox_inches='tight', dpi=500)
     png_figure.seek(0)
@@ -153,7 +153,7 @@ def insert_plot_and_logo(figure, pdf, is_gui, is_table):
             mask="auto",
         )
 
-    image_path = config.LOGO_PATH_GUI if is_gui else config.LOGO_PATH_CMD
+    image_path = "./Rev02/R&D.png"
     try:
         pdf.drawImage(
             image_path,

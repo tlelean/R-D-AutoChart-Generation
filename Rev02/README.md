@@ -21,7 +21,7 @@ Test mode is designed for running the script on a development machine to verify 
 To run in test mode, use the `--run-tests` flag:
 
 ```bash
-python3 main.py --run-tests
+python3 ./Rev02/main.py --run-tests
 ```
 
 This will:

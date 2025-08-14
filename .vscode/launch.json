@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Run Tests Mode",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/Rev02/main.py",
+      "args": ["--run-tests"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Python: Generate PDF",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/Rev02/main.py",
+      "args": ["${workspaceFolder}/Example Data/_Data_13-8-2025_15-9-15.csv", "${workspaceFolder}/Example Data/_Test_Details_13-8-2025_15-9-15.csv", "${workspaceFolder}/Example Data/"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
+
+

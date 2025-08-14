@@ -11,7 +11,7 @@ from data_loading import (
 )
 from program_handlers import HANDLERS
 
-def process_files_and_generate_report(primary_data_file, test_details_file, pdf_output_path, is_gui=True):
+def process_files_and_generate_report(primary_data_file, test_details_file, pdf_output_path, run_tests):
     """
     Processes a single set of data files to generate a PDF report.
     """
@@ -43,12 +43,11 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
         raw_data=raw_data,
         additional_info=additional_info,
         channels_to_record=channels_to_record,
-        is_gui=is_gui
     )
     unique_pdf_output_path = handler_instance.generate()
 
     # Extra copy if not GUI
-    if not is_gui:
+    if not run_tests:
         output_dir = "/var/opt/codesys/PlcLogic/visu"
         output_path = os.path.join(output_dir, "pdf.png")
 
@@ -69,11 +68,6 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
                 pix.save(output_path)
                 doc.close()
                 print(f"Successfully generated PNG preview at {output_path}")
-        else:
-            print(f"Warning: Skipping PNG generation because directory {output_dir} does not exist.")
-
-    print(f"Successfully generated report for {primary_data_file}")
-
 
 def main():
     """
@@ -91,13 +85,9 @@ def main():
     )
     parser.add_argument("primary_data_file", type=str, nargs='?', default=None, help="Path to the primary data CSV file")
     parser.add_argument("test_details_file", type=str, nargs='?', default=None, help="Path to the test details CSV file")
-    # pdf_output_path is hardcoded for now as per user request
-    # parser.add_argument("pdf_output_path", type=str, help="Path to the PDF Save Location")
-    parser.add_argument("--gui", action='store_true', help="Specify if running with a GUI")
+    parser.add_argument("pdf_output_path", type=str, nargs='?', default=None, help="Path to the PDF Save Location")
 
     args = parser.parse_args()
-
-    pdf_output_path = Path("./Example Data/") # Hardcoded as per user request
 
     try:
         if args.run_tests:
@@ -108,19 +98,18 @@ def main():
                 process_files_and_generate_report(
                     primary_data_file=test_case["primary_data_file"],
                     test_details_file=test_case["test_details_file"],
-                    pdf_output_path=pdf_output_path,
-                    is_gui=args.gui
+                    pdf_output_path=Path(test_case["pdf_output_path"]),
+                    run_tests=True,
                 )
             print("--- Test run complete ---")
         else:
             if not all([args.primary_data_file, args.test_details_file]):
                 parser.error("In standard mode, primary_data_file and test_details_file are required.")
-            print("Running in standard mode...")
             process_files_and_generate_report(
                 primary_data_file=args.primary_data_file,
                 test_details_file=args.test_details_file,
-                pdf_output_path=pdf_output_path,
-                is_gui=args.gui
+                pdf_output_path=Path(args.pdf_output_path),
+                run_tests=False,
             )
 
         print("Done")

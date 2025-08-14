@@ -34,7 +34,6 @@ class BaseReportGenerator:
         self.raw_data = kwargs.get("raw_data")
         self.additional_info = kwargs.get("additional_info")
         self.channels_to_record = kwargs.get("channels_to_record")
-        self.is_gui = kwargs.get("is_gui")
 
     def build_output_path(self, test_metadata) -> Path:
         """Construct the output PDF path from metadata."""
@@ -67,7 +66,7 @@ class GenericReportGenerator(BaseReportGenerator):
             is_table=is_table,
             raw_data=self.raw_data,
         )
-        insert_plot_and_logo(figure, pdf, self.is_gui, is_table)
+        insert_plot_and_logo(figure, pdf, is_table)
         return unique_path
 
 class HoldsReportGenerator(BaseReportGenerator):
@@ -108,7 +107,7 @@ class HoldsReportGenerator(BaseReportGenerator):
             self.cleaned_data, unique_path, is_table, self.raw_data
         )
         draw_table(pdf_canvas=pdf, dataframe=single_info)
-        insert_plot_and_logo(figure, pdf, self.is_gui, is_table)
+        insert_plot_and_logo(figure, pdf, is_table)
 
 class BreakoutsReportGenerator(BaseReportGenerator):
     def generate(self) -> List[Path]:
@@ -174,7 +173,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
             meta, self.transducer_details, self.active_channels, data_slice, unique_path, True, self.raw_data
         )
         draw_table(pdf_canvas=pdf, dataframe=result_slice)
-        insert_plot_and_logo(figure, pdf, self.is_gui, True)
+        insert_plot_and_logo(figure, pdf, True)
         return unique_path
 
     def _generate_multi_cycle_page(self, group, page_idx, total_pages, base_section, cycle_ranges):
@@ -189,7 +188,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         pdf = draw_test_details(
             meta, self.transducer_details, self.active_channels, data_slice, unique_path, False, self.raw_data
         )
-        insert_plot_and_logo(figure, pdf, self.is_gui, False)
+        insert_plot_and_logo(figure, pdf, False)
         return unique_path
 
     def _generate_single_page_report(self, breakout_values, breakout_indices):
@@ -203,7 +202,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
             self.cleaned_data, unique_path, True, self.raw_data
         )
         draw_table(pdf_canvas=pdf, dataframe=breakout_values)
-        insert_plot_and_logo(figure, pdf, self.is_gui, True)
+        insert_plot_and_logo(figure, pdf, True)
         return unique_path
 
     def _cycle_str(self, cycles):
@@ -273,7 +272,7 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
             meta, self.transducer_details, self.active_channels, data_slice, unique_path, True, self.raw_data
         )
         draw_table(pdf_canvas=pdf, dataframe=result_slice)
-        insert_plot_and_logo(figure, pdf, self.is_gui, True)
+        insert_plot_and_logo(figure, pdf, True)
         return unique_path
 
 class CalibrationReportGenerator(BaseReportGenerator):
@@ -302,7 +301,7 @@ class CalibrationReportGenerator(BaseReportGenerator):
             self.cleaned_data, unique_path, is_table, self.raw_data
         )
         draw_table(pdf_canvas=pdf, dataframe=average_values)
-        insert_plot_and_logo(figure, pdf, self.is_gui, is_table)
+        insert_plot_and_logo(figure, pdf, is_table)
         return unique_path
 
 class DoNothingReportGenerator(BaseReportGenerator):
