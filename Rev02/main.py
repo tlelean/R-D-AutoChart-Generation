@@ -2,6 +2,7 @@
 
 import fitz
 from pathlib import Path
+import argparse
 
 from data_loading import (
     get_file_paths,
@@ -16,34 +17,31 @@ def main():
     generate a plot, and export a PDF report combining text + images.
     """
     try:
-        # # Comment out to test
-        # parser = argparse.ArgumentParser(description="Process file paths.")
-        # parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
-        # parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
-        # parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
-        # parser.add_argument("is_gui", type=bool, help="GUI or not")
-        # args = parser.parse_args()
+        # Comment out to test
+        parser = argparse.ArgumentParser(description="Process file paths.")
+        parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
+        parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
+        parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
+        parser.add_argument("is_gui", type=bool, help="GUI or not")
+        args = parser.parse_args()
 
-        # is_gui = args.is_gui
+        is_gui = args.is_gui
 
-        # # Gather file paths
-        # primary_data_file, test_details_file, pdf_output_path = get_file_paths(args.file_path1, args.file_path2, args.file_path3)
+        # Gather file paths
+        primary_data_file, test_details_file, pdf_output_path = get_file_paths(args.file_path1, args.file_path2, args.file_path3)
 
-        # For testing purposes, hardcode the file paths
-        primary_data_file = (
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing "
-            "Number/Attempt Attempt/CSV/1.5/1.5_Data_7-7-2025_11-31-26.csv"
-        )
-        test_details_file = (
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing "
-            "Number/Attempt Attempt/CSV/1.5/1.5_Test_Details_7-7-2025_11-31-26.csv"
-        )
-        pdf_output_path = Path(
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing "
-            "Number/Attempt Attempt/PDF"
-        )
+        # # For testing purposes, hardcode the file paths
+        # primary_data_file = (
+        #     "V:/Userdoc/R & D/DAQ_Station/tlelean/250752/60910-283/Attempt 1/CSV/X.X/X.X._Data_7-8-2025_16-46-30.csv"
+        # )
+        # test_details_file = (
+        #     "V:/Userdoc/R & D/DAQ_Station/tlelean/250752/60910-283/Attempt 1/CSV/X.X/X.X._Test_Details_7-8-2025_16-46-30.csv"
+        # )
+        # pdf_output_path = Path(
+        #     "V:/Userdoc/R & D/DAQ_Station/tlelean/250752/60910-283/Attempt 1/PDF"
+        # )
 
-        is_gui = True
+        # is_gui = True
 
         (
             test_metadata,
@@ -73,6 +71,7 @@ def main():
             cleaned_data=cleaned_data,
             raw_data=raw_data,
             additional_info=additional_info,
+            channels_to_record=channels_to_record,
             is_gui=is_gui
         )
 
@@ -83,20 +82,19 @@ def main():
                 if isinstance(unique_pdf_output_path, list)
                 else [unique_pdf_output_path]
             )
-            for pdf_path in paths:
+            for idx, pdf_path in enumerate(paths, start=1):
                 doc = fitz.open(pdf_path)
                 page = doc.load_page(0)       # or doc[0]
                 zoom_factor = 3
                 mat = fitz.Matrix(zoom_factor, zoom_factor)
                 pix = page.get_pixmap(matrix=mat)       # get the rasterised page
-                pix.save("/var/opt/codesys/PlcLogic/visu/pdf.png")
+                pix.save(f"/var/opt/codesys/PlcLogic/visu/pdf.png")
                 doc.close()
 
-        print("Done")     
+        print("Done")
 
     except Exception as exc:
         print(f"An error occurred: {exc}")
 
 if __name__ == "__main__":
     main()
-

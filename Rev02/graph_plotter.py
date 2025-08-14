@@ -15,37 +15,94 @@ from plotter_info import (
     AXIS_PRIORITY,
 )
 
-def plot_crosses(df, channel, data, ax):
-    idx_cols = [c for c in df.columns if c.endswith("_Index")]
-    for col in idx_cols:
-        idxs = df[col].astype(int)
-        for idx in idxs:
-            t = data["Datetime"].loc[idx]
-            y = data[channel].loc[idx]
-            # compute rough slope
-            if 0 < idx < len(data[channel])-1:
-                slope = data[channel].loc[idx+1] - data[channel].loc[idx-1]
-            else:
-                slope = 0
-            # choose offset above or below
-            offset = 5 if slope >= 0 else -5
-            va = 'bottom' if offset > 0 else 'top'
+def plot_crosses(df, channel, data, ax, label_positions=None):
+    if df is not None:
+        label_positions = label_positions or {}
 
-            ax.plot(t, y,
+        # Ensure the annotated axis is drawn above the others
+        ax.set_zorder(3)
+        ax.patch.set_visible(False)
+
+        # Predefined annotation positions for all key points
+        predefined_positions = {
+            "A1": {"x_offset": -14.14, "y_offset": 0},
+            "A2": {"x_offset": 10, "y_offset": -10},
+            "A3": {"x_offset": 10,  "y_offset": 10},
+            "A4": {"x_offset": 0, "y_offset": -14.14},
+            "A5": {"x_offset": -10, "y_offset": 10},
+            "R1": {"x_offset": 10,  "y_offset": 10},
+            "R2": {"x_offset": -10, "y_offset": -10},
+            "R3": {"x_offset": 10,  "y_offset": 10},
+            "R4": {"x_offset": -10, "y_offset": -10},
+            "BTO": {"x_offset": -10,  "y_offset": -10},
+            "RPO": {"x_offset": 0, "y_offset": -14.14},
+            "RNO": {"x_offset": 0, "y_offset": 14.14},
+            "JTO": {"x_offset": 0,  "y_offset": -14.14},
+            "BTC": {"x_offset": -10, "y_offset": 10},
+            "RPC": {"x_offset": 0, "y_offset": -14.14},
+            "JTC": {"x_offset": 0,  "y_offset": 14.14},
+            "RNC": {"x_offset": 0, "y_offset": -14.14},
+        }
+
+        idx_cols = [c for c in df.columns if c.endswith("_Index")]
+
+        for col in idx_cols:
+            label = col.removesuffix("_Index")
+            idxs = df[col].dropna().astype(int)
+
+            for idx in idxs:
+                t = data["Datetime"].loc[idx]
+                y = data[channel].loc[idx]
+
+                # Use predefined first, then user-defined overrides if given
+                pos = label_positions.get(label, predefined_positions.get(label, {}))
+                offset_x = pos.get("x_offset", 0)
+                offset_y = pos.get("y_offset", 5)
+
+                ax.plot(
+                    t, y,
                     marker='x',
                     linestyle='none',
                     markersize=8,
-                    color='black')
-            ax.annotate(
-                col.removesuffix("_Index"),
-                xy=(t, y),
-                xytext=(0, offset),
-                textcoords='offset points',
-                ha='center',
-                va=va,
-                fontsize=10,
-            )
+                    color='black',
+                )
+                ax.annotate(
+                    label,
+                    xy=(t, y),
+                    xytext=(offset_x, offset_y),
+                    textcoords="offset points",
+                    ha="center",  # must be 'center', not 'centre'
+                    va="center",
+                    fontsize=10,
+                )
 
+    #plt.show()
+
+
+# def plot_cycle_lines(indices_df, data, axes):
+#     """Plot vertical dashed lines for cycle breakpoints."""
+#     if indices_df is None:
+#         return
+
+#     idx_cols = [
+#         "Start Index",
+#         "One-Quarter Index",
+#         "Middle Index",
+#         "Three-Quarter Index",
+#         "End Index",
+#     ]
+
+#     for _, row in indices_df.iterrows():
+#         for col in idx_cols:
+#             idx = row[col]
+#             if pd.isna(idx):
+#                 continue
+#             t = data["Datetime"].loc[int(idx)]
+#             for ax in axes.values():
+#                 ax.axvline(t, color="grey", linestyle="--", linewidth=0.8)
+
+#     plt.show()
+                
 def axis_location(active_channels):
     """Map each active channel to an axis position."""
 
@@ -60,7 +117,7 @@ def axis_location(active_channels):
 
     return channel_axis_location_map
 
-def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
+def plot_channel_data(active_channels, cleaned_data, channels_to_record, is_table):
     """Return matplotlib figure and axes for the given channel data."""
 
     data_for_plot = cleaned_data.copy()
@@ -73,7 +130,10 @@ def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
     axis_map = axis_location(active_channels)
 
     # Prepare axes
-    fig, ax_main = plt.subplots(figsize=(11.96, 8.49))
+    if is_table:
+        fig, ax_main = plt.subplots(figsize=(11.96, 8.49))
+    else:
+        fig, ax_main = plt.subplots(figsize=(11.96, 9.37))
     axes = {'left': ax_main}
     color_map = {}
     axis_label_map = {}
@@ -108,7 +168,7 @@ def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
             data_for_plot[ch],
             label=label,
             color=color,
-            linewidth=1
+            linewidth=1,
         )
         color_map[axis_type] = color
         plotted_lines.append(line)
@@ -147,11 +207,19 @@ def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
             ax.yaxis.set_major_locator(MultipleLocator(10))
         # Set pressure axis lower bound to 0 if this is a pressure axis
         if 'Pressure' in axis_name:
-            if test_metadata.get('Test Pressure', 0) == 0:
-                # keeps the plot looking tidy and the line perfectly flat
-                ax.set_ylim(-1, 100)        # or (0, 1) if you prefer starting at zero
+            pressure_channels = [
+                ch for ch, axis in CHANNEL_AXIS_NAMES_MAP.items() if axis == "Pressure"
+            ]
+
+            all_pressure_near_zero = all(
+                cleaned_data[ch].mean() < 5 for ch in pressure_channels if ch in cleaned_data.columns
+            )
+
+            if all_pressure_near_zero:
+                # Keeps the 0-psi line tidy at the bottom
+                ax.set_ylim(-1, 100)
             else:
-                y_min, y_max = ax.get_ylim()
+                _, y_max = ax.get_ylim()
                 ax.set_ylim(0, y_max)
         if 'Valve State' in axis_name:
             ax.set_ylim(-0.05, 1.05)           # Use full axis height for plotting
@@ -183,6 +251,15 @@ def plot_channel_data(active_channels, cleaned_data, test_metadata, results_df):
         frameon=False,
         bbox_to_anchor=(0.5, legend_y)
     )
+
+    for name, ax in axes.items():
+        if ax is not ax_main:
+            ax.set_zorder(1)               # Push behind the main axis
+            ax.patch.set_visible(False)    # Make background transparent
+
+    ax_main.set_zorder(2)  # Keep main axis on top
+    ax_main.patch.set_visible(False)
+
 
     plt.tight_layout(rect=[0, bottom_margin, 1, 1])
 

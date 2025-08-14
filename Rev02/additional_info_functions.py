@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
 
-def find_cycle_breakpoints(raw_data):
+def find_cycle_breakpoints(raw_data, channels_to_record):
     cycle_count_data = raw_data["Cycle Count"]
     total_cycle_count = int(cycle_count_data.max())
 
@@ -10,99 +10,180 @@ def find_cycle_breakpoints(raw_data):
 
     for i in range(1, total_cycle_count + 1):
         matching = cycle_count_data[cycle_count_data == i]
-        if not matching.empty:
-            start_idx = matching.index[0]
-            end_idx = matching.index[-1]
-            n_points = len(matching)
+        if matching.empty:
+            continue
 
-            # Calculate fractional index positions
-            one_third_idx = matching.index[n_points // 3]
-            middle_idx    = matching.index[n_points // 2]
-            two_third_idx = matching.index[(2 * n_points) // 3]
+        start_idx = matching.index[0]
+        end_idx = matching.index[-1]
+        n_points = len(matching)
 
-            cycle_ranges.append((
-                i,
-                start_idx,
-                one_third_idx,
-                middle_idx,
-                two_third_idx,
-                end_idx
-            ))
+        if channels_to_record.at["Torque", 1]:
+            one_quarter_idx = matching.index[n_points // 4]
+            middle_idx = matching.index[n_points // 2]
+            three_quarter_idx = matching.index[(3 * n_points) // 4]
+        elif channels_to_record.at["Actuator", 1]:
+            actuator_series = raw_data.loc[matching.index, "Actuator"]
+            if actuator_series.empty:
+                one_quarter_idx = matching.index[n_points // 4]
+                middle_idx = matching.index[n_points // 2]
+                three_quarter_idx = matching.index[(3 * n_points) // 4]
+            else:
+                middle_idx = actuator_series.idxmax()
+                middle_pos = list(matching.index).index(middle_idx)
+                start_pos = 0
+                end_pos = n_points - 1
+                one_quarter_idx = matching.index[(start_pos + middle_pos) // 2]
+                three_quarter_idx = matching.index[(middle_pos + end_pos) // 2]
+        else:
+            one_quarter_idx = matching.index[n_points // 4]
+            middle_idx = matching.index[n_points // 2]
+            three_quarter_idx = matching.index[(3 * n_points) // 4]
 
-    # Create DataFrame with expanded columns
-    df_ranges = pd.DataFrame(
-        cycle_ranges,
-        columns=[
-            "Cycle",
-            "Start Index",
-            "One-Third Index",
-            "Middle Index",
-            "Two-Third Index",
-            "End Index"
-        ]
-    )
+        cycle_ranges.append((
+            i,
+            start_idx,
+            one_quarter_idx,
+            middle_idx,
+            three_quarter_idx,
+            end_idx
+        ))
+
+    df_ranges = pd.DataFrame(cycle_ranges, columns=[
+        "Cycle",
+        "Start Index",
+        "One-Quarter Index",
+        "Middle Index",
+        "Three-Quarter Index",
+        "End Index",
+    ])
 
     return df_ranges, total_cycle_count
 
-def signed_distances_to_baseline(y: np.ndarray) -> np.ndarray:
-    x = np.arange(len(y))
-    m = (y[-1] - y[0]) / (len(y) - 1)
-    b = y[0]
-    # distance of each (x, y) to line y = m x + b
-    return ((m * x - y + b) / np.hypot(m, -1))
 
-def find_knee(data):
+def signed_distances_to_baseline(y: pd.Series) -> np.ndarray:
+    if len(y) < 2: 
+        return np.zeros(len(y))
+    else:
+        x = np.arange(len(y))
+        m = (y.iloc[-1] - y.iloc[0]) / (len(y) - 1)
+        b = y.iloc[0]
+        # distance of each (x, y) to line y = m x + b
+        return ((m * x - y + b) / np.hypot(m, -1))
+
+# Find the point in the given data that is furthest **above** the baseline.
+def find_above(data):
     sd = signed_distances_to_baseline(data)
     idx = np.argmax(sd)
-    return data[idx], idx
+    return data.iloc[idx], idx
 
-def find_elbow(data):
+# Find the point in the given data that is furthest **below** the baseline.
+def find_below(data):
     sd = signed_distances_to_baseline(data)
     idx = np.argmin(sd)
-    return data[idx], idx
+    return data.iloc[idx], idx
 
-def locate_key_time_rows(cleaned_data, additional_info):
-    """Return indices of key time points closest to provided timestamps."""
+def locate_calibration_points(cleaned_data, additional_info):
 
-    holds_indices = additional_info.copy()
-    holds_values = additional_info.copy()
+    # Ensure Datetime is a datetime type
+    calibration_indices = pd.DataFrame(index=range(2), columns=[0, 1, 2, 3, 4, 5])
+    calibration_values = pd.DataFrame(index=range(2), columns=[0, 1, 2, 3, 4, 5])
+    calibration_times = pd.DataFrame(index=range(2), columns=[0, 1, 2, 3, 4, 5])
     date_time_index = cleaned_data.set_index('Datetime')
 
-    for row in range(1, len(holds_values)):
-        holds_values.at[row, 1] = pd.to_datetime(
-            holds_values.at[row, 1],
+    for col in range(1, len(additional_info.columns)):
+        calibration_times.at[0, col] = pd.to_datetime(
+            additional_info.at[0, col],
             format="%d/%m/%Y %H:%M:%S.%f",
             errors="coerce",
             dayfirst=True,
         )
-        holds_indices.at[row, 1] = date_time_index.index.get_indexer(
-            holds_values.iloc[row, 1],
+        calibration_times.at[1, col] = calibration_times.at[0, col] + pd.Timedelta(seconds=10)
+        calibration_indices.at[0, col] = date_time_index.index.get_indexer(
+            [calibration_times.iloc[0, col]],
             method="nearest",
         )[0]
-        holds_values.at[row, 2] = cleaned_data[holds_indices.iloc[row, 1]][holds_values.at[0, 2]]
-        holds_values.at[row, 3] = cleaned_data[holds_indices.iloc[row, 1]]["Body Temperature"]
+        calibration_indices.at[1, col] = date_time_index.index.get_indexer(
+            [calibration_times.iloc[1, col]],
+            method="nearest",
+        )[0]
+        calibration_values.at[0, col] = cleaned_data.iloc[calibration_indices.iloc[0, col]][additional_info.at[0, 0]]
+        calibration_values.at[1, col] = cleaned_data.iloc[calibration_indices.iloc[1, col]][additional_info.at[0, 0]]
+    return calibration_indices, calibration_values
 
-    return holds_indices, holds_values
+def calculate_succesful_calibration(cleaned_data, calibration_indices, additional_info):
+    # Column labels: blank first column for row labels
+    average_values = pd.DataFrame(index=['', 'Measured', 'Expected', 'Error %'])
 
-def locate_bto_btc_rows(raw_data, additional_info):
-    if additional_info.iloc[1, 1] == "" or "NaN":
+    for i, col in enumerate(range(1, len(calibration_indices.columns))):
+        start_idx = calibration_indices.iloc[0, col]
+        end_idx = calibration_indices.iloc[1, col]
+        measured = cleaned_data.loc[start_idx:end_idx, additional_info.at[0, 0]].mean()
+        expected = (additional_info.at['', 0] / 4) * (col - 1)
+
+        measured_int = int(round(measured, 0))
+        expected_int = int(round(expected, 0))
+
+        average_values.at['Measured', [i + 1]] = measured_int
+        average_values.at['Expected', [i + 1]] = expected_int
+
+        if expected_int == 0:
+            average_values.at['Error %', [i + 1]] = float('NaN') if measured_int != 0 else 0.0
+        else:
+            error = ((measured_int - expected_int) / expected_int) * 100
+            average_values.at['Error %', [i + 1]] = round(error, 3)
+
+    average_values.insert(0, '', average_values.index)
+
+    return average_values
+
+def locate_key_time_rows(cleaned_data, additional_info):
+    """Return indices of key time points closest to provided timestamps."""
+    if additional_info.empty:
+        return None, None
+    else:
+        holds_indices = additional_info.copy()
+        holds_values = additional_info.copy()
+        date_time_index = cleaned_data.set_index('Datetime')
+
+        for row in range(1, len(holds_values)):
+            holds_values.at[row, 1] = pd.to_datetime(
+                holds_values.at[row, 1],
+                format="%d/%m/%Y %H:%M:%S.%f",
+                errors="coerce",
+                dayfirst=True,
+            )
+            holds_indices.at[row, 1] = date_time_index.index.get_indexer(
+                holds_values.iloc[row, 1],
+                method="nearest",
+            )[0]
+            rowpos = holds_indices.iloc[row, 1]
+            colpos_value = cleaned_data.columns.get_loc(holds_values.at[0, 2])
+            colpos_temp  = cleaned_data.columns.get_loc("Body Temperature")
+            holds_values.at[row, 2] = cleaned_data.iloc[rowpos, colpos_value]
+            holds_values.at[row, 3] = cleaned_data.iloc[rowpos, colpos_temp]
+        return holds_indices, holds_values
+
+def locate_bto_btc_rows(raw_data, additional_info, channels_to_record):
+    if additional_info.empty:
+        return None, None
+    elif additional_info.shape == (1, 4) and channels_to_record.at["Torque", 1]:
         breakout_values: List[Dict[str, Any]] = []
         breakout_indices: List[Dict[str, Any]] = []
 
         torque_series = raw_data["Torque"]
 
         # Get precomputed cycle boundaries
-        indices_ranges, _ = find_cycle_breakpoints(raw_data)
+        indices_ranges, _ = find_cycle_breakpoints(raw_data, channels_to_record)
 
-        for cycle, start_idx, one_third_idx, middle_idx, two_third_idx, end_idx in indices_ranges.itertuples(index=False, name=None):
+        for cycle, start_idx, one_quarter, middle_idx, three_quarter, end_idx in indices_ranges.itertuples(index=False, name=None):
             # 1st third for BTO
-            torque_first = torque_series.loc[start_idx:one_third_idx]
-            bto = torque_first.min().round(1)
+            torque_first = torque_series.loc[start_idx:one_quarter]
+            bto = torque_first.min().round(2)
             bto_index = torque_first.idxmin()
 
             # 3rd third for BTC
-            torque_third = torque_series.loc[middle_idx:two_third_idx]
-            btc = torque_third.max().round(1)
+            torque_third = torque_series.loc[middle_idx:three_quarter]
+            btc = torque_third.max().round(2)
             btc_index = torque_third.idxmax()
 
             # Store values
@@ -120,192 +201,197 @@ def locate_bto_btc_rows(raw_data, additional_info):
             pd.DataFrame.from_records(breakout_values), 
             pd.DataFrame.from_records(breakout_indices),
         )
-    else:
-        return additional_info, None
 
 def locate_signature_key_points(
-    transducer_details: pd.DataFrame,
+    channels_to_record: pd.DataFrame,
     raw_data: pd.DataFrame
 ) -> pd.DataFrame:
     """
     Processes raw_data to find signature key points for each cycle.
     Returns a DataFrame with one row per cycle and columns for each key point and its index.
     """
-    # Nested helper functions, defined once
     def find_a1() -> Tuple[Optional[float], Optional[int]]:
-        if transducer_details.at["Backseat", 2]:
-            bs_slice = backseat_data.iloc[:middle_idx]
-            _, rel_idx = find_elbow(bs_slice)
-            abs_idx = bs_slice.index[rel_idx]
-            return float(actuator_data.loc[abs_idx]), abs_idx
+        """Finds A1 (Backseat Elbow)."""
+        if channels_to_record.at["Backseat", 1]:
+            bs_slice = backseat_data.loc[:middle_idx]
+            _, idx = find_above(bs_slice)
+            abs_idx = bs_slice.index[idx]
+            return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
     def find_a2(end_idx: int) -> Tuple[Optional[float], Optional[int]]:
-        ac_slice = actuator_data.iloc[:end_idx]
-        _, rel_idx = find_elbow(ac_slice)
-        abs_idx = ac_slice.index[rel_idx]
-        return float(actuator_data.loc[abs_idx]), abs_idx
+        """Finds A2 (Actuator Elbow before end_idx)."""
+        ac_slice = actuator_data.loc[:end_idx]
+        _, idx = find_below(ac_slice)
+        abs_idx = ac_slice.index[idx]
+        return round(actuator_data.loc[abs_idx], 0), abs_idx
 
     def find_a3() -> Tuple[Optional[float], Optional[int]]:
-        if transducer_details.at["Upstream", 2] or transducer_details.at["Downstream", 2]:
-            ds_slice = downstream_data.iloc[:middle_idx]
-            _, rel_idx = find_elbow(ds_slice)
-            abs_idx = ds_slice.index[rel_idx]
-            return float(actuator_data.loc[abs_idx]), abs_idx
+        """Finds A3 (Downstream Elbow)."""
+        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+            ds_slice = downstream_data.loc[:middle_idx]
+            _, idx = find_above(ds_slice)
+            abs_idx = ds_slice.index[idx]
+            return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
     def find_a4() -> Tuple[Optional[float], Optional[int]]:
-        if transducer_details.at["Upstream", 2] or transducer_details.at["Downstream", 2]:
-            ds_slice = downstream_data.iloc[:middle_idx]
-            _, rel_idx = find_knee(ds_slice)
-            abs_idx = ds_slice.index[rel_idx]
-            return float(actuator_data.loc[abs_idx]), abs_idx
+        """Finds A4 (Downstream Knee)."""
+        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+            ds_slice = downstream_data.loc[:middle_idx]
+            _, idx = find_below(ds_slice)
+            abs_idx = ds_slice.index[idx]
+            return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
     def find_a5(start_idx: int) -> Tuple[Optional[float], Optional[int]]:
-        ac_slice = actuator_data.iloc[start_idx:middle_idx]
-        _, rel_idx = find_elbow(ac_slice)
-        abs_idx = ac_slice.index[rel_idx]
-        return float(actuator_data.loc[abs_idx]), abs_idx
+        """Finds A5 (Actuator Elbow after start_idx)."""
+        ac_slice = actuator_data.loc[start_idx:middle_idx]
+        _, idx = find_above(ac_slice)
+        abs_idx = ac_slice.index[idx]
+        return round(actuator_data.loc[abs_idx], 0), abs_idx
 
     def find_r1(end_idx: int) -> Tuple[Optional[float], Optional[int]]:
-        ac_slice = actuator_data.iloc[middle_idx:end_idx]
-        _, rel_idx = find_elbow(ac_slice)
-        abs_idx = ac_slice.index[rel_idx]
-        return float(actuator_data.loc[abs_idx]), abs_idx
+        """Finds R1 (Actuator Elbow in return stroke)."""
+        ac_slice = actuator_data.loc[middle_idx:end_idx]
+        _, idx = find_above(ac_slice)
+        abs_idx = ac_slice.index[idx]
+        return round(actuator_data.loc[abs_idx], 0), abs_idx
 
     def find_r2() -> Tuple[Optional[float], Optional[int]]:
-        if transducer_details.at["Upstream", 2] or transducer_details.at["Downstream", 2]:
-            ds_slice = downstream_data.iloc[middle_idx:]
-            _, rel_idx = find_knee(ds_slice)
-            abs_idx = ds_slice.index[rel_idx]
-            return float(actuator_data.loc[abs_idx]), abs_idx
+        """Finds R2 (Downstream Knee in return stroke)."""
+        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+            ds_slice = downstream_data.loc[middle_idx:]
+            _, idx = find_below(ds_slice)
+            abs_idx = ds_slice.index[idx]
+            return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
     def find_r3() -> Tuple[Optional[float], Optional[int]]:
-        if transducer_details.at["Upstream", 2] or transducer_details.at["Downstream", 2]:
-            ds_slice = downstream_data.iloc[middle_idx:]
-            _, rel_idx = find_elbow(ds_slice)
-            abs_idx = ds_slice.index[rel_idx]
-            return float(actuator_data.loc[abs_idx]), abs_idx
+        """Finds R3 (Downstream Elbow in return stroke)."""
+        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+            ds_slice = downstream_data.loc[middle_idx:]
+            _, idx = find_above(ds_slice)
+            abs_idx = ds_slice.index[idx]
+            return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
-    def find_r4(start_idx: int) -> Tuple[Optional[float], Optional[int]]:
-        ac_slice = actuator_data.iloc[start_idx:]
-        _, rel_idx = find_knee(ac_slice)
-        abs_idx = ac_slice.index[rel_idx]
-        return float(actuator_data.loc[abs_idx]), abs_idx
+    def find_r4(r3_idx: int, r1_idx: int) -> Tuple[Optional[float], Optional[int]]:
+        """Finds R4 (Actuator Knee after start_idx)."""
+        if r3_idx is None:
+            recording_speed = datetime_data.loc[r1_idx+1] - datetime_data.loc[r1_idx]
+            forty_s_in_rows = pd.Timedelta(seconds=40) / recording_speed
+            end_idx = r1_idx + forty_s_in_rows
+            ac_slice = actuator_data.loc[r1_idx:end_idx]
+        else:
+            ac_slice = actuator_data.loc[r3_idx:]
+        _, idx = find_below(ac_slice)
+        abs_idx = ac_slice.index[idx]
+        return round(actuator_data.loc[abs_idx], 0), abs_idx
 
     def find_bto() -> Tuple[float, int]:
-        mask_array = close_data.astype(bool).to_numpy()
-        end_rel_idx = np.where(~mask_array)[0][0] if (~mask_array).any() else len(mask_array)
-        tq_slice = torque_data.iloc[:end_rel_idx]
-        val = float(tq_slice.min().round(1))
+        false_indices = close_data.index[~close_data.astype(bool)]
+        end_rel_idx = false_indices[0] if not false_indices.empty else close_data.index[-1]
+        tq_slice = torque_data.loc[:end_rel_idx]
+        val = round(tq_slice.min(), 2)
         abs_idx = tq_slice.idxmin()
         return val, abs_idx
 
     def find_rpo(start_idx: int) -> Tuple[Optional[float], Optional[int]]:
-        if transducer_details.at["Upstream", 2] or transducer_details.at["Downstream", 2]:
-            ds_slice = downstream_data.iloc[:middle_idx]
-            _, rel_end_idx = find_elbow(ds_slice)
-            end_abs_idx = ds_slice.index[rel_end_idx]
-            tq_slice1 = torque_data.loc[start_idx:end_abs_idx]
-            peak_abs_idx = tq_slice1.idxmax()
-            tq_slice2 = torque_data.loc[start_idx:peak_abs_idx]
-            _, rel_start_idx = find_knee(tq_slice2)
-            start_abs_idx = tq_slice2.index[rel_start_idx]
-            final_slice = torque_data.loc[start_abs_idx:end_abs_idx]
-            val = float(final_slice.min().round(1))
+        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+            ds_slice = downstream_data.loc[:middle_idx]
+            _, end_idx = find_below(ds_slice)
+            end_idx = ds_slice.index[end_idx]
+            tq_slice1 = torque_data.loc[start_idx:end_idx]
+            _, start_idx = find_above(tq_slice1)
+            start_idx = tq_slice1.index[start_idx]
+            final_slice = torque_data.loc[start_idx:end_idx]
+            val = round(final_slice.min(), 2)
             abs_idx = final_slice.idxmin()
             return val, abs_idx
         return None, None
 
-    def find_rno() -> Tuple[float, int]:
-        ds_slice = downstream_data.iloc[:middle_idx]
-        _, rel_start_idx = find_knee(ds_slice)
-        start_abs_idx = ds_slice.index[rel_start_idx]
-        tq_slice1 = torque_data.loc[start_abs_idx:end_idx]
-        _, rel_end_idx = find_knee(tq_slice1)
-        end_abs_idx = tq_slice1.index[rel_end_idx]
-        if not (transducer_details.at["Upstream", 2] or transducer_details.at["Downstream", 2]):
-            ds_slice_alt = downstream_data.iloc[:middle_idx]
-            _, rel_alt_idx = find_elbow(ds_slice_alt)
-            alt_abs_idx = ds_slice_alt.index[rel_alt_idx]
-            tq_slice2 = torque_data.loc[start_abs_idx:alt_abs_idx]
-            peak_abs_idx = tq_slice2.idxmax()
-            tq_slice3 = torque_data.loc[start_abs_idx:peak_abs_idx]
-            _, rel_new_idx = find_knee(tq_slice3)
-            start_abs_idx = tq_slice3.index[rel_new_idx]
-        final_slice = torque_data.loc[start_abs_idx:end_abs_idx]
-        val = float(final_slice.min().round(1))
+    def find_rno(start_idx, end_idx) -> Tuple[float, int]:
+        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+            ds_slice = downstream_data.loc[:middle_idx]
+            _, start_idx = find_below(ds_slice)
+            start_idx = ds_slice.index[start_idx]
+        else:
+            tq_slice = torque_data.loc[start_idx:one_quarter_idx]
+            _, start_idx = find_below(tq_slice)
+            start_idx = tq_slice.index[start_idx]
+
+        tq_slice = torque_data.loc[one_quarter_idx:end_idx]
+        _, end_idx = find_below(tq_slice)
+        end_idx = tq_slice.index[end_idx]
+
+        final_slice = torque_data.loc[start_idx:end_idx-1]
+        val = round(final_slice.min(), 2)
         abs_idx = final_slice.idxmin()
         return val, abs_idx
 
     def find_jto() -> Tuple[float, int]:
-        val = float(torque_data.min().round(1))
+        val = round(torque_data.min(), 2)
         abs_idx = torque_data.idxmin()
         return val, abs_idx
 
     def find_btc() -> Tuple[float, int]:
-        mask_array = open_data.astype(bool).to_numpy()
-        start_rel_idx = np.where(mask_array)[0][0] if mask_array.any() else 0
-        end_rel_idx = np.where(~mask_array)[0][0] if (~mask_array).any() else len(mask_array)
-        tq_slice = torque_data.iloc[start_rel_idx:end_rel_idx]
-        val = float(tq_slice.max().round(1))
+        # Convert to boolean and find first True/False indices
+        true_indices = open_data.index[open_data.astype(bool)]
+        end_rel_idx = true_indices[-1] if not true_indices.empty else close_data.index[-1]
+        tq_slice = torque_data.loc[:end_rel_idx]
+        val = round(tq_slice.max(), 2)
         abs_idx = tq_slice.idxmax()
         return val, abs_idx
 
     def find_rnc(start_idx: int, end_idx: int) -> Tuple[float, int]:
-        ds_slice = downstream_data.iloc[middle_idx:]
-        _, rel_mid_idx = find_knee(ds_slice)
-        mid_abs_idx = ds_slice.index[rel_mid_idx]
-        tq_slice1 = torque_data.loc[start_idx:mid_abs_idx]
-        _, rel_start_idx = find_elbow(tq_slice1)
-        start_abs_idx = tq_slice1.index[rel_start_idx]
-        if transducer_details.at["Upstream", 2] or transducer_details.at["Downstream", 2]:
-            _, rel_end_idx = find_knee(ds_slice)
-            end_abs_idx = ds_slice.index[rel_end_idx]
+        tq_slice = torque_data.loc[start_idx:three_quarter_idx]
+        _, start_idx = find_above(tq_slice)
+        start_idx = tq_slice.index[start_idx]
+
+        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+            ds_slice = downstream_data.loc[middle_idx:]
+            _, end_idx = find_above(ds_slice)
+            end_idx = ds_slice.index[end_idx]
         else:
-            _, rel_alt_idx = find_elbow(ds_slice)
-            alt_abs_idx = ds_slice.index[rel_alt_idx]
-            tq_slice2 = torque_data.loc[alt_abs_idx:]
-            min_idx_idx = tq_slice2.idxmin()
-            tq_slice3 = torque_data.loc[min_idx_idx:end_idx]
-            _, rel_new_idx = find_elbow(tq_slice3)
-            end_abs_idx = tq_slice3.index[rel_new_idx]
-        final_slice = torque_data.loc[start_abs_idx:end_abs_idx]
-        val = float(final_slice.max().round(1))
+            tq_slice = torque_data.loc[three_quarter_idx:end_idx]
+            _, end_idx = find_above(tq_slice)
+            end_idx = tq_slice.index[end_idx]
+
+        final_slice = torque_data.loc[start_idx:end_idx-1]
+        val = round(final_slice.max(), 2)
         abs_idx = final_slice.idxmax()
         return val, abs_idx
 
-    def find_rpc(start_idx: int) -> Tuple[Optional[float], Optional[int]]:
-        if transducer_details.at["Upstream", 2] or transducer_details.at["Downstream", 2]:
-            ds_slice = downstream_data.iloc[middle_idx:]
-            _, rel_start_idx = find_elbow(ds_slice)
-            start_abs_idx = ds_slice.index[rel_start_idx]
-            tq_slice1 = torque_data.loc[start_abs_idx:]
-            min_idx_idx = tq_slice1.idxmin()
-            tq_slice2 = torque_data.loc[min_idx_idx:end_idx]
-            _, rel_end_idx = find_elbow(tq_slice2)
-            end_abs_idx = tq_slice2.index[rel_end_idx]
-            final_slice = torque_data.loc[start_abs_idx:end_abs_idx]
-            val = float(final_slice.max().round(1))
+    def find_rpc(end_idx: int) -> Tuple[Optional[float], Optional[int]]:
+        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+            ds_slice = downstream_data.loc[middle_idx:]
+            _, start_idx = find_above(ds_slice)
+            start_idx = ds_slice.index[start_idx]
+
+            tq_slice1 = torque_data.loc[start_idx:end_idx]
+            _, end_idx = find_above(tq_slice1)
+            end_idx = tq_slice1.index[end_idx]
+
+            final_slice = torque_data.loc[start_idx:end_idx]
+            val = round(final_slice.max(), 2)
             abs_idx = final_slice.idxmax()
             return val, abs_idx
         return None, None
 
     def find_jtc() -> Tuple[float, int]:
-        val = float(torque_data.max().round(1))
+        val = round(torque_data.max(), 2)
         abs_idx = torque_data.idxmax()
         return val, abs_idx
 
     # Main loop
-    df_cycle_breakpoints, total_cycles = find_cycle_breakpoints(raw_data)
+    df_cycle_breakpoints, total_cycles = find_cycle_breakpoints(raw_data, channels_to_record)
     torque_signature_values: List[Dict[str, Any]] = []
     torque_signature_indices: List[Dict[str, Any]] = []
     actuator_signature_values: List[Dict[str, Any]] = []
     actuator_signature_indices: List[Dict[str, Any]] = []
-    for cycle, start_idx, middle_idx, end_idx in df_cycle_breakpoints.itertuples(index=False, name=None):
+    for cycle, start_idx, one_quarter_idx, middle_idx, three_quarter_idx, end_idx in df_cycle_breakpoints.itertuples(index=False, name=None):
+        datetime_data   = raw_data.loc[start_idx:end_idx, "Datetime"]
         backseat_data   = raw_data.loc[start_idx:end_idx, "Backseat"]
         actuator_data   = raw_data.loc[start_idx:end_idx, "Actuator"]
         downstream_data = raw_data.loc[start_idx:end_idx, "Downstream"]
@@ -313,14 +399,14 @@ def locate_signature_key_points(
         open_data       = raw_data.loc[start_idx:end_idx, "Open"]
         close_data      = raw_data.loc[start_idx:end_idx, "Close"]
 
-        if transducer_details.at["Torque", 2] is True:
+        if channels_to_record.at["Torque", 1]:
             bto, bto_idx = find_bto()
             rpo, rpo_idx = find_rpo(bto_idx)
-            rno, rno_idx = find_rno()
             jto, jto_idx = find_jto()
+            rno, rno_idx = find_rno(rpo_idx if rpo_idx is not None else bto_idx, jto_idx)
             btc, btc_idx = find_btc()
-            rpc, rpc_idx = find_rpc(btc_idx)
             jtc, jtc_idx = find_jtc()
+            rpc, rpc_idx = find_rpc(jtc_idx)
             rnc, rnc_idx = find_rnc(btc_idx, jtc_idx)
             torque_signature_values.append({
                 "Cycle": cycle,
@@ -329,9 +415,9 @@ def locate_signature_key_points(
                 "RNO": rno,
                 "JTO": jto,
                 "BTC": btc,
+                "RNC": rnc,
                 "RPC": rpc,
                 "JTC": jtc,
-                "RNC": rnc,
             })
             torque_signature_indices.append({
                 "Cycle": cycle,
@@ -340,20 +426,20 @@ def locate_signature_key_points(
                 "RNO_Index": rno_idx,
                 "JTO_Index": jto_idx,
                 "BTC_Index": btc_idx,
-                "RPC_Index": rpc_idx,
-                "JTC_Index": jtc_idx,
                 "RNC_Index": rnc_idx,
+                "RPC_Index": rpc_idx,
+                "JTC_Index": jtc_idx,        
             })
         else:
             a1, a1_idx = find_a1()
             a3, a3_idx = find_a3()
             a4, a4_idx = find_a4()
-            a5, a5_idx = find_a5(a4_idx if a4_idx is not None else middle_idx)
-            a2, a2_idx = find_a2(a3_idx if a3_idx is not None else middle_idx)
+            a2, a2_idx = find_a2(a3_idx if a3_idx is not None else one_quarter_idx)
+            a5, a5_idx = find_a5(a4_idx if a4_idx is not None else a2_idx)
             r2, r2_idx = find_r2()
             r1, r1_idx = find_r1(r2_idx if r2_idx is not None else end_idx)
             r3, r3_idx = find_r3()
-            r4, r4_idx = find_r4(r3_idx if r3_idx is not None else middle_idx)
+            r4, r4_idx = find_r4(r3_idx, r1_idx)
             actuator_signature_values.append({
                 "Cycle": cycle,
                 "A1": a1,

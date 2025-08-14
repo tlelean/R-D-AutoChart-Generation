@@ -10,21 +10,32 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 
-def insert_plot_and_logo(figure, pdf, is_gui):
+def insert_plot_and_logo(figure, pdf, is_gui, is_table):
     png_figure = io.BytesIO()
     figure.savefig(png_figure, format='PNG', bbox_inches='tight', dpi=500)
     png_figure.seek(0)
     plt.close(figure)
     fig_img = ImageReader(png_figure)
-    pdf.drawImage(
-        fig_img,
-        16,
-        67.5,
-        598,
-        416.5,
-        preserveAspectRatio=False,
-        mask="auto",
-    )
+    if is_table:
+        pdf.drawImage(
+            fig_img,
+            16,
+            67.5,
+            598,
+            416.5,
+            preserveAspectRatio=False,
+            mask="auto",
+        )
+    else:
+        pdf.drawImage(
+            fig_img,
+            16,
+            16,
+            598,
+            468,
+            preserveAspectRatio=False,
+            mask="auto",
+        )
     image_path = (
         "V:/Userdoc/R & D/Logos/R&D_Page_2.png"
         if is_gui
@@ -85,8 +96,9 @@ def draw_layout_boxes(pdf):
         (15, 515, 600, 65),         # Info Top Left
         (15, 66.5, 600, 418.5),     # Graph
         (15, 15, 600, 51.5),        # Graph Index
-        (630, 271.66, 197, 17.5),   # Test Pressures
-        (630, 225.83, 197, 35),     # Breakout Torque
+        (630, 278.75, 197, 17.5),   # Cycle Count
+        (630, 257.5, 197, 17.5),    # Test Pressure
+        (630, 218.75, 197, 35),     # Breakout Torque
         (630, 35, 197, 180),        # 3rd Party Stamp
         (630, 300, 197, 185)        # Info Right
     ]
@@ -120,7 +132,7 @@ def prepare_transducer_dataframe(transducer_details, active_channels):
     used_transducers = pd.concat([used_transducers, empty_rows], ignore_index=True)
     return used_transducers
 
-def build_static_text_positions(test_metadata, light_blue, black):
+def build_static_text_positions(test_metadata, light_blue, black, max_cycle=None):
     return [
         # Left column
         (20, 571.875, "Test Procedure Reference", black, False),
@@ -140,12 +152,14 @@ def build_static_text_positions(test_metadata, light_blue, black):
         (402.5, 523.125, "Valve Drawing No.", black, False),
         (487.5, 523.125, test_metadata.at['Valve Drawing Number', 1], light_blue, True),
         # Pressures & torques
-        (635, 280.41, "Test Pressure", black, False),
-        (725, 280.41, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
-        (635, 252.08, "Breakout Torque", black, False),
-        (725, 252.08, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs", light_blue, True),
-        (635, 234.58, "Running Torque", black, False),
-        (725, 234.58, f"{test_metadata.at['Running Torque', 1]} ft.lbs", light_blue, True),
+        (635, 266.25, "Test Pressure", black, False),
+        (725, 266.25, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
+        (635, 287.5, "Cycle Count", black, False),
+        (725, 286.25, f"{max_cycle}" if max_cycle is not None else "", light_blue, True),
+        (635, 245, "Breakout Torque", black, False),
+        (725, 245, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] != "See Table" else "See Table", light_blue, True),
+        (635, 227.5, "Running Torque", black, False),
+        (725, 227.5, f"{test_metadata.at['Running Torque', 1]} ft.lbs" if test_metadata.at['Running Torque', 1] != "See Table" else "See Table", light_blue, True),
         (635, 457.5, "Data Logger", black, False),
         (725, 457.5, test_metadata.at['Data Logger', 1], light_blue, True),
         (635, 442.5, "Serial No.", black, False),
@@ -175,50 +189,74 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
     ]
 
 def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
-    # 1) Build a list-of-lists with the header as the first row
-    header = list(dataframe.columns.astype(str))
-    body   = dataframe.astype(str).values.tolist()
-    data   = [header] + body
+    """Render a pandas DataFrame as a table on the PDF canvas."""
+    if dataframe is not None:
+        dataframe = dataframe.dropna(axis=1, how="all")
+        # 1) Build a list-of-lists with the header as the first row
+        header = list(dataframe.columns.astype(str))
+        body   = dataframe.astype(str).values.tolist()
+        data   = [header] + body
 
-    # 2) Recompute rows/cols
-    rows = len(data)
-    cols = len(data[0])  # guaranteed >= 1
+        # 2) Recompute rows/cols
+        rows = len(data)
+        cols = len(data[0])  # guaranteed >= 1
 
-    # 3) Compute uniform cell sizes
-    col_width  = width  / cols
-    row_height = height / rows
+        # 3) Compute uniform cell sizes
+        col_width  = width  / cols
+        row_height = height / rows
 
-    # 4) Create the Table
-    table = Table(
-        data,
-        colWidths  =[col_width ] * cols,
-        rowHeights =[row_height] * rows,
-    )
+        # 4) Create the Table
+        table = Table(
+            data,
+            colWidths  =[col_width ] * cols,
+            rowHeights =[row_height] * rows,
+        )
 
-    # 5) Style: give the header a grey background, rest white
-    style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.white),  # header row
-        ('TEXTCOLOR',  (0, 0), (-1, 0), colors.black),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),     # body
-        ('TEXTCOLOR',  (0, 1), (-1, -1), colors.black),
-        ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME',   (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE',   (0, 0), (-1, -1), 8),
-        ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
-    ])
-    table.setStyle(style)
+        # 5) Style: give the header a grey background, rest white
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.white),  # header row
+            ('TEXTCOLOR',  (0, 0), (-1, 0), colors.black),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),     # body
+            ('TEXTCOLOR',  (0, 1), (-1, -1), colors.black),
+            ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME',   (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE',   (0, 0), (-1, -1), 8),
+            ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
+        ])
 
-    # 6) Draw it
-    table.wrapOn(pdf_canvas, width, height)
-    table.drawOn(pdf_canvas, x, y)
+        error_row_idx = None
+        for i, row_label in enumerate(dataframe.index):
+            if row_label == "Error %":
+                error_row_idx = i + 1
+                break
+
+        if error_row_idx is not None:
+            for col_idx, col_label in enumerate(header):
+                try:
+                    val = float(data[error_row_idx][col_idx])
+                    if abs(val) < 0.01:
+                        style.add('BACKGROUND', (col_idx, error_row_idx), (col_idx, error_row_idx), colors.limegreen)
+                    else:
+                        style.add('BACKGROUND', (col_idx, error_row_idx), (col_idx, error_row_idx), colors.red)
+                except Exception:
+                    pass 
+
+        table.setStyle(style)
+
+        # 6) Draw it
+        table.wrapOn(pdf_canvas, width, height)
+        table.drawOn(pdf_canvas, x, y)
 
 
 def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:
         draw_text_on_pdf(pdf, text, x, y, colour=colour, size=10, left_aligned=True, replace_empty=replace_empty)
 
-def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path):
+def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path, is_table, raw_data):
+    if is_table:
+        test_metadata.at['Breakout Torque', 1] = 'See Table'
+        test_metadata.at['Running Torque', 1] = 'See Table'    
     pdf = canvas.Canvas(str(pdf_output_path), pagesize=landscape(A4))
     pdf.setStrokeColor(colors.black)
     draw_layout_boxes(pdf)
@@ -226,7 +264,8 @@ def draw_test_details(test_metadata, transducer_details, active_channels, cleane
     black = Color(0, 0, 0)
     draw_headers(pdf, test_metadata, cleaned_data, light_blue)
     used_transducers = prepare_transducer_dataframe(transducer_details, active_channels)
-    pdf_text_positions = build_static_text_positions(test_metadata, light_blue, black)
+    max_cycle = int(raw_data["Cycle Count"].max())
+    pdf_text_positions = build_static_text_positions(test_metadata, light_blue, black, max_cycle)
     pdf_text_positions += build_transducer_and_gauge_positions(used_transducers, light_blue)
     pdf_text_positions += build_torque_and_stamp_positions(transducer_details, test_metadata, light_blue, black)
     draw_all_text(pdf, pdf_text_positions)
