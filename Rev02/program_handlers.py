@@ -34,7 +34,6 @@ def build_output_path(base_path: Path, test_metadata) -> Path:
     )
 
 def handle_generic(
-    program_name: str,
     pdf_output_path: Path,
     test_metadata,
     transducer_details,
@@ -73,7 +72,6 @@ def handle_generic(
 
 
 def handle_holds(
-    program_name: str,
     pdf_output_path: Path,
     test_metadata,
     transducer_details,
@@ -169,7 +167,6 @@ def handle_holds(
     return unique_path
 
 def handle_breakouts(
-    program_name: str,
     pdf_output_path: Path,
     test_metadata,
     transducer_details,
@@ -350,7 +347,6 @@ def handle_breakouts(
     return generated_paths
 
 def handle_signatures(
-    program_name: str,
     pdf_output_path: Path,
     test_metadata,
     transducer_details,
@@ -638,4 +634,5 @@ HANDLERS: Dict[str, Callable[..., Any]] = {
     "Open-Close": handle_breakouts,
     "Number Of Turns": lambda *a, **k: None,
     "Calibration": handle_calibration,
+}
 }
