@@ -154,15 +154,19 @@ def insert_plot_and_logo(figure, pdf, is_gui, is_table):
         )
 
     image_path = config.LOGO_PATH_GUI if is_gui else config.LOGO_PATH_CMD
-    pdf.drawImage(
-        image_path,
-        Layout.LOGO_X,
-        Layout.LOGO_Y,
-        Layout.LOGO_W,
-        Layout.LOGO_H,
-        preserveAspectRatio=True,
-        mask="auto",
-    )
+    try:
+        pdf.drawImage(
+            image_path,
+            Layout.LOGO_X,
+            Layout.LOGO_Y,
+            Layout.LOGO_W,
+            Layout.LOGO_H,
+            preserveAspectRatio=True,
+            mask="auto",
+        )
+    except Exception as e:
+        print(f"Warning: Could not load logo image at {image_path}. Error: {e}")
+
     pdf.save()
 
 def draw_bounding_box(pdf_canvas, x, y, width, height):
