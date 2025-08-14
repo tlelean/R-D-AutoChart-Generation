@@ -32,13 +32,13 @@ def main():
 
         # For testing purposes, hardcode the file paths
         primary_data_file = (
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/250752/60910-283/Attempt 1/CSV/X.X/X.X._Data_7-8-2025_16-46-30.csv"
+            "Example_Data/_Data_13-8-2025_15-9-15.csv"
         )
         test_details_file = (
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/250752/60910-283/Attempt 1/CSV/X.X/X.X._Test_Details_7-8-2025_16-46-30.csv"
+            "Example_Data/_Test_Details_13-8-2025_15-9-15.csv"
         )
         pdf_output_path = Path(
-            "V:/Userdoc/R & D/DAQ_Station/tlelean/250752/60910-283/Attempt 1/PDF"
+            "results"
         )
 
         is_gui = True
@@ -58,11 +58,11 @@ def main():
 
         program_name = test_metadata.at['Program Name', 1]
 
-        handler = HANDLERS.get(program_name)
-        if handler is None:
+        handler_class = HANDLERS.get(program_name)
+        if handler_class is None:
             raise ValueError(f"Unsupported program: {program_name}")
 
-        unique_pdf_output_path = handler(
+        handler_instance = handler_class(
             program_name=program_name,
             pdf_output_path=pdf_output_path,
             test_metadata=test_metadata,
@@ -74,6 +74,7 @@ def main():
             channels_to_record=channels_to_record,
             is_gui=is_gui
         )
+        unique_pdf_output_path = handler_instance.generate()
 
         # Extra copy if not GUI
         if not is_gui:

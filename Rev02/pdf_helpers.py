@@ -10,43 +10,156 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 
+import config
+
+class Layout:
+    """Class to hold all layout constants for the PDF report."""
+    PAGE_WIDTH, PAGE_HEIGHT = landscape(A4)
+
+    # Margins
+    MARGIN_LEFT = 15
+    MARGIN_RIGHT = 15
+    MARGIN_TOP = 15
+    MARGIN_BOTTOM = 15
+
+    # Main content area
+    CONTENT_X_START = MARGIN_LEFT
+    CONTENT_Y_START = MARGIN_BOTTOM
+    CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
+    CONTENT_HEIGHT = PAGE_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM
+
+    # Header section
+    HEADER_X = CONTENT_X_START
+    HEADER_Y = 515
+    HEADER_W = 600
+    HEADER_H = 65
+
+    # Graph section
+    GRAPH_X = CONTENT_X_START
+    GRAPH_Y_TABLE = 67.5
+    GRAPH_H_TABLE = 416.5
+    GRAPH_Y_NO_TABLE = 16
+    GRAPH_H_NO_TABLE = 468
+    GRAPH_W = 600
+
+    # Graph index/table section
+    TABLE_X = CONTENT_X_START
+    TABLE_Y = 15
+    TABLE_W = 600
+    TABLE_H = 51.5
+
+    # Right-hand side boxes
+    RIGHT_COL_X = 630
+    RIGHT_COL_W = 197
+
+    LOGO_X = RIGHT_COL_X
+    LOGO_Y = 515
+    LOGO_W = 197
+    LOGO_H = 65
+
+    INFO_RIGHT_X = RIGHT_COL_X
+    INFO_RIGHT_Y = 300
+    INFO_RIGHT_W = RIGHT_COL_W
+    INFO_RIGHT_H = 185
+
+    CYCLE_COUNT_X = RIGHT_COL_X
+    CYCLE_COUNT_Y = 278.75
+    CYCLE_COUNT_W = RIGHT_COL_W
+    CYCLE_COUNT_H = 17.5
+
+    TEST_PRESSURE_X = RIGHT_COL_X
+    TEST_PRESSURE_Y = 257.5
+    TEST_PRESSURE_W = RIGHT_COL_W
+    TEST_PRESSURE_H = 17.5
+
+    BREAKOUT_TORQUE_X = RIGHT_COL_X
+    BREAKOUT_TORQUE_Y = 218.75
+    BREAKOUT_TORQUE_W = RIGHT_COL_W
+    BREAKOUT_TORQUE_H = 35
+
+    STAMP_X = RIGHT_COL_X
+    STAMP_Y = 35
+    STAMP_W = RIGHT_COL_W
+    STAMP_H = 180
+
+    # Text positions
+    MAIN_TITLE_X = 315
+    MAIN_TITLE_Y = 500
+
+    HEADER_COL1_LABEL_X = 20
+    HEADER_COL1_VALUE_X = 140
+    HEADER_COL2_LABEL_X = 402.5
+    HEADER_COL2_VALUE_X = 487.5
+
+    HEADER_ROW1_Y = 571.875
+    HEADER_ROW2_Y = 555.625
+    HEADER_ROW3_Y = 539.375
+    HEADER_ROW4_Y = 523.125
+
+    RIGHT_COL_LABEL_X = 635
+    RIGHT_COL_VALUE_X = 725
+
+    EQUIPMENT_TITLE_Y = 475
+    DATA_LOGGER_Y = 457.5
+    SERIAL_NO_Y = 442.5
+    TRANSDUCERS_Y = 427.5
+    GAUGES_Y = 367.5
+
+    TORQUE_TRANSDUCER_Y = 307.5
+    CYCLE_COUNT_TEXT_Y = 287.5
+    TEST_PRESSURE_TEXT_Y = 266.25
+    BREAKOUT_TORQUE_TEXT_Y = 245
+    RUNNING_TORQUE_TEXT_Y = 227.5
+
+    STAMP_TITLE_Y = 45
+    OPERATIVE_Y = 22.5
+    OPERATIVE_VALUE_X = 685
+
+    TRANSDUCER_TABLE_START_X = 635
+    TRANSDUCER_TABLE_START_Y = 412.5
+    TRANSDUCER_COL_WIDTH = 39.375
+    TRANSDUCER_ROW_HEIGHT = 15
+
+    GAUGE_TABLE_START_X = 635
+    GAUGE_TABLE_START_Y = 352.5
+    GAUGE_COL_WIDTH = 50
+    GAUGE_ROW_HEIGHT = 15
+
 def insert_plot_and_logo(figure, pdf, is_gui, is_table):
     png_figure = io.BytesIO()
     figure.savefig(png_figure, format='PNG', bbox_inches='tight', dpi=500)
     png_figure.seek(0)
     plt.close(figure)
     fig_img = ImageReader(png_figure)
+
     if is_table:
         pdf.drawImage(
             fig_img,
-            16,
-            67.5,
-            598,
-            416.5,
+            Layout.GRAPH_X,
+            Layout.GRAPH_Y_TABLE,
+            Layout.GRAPH_W,
+            Layout.GRAPH_H_TABLE,
             preserveAspectRatio=False,
             mask="auto",
         )
     else:
         pdf.drawImage(
             fig_img,
-            16,
-            16,
-            598,
-            468,
+            Layout.GRAPH_X,
+            Layout.GRAPH_Y_NO_TABLE,
+            Layout.GRAPH_W,
+            Layout.GRAPH_H_NO_TABLE,
             preserveAspectRatio=False,
             mask="auto",
         )
-    image_path = (
-        "V:/Userdoc/R & D/Logos/R&D_Page_2.png"
-        if is_gui
-        else "/var/opt/codesys/PlcLogic/R&D_Page_2.png"
-    )
+
+    image_path = config.LOGO_PATH_GUI if is_gui else config.LOGO_PATH_CMD
     pdf.drawImage(
         image_path,
-        629,
-        515,
-        197,
-        65,
+        Layout.LOGO_X,
+        Layout.LOGO_Y,
+        Layout.LOGO_W,
+        Layout.LOGO_H,
         preserveAspectRatio=True,
         mask="auto",
     )
@@ -55,7 +168,6 @@ def insert_plot_and_logo(figure, pdf, is_gui, is_table):
 def draw_bounding_box(pdf_canvas, x, y, width, height):
     pdf_canvas.setLineWidth(0.5)
     pdf_canvas.rect(x, y, width, height)
-
 
 def draw_text_on_pdf(
     pdf_canvas,
@@ -68,39 +180,31 @@ def draw_text_on_pdf(
     left_aligned=False,
     replace_empty=False,
 ):
-
-    # Convert text to string or set to "" if None
     text = "" if text is None else str(text)
-
     if replace_empty:
-        # If replace_empty is True, replace if empty/whitespace
         text = "N/A" if not text.strip() else text
 
     pdf_canvas.setFont(font, size)
     text_width = pdf_canvas.stringWidth(text, font, size)
-    text_height = size * 0.7  # Approx. 70% of the font size as a typical measure
+    text_height = size * 0.7
 
-    if left_aligned:
-        draw_x = x
-        draw_y = y - (text_height / 2)
-    else:
-        draw_x = x - (text_width / 2)
-        draw_y = y - (text_height / 2)
+    draw_x = x if left_aligned else x - (text_width / 2)
+    draw_y = y - (text_height / 2)
 
     pdf_canvas.setFillColor(colour if colour else colors.black)
     pdf_canvas.drawString(draw_x, draw_y, text)
-    pdf_canvas.setFillColor(colors.black)  # Reset to black afterwards
+    pdf_canvas.setFillColor(colors.black)
 
 def draw_layout_boxes(pdf):
     PDF_LAYOUT_BOXES = [
-        (15, 515, 600, 65),         # Info Top Left
-        (15, 66.5, 600, 418.5),     # Graph
-        (15, 15, 600, 51.5),        # Graph Index
-        (630, 278.75, 197, 17.5),   # Cycle Count
-        (630, 257.5, 197, 17.5),    # Test Pressure
-        (630, 218.75, 197, 35),     # Breakout Torque
-        (630, 35, 197, 180),        # 3rd Party Stamp
-        (630, 300, 197, 185)        # Info Right
+        (Layout.HEADER_X, Layout.HEADER_Y, Layout.HEADER_W, Layout.HEADER_H),
+        (Layout.GRAPH_X, Layout.GRAPH_Y_TABLE, Layout.GRAPH_W, Layout.GRAPH_H_TABLE),
+        (Layout.TABLE_X, Layout.TABLE_Y, Layout.TABLE_W, Layout.TABLE_H),
+        (Layout.CYCLE_COUNT_X, Layout.CYCLE_COUNT_Y, Layout.CYCLE_COUNT_W, Layout.CYCLE_COUNT_H),
+        (Layout.TEST_PRESSURE_X, Layout.TEST_PRESSURE_Y, Layout.TEST_PRESSURE_W, Layout.TEST_PRESSURE_H),
+        (Layout.BREAKOUT_TORQUE_X, Layout.BREAKOUT_TORQUE_Y, Layout.BREAKOUT_TORQUE_W, Layout.BREAKOUT_TORQUE_H),
+        (Layout.STAMP_X, Layout.STAMP_Y, Layout.STAMP_W, Layout.STAMP_H),
+        (Layout.INFO_RIGHT_X, Layout.INFO_RIGHT_Y, Layout.INFO_RIGHT_W, Layout.INFO_RIGHT_H),
     ]
     for box in PDF_LAYOUT_BOXES:
         draw_bounding_box(pdf, *box)
@@ -109,21 +213,25 @@ def draw_headers(pdf, test_metadata, cleaned_data, light_blue):
     draw_text_on_pdf(
         pdf,
         f"{test_metadata.at['Test Section Number', 1]} {test_metadata.at['Test Name', 1]}",
-        315,
-        500,
+        Layout.MAIN_TITLE_X,
+        Layout.MAIN_TITLE_Y,
         font="Helvetica-Bold",
         size=16,
     )
     draw_text_on_pdf(
         pdf,
         cleaned_data.iloc[0]["Datetime"].strftime("%d/%m/%Y"),
-        487.5,
-        539.375,
+        Layout.HEADER_COL2_VALUE_X,
+        Layout.HEADER_ROW3_Y,
         colour=light_blue,
         left_aligned=True,
     )
-    draw_text_on_pdf(pdf, "Data Recording Equipment Used", 728.5, 475, "Helvetica-Bold", size=12)
-    draw_text_on_pdf(pdf, "3rd Party Stamp and Date", 728.5, 45, "Helvetica-Bold", size=12)
+    draw_text_on_pdf(
+        pdf, "Data Recording Equipment Used", Layout.RIGHT_COL_VALUE_X, Layout.EQUIPMENT_TITLE_Y, "Helvetica-Bold", size=12
+    )
+    draw_text_on_pdf(
+        pdf, "3rd Party Stamp and Date", Layout.RIGHT_COL_VALUE_X, Layout.STAMP_TITLE_Y, "Helvetica-Bold", size=12
+    )
 
 def prepare_transducer_dataframe(transducer_details, active_channels):
     empty_rows = pd.DataFrame([["", ""]] * 14)
@@ -134,58 +242,58 @@ def prepare_transducer_dataframe(transducer_details, active_channels):
 
 def build_static_text_positions(test_metadata, light_blue, black, max_cycle=None):
     return [
-        # Left column
-        (20, 571.875, "Test Procedure Reference", black, False),
-        (140, 571.875, test_metadata.at['Test Procedure Reference', 1], light_blue, True),
-        (20, 555.625, "Unique No.", black, False),
-        (140, 555.625, test_metadata.at['Unique Number', 1], light_blue, True),
-        (20, 539.375, "R&D Reference", black, False),
-        (140, 539.375, test_metadata.at['R&D Reference', 1], light_blue, True),
-        (20, 523.125, "Valve Description", black, False),
-        (140, 523.125, test_metadata.at['Valve Description', 1], light_blue, True),
-        # Right column
-        (402.5, 571.875, "Job No.", black, False),
-        (487.5, 571.875, test_metadata.at['Job Number', 1], light_blue, True),
-        (402.5, 555.625, "Test Description", black, False),
-        (487.5, 555.625, test_metadata.at['Test Section Number', 1], light_blue, True),
-        (402.5, 539.375, "Test Date", black, False),
-        (402.5, 523.125, "Valve Drawing No.", black, False),
-        (487.5, 523.125, test_metadata.at['Valve Drawing Number', 1], light_blue, True),
-        # Pressures & torques
-        (635, 266.25, "Test Pressure", black, False),
-        (725, 266.25, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
-        (635, 287.5, "Cycle Count", black, False),
-        (725, 286.25, f"{max_cycle}" if max_cycle is not None else "", light_blue, True),
-        (635, 245, "Breakout Torque", black, False),
-        (725, 245, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] != "See Table" else "See Table", light_blue, True),
-        (635, 227.5, "Running Torque", black, False),
-        (725, 227.5, f"{test_metadata.at['Running Torque', 1]} ft.lbs" if test_metadata.at['Running Torque', 1] != "See Table" else "See Table", light_blue, True),
-        (635, 457.5, "Data Logger", black, False),
-        (725, 457.5, test_metadata.at['Data Logger', 1], light_blue, True),
-        (635, 442.5, "Serial No.", black, False),
-        (725, 442.5, test_metadata.at['Serial Number', 1], light_blue, True),
-        (635, 427.5, "Transducers", black, False),
-        (635, 367.5, "Gauges", black, False),
+        (Layout.HEADER_COL1_LABEL_X, Layout.HEADER_ROW1_Y, "Test Procedure Reference", black, False),
+        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW1_Y, test_metadata.at['Test Procedure Reference', 1], light_blue, True),
+        (Layout.HEADER_COL1_LABEL_X, Layout.HEADER_ROW2_Y, "Unique No.", black, False),
+        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW2_Y, test_metadata.at['Unique Number', 1], light_blue, True),
+        (Layout.HEADER_COL1_LABEL_X, Layout.HEADER_ROW3_Y, "R&D Reference", black, False),
+        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW3_Y, test_metadata.at['R&D Reference', 1], light_blue, True),
+        (Layout.HEADER_COL1_LABEL_X, Layout.HEADER_ROW4_Y, "Valve Description", black, False),
+        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW4_Y, test_metadata.at['Valve Description', 1], light_blue, True),
+
+        (Layout.HEADER_COL2_LABEL_X, Layout.HEADER_ROW1_Y, "Job No.", black, False),
+        (Layout.HEADER_COL2_VALUE_X, Layout.HEADER_ROW1_Y, test_metadata.at['Job Number', 1], light_blue, True),
+        (Layout.HEADER_COL2_LABEL_X, Layout.HEADER_ROW2_Y, "Test Description", black, False),
+        (Layout.HEADER_COL2_VALUE_X, Layout.HEADER_ROW2_Y, test_metadata.at['Test Section Number', 1], light_blue, True),
+        (Layout.HEADER_COL2_LABEL_X, Layout.HEADER_ROW3_Y, "Test Date", black, False),
+        (Layout.HEADER_COL2_LABEL_X, Layout.HEADER_ROW4_Y, "Valve Drawing No.", black, False),
+        (Layout.HEADER_COL2_VALUE_X, Layout.HEADER_ROW4_Y, test_metadata.at['Valve Drawing Number', 1], light_blue, True),
+
+        (Layout.RIGHT_COL_LABEL_X, Layout.TEST_PRESSURE_TEXT_Y, "Test Pressure", black, False),
+        (Layout.RIGHT_COL_VALUE_X, Layout.TEST_PRESSURE_TEXT_Y, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
+        (Layout.RIGHT_COL_LABEL_X, Layout.CYCLE_COUNT_TEXT_Y, "Cycle Count", black, False),
+        (Layout.RIGHT_COL_VALUE_X, Layout.CYCLE_COUNT_TEXT_Y - 1.25, f"{max_cycle}" if max_cycle is not None else "", light_blue, True),
+        (Layout.RIGHT_COL_LABEL_X, Layout.BREAKOUT_TORQUE_TEXT_Y, "Breakout Torque", black, False),
+        (Layout.RIGHT_COL_VALUE_X, Layout.BREAKOUT_TORQUE_TEXT_Y, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] != "See Table" else "See Table", light_blue, True),
+        (Layout.RIGHT_COL_LABEL_X, Layout.RUNNING_TORQUE_TEXT_Y, "Running Torque", black, False),
+        (Layout.RIGHT_COL_VALUE_X, Layout.RUNNING_TORQUE_TEXT_Y, f"{test_metadata.at['Running Torque', 1]} ft.lbs" if test_metadata.at['Running Torque', 1] != "See Table" else "See Table", light_blue, True),
+
+        (Layout.RIGHT_COL_LABEL_X, Layout.DATA_LOGGER_Y, "Data Logger", black, False),
+        (Layout.RIGHT_COL_VALUE_X, Layout.DATA_LOGGER_Y, test_metadata.at['Data Logger', 1], light_blue, True),
+        (Layout.RIGHT_COL_LABEL_X, Layout.SERIAL_NO_Y, "Serial No.", black, False),
+        (Layout.RIGHT_COL_VALUE_X, Layout.SERIAL_NO_Y, test_metadata.at['Serial Number', 1], light_blue, True),
+        (Layout.RIGHT_COL_LABEL_X, Layout.TRANSDUCERS_Y, "Transducers", black, False),
+        (Layout.RIGHT_COL_LABEL_X, Layout.GAUGES_Y, "Gauges", black, False),
     ]
 
 def build_transducer_and_gauge_positions(used_transducers, light_blue):
     positions = []
     for i in range(15):
-        x = 635 + (i % 5) * 39.375
-        y = 412.5 - (i // 5) * 15
+        x = Layout.TRANSDUCER_TABLE_START_X + (i % 5) * Layout.TRANSDUCER_COL_WIDTH
+        y = Layout.TRANSDUCER_TABLE_START_Y - (i // 5) * Layout.TRANSDUCER_ROW_HEIGHT
         positions.append((x, y, used_transducers.iat[i, 0], light_blue, False))
     for i in range(12):
-        x = 635 + (i % 4) * 50
-        y = 352.5 - (i // 4) * 15
+        x = Layout.GAUGE_TABLE_START_X + (i % 4) * Layout.GAUGE_COL_WIDTH
+        y = Layout.GAUGE_TABLE_START_Y - (i // 4) * Layout.GAUGE_ROW_HEIGHT
         positions.append((x, y, used_transducers.iat[i, 1], light_blue, False))
     return positions
 
 def build_torque_and_stamp_positions(transducer_details, test_metadata, light_blue, black):
     return [
-        (635, 307.5, "Torque Transducer", black, False),
-        (725, 307.5, transducer_details.at['Torque', 1], light_blue, True),
-        (635, 22.5, "Operative:", black, False),
-        (685, 22.5, test_metadata.at['Operative', 1], light_blue, False),
+        (Layout.RIGHT_COL_LABEL_X, Layout.TORQUE_TRANSDUCER_Y, "Torque Transducer", black, False),
+        (Layout.RIGHT_COL_VALUE_X, Layout.TORQUE_TRANSDUCER_Y, transducer_details.at['Torque', 1], light_blue, True),
+        (Layout.RIGHT_COL_LABEL_X, Layout.OPERATIVE_Y, "Operative:", black, False),
+        (Layout.OPERATIVE_VALUE_X, Layout.OPERATIVE_Y, test_metadata.at['Operative', 1], light_blue, False),
     ]
 
 def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
