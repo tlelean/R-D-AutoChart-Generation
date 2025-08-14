@@ -8,7 +8,6 @@ import pandas as pd
 from graph_plotter import (
     plot_channel_data,
     plot_crosses,
-    #plot_cycle_lines,
 )
 from pdf_helpers import (
     draw_table,
@@ -634,5 +633,4 @@ HANDLERS: Dict[str, Callable[..., Any]] = {
     "Open-Close": handle_breakouts,
     "Number Of Turns": lambda *a, **k: None,
     "Calibration": handle_calibration,
-}
 }
