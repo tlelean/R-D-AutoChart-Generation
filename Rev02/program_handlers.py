@@ -323,4 +323,5 @@ HANDLERS: Dict[str, Callable[..., Any]] = {
     "Open-Close": BreakoutsReportGenerator,
     "Number Of Turns": DoNothingReportGenerator,
     "Calibration": CalibrationReportGenerator,
+    "Data Logger": GenericReportGenerator,
 }

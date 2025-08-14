@@ -30,15 +30,28 @@ def main():
         # # Gather file paths
         # primary_data_file, test_details_file, pdf_output_path = get_file_paths(args.file_path1, args.file_path2, args.file_path3)
 
+        # # Comment out to test
+        # parser = argparse.ArgumentParser(description="Process file paths.")
+        # parser.add_argument("file_path1", type=str, help="Path to the primary data CSV file")
+        # parser.add_argument("file_path2", type=str, help="Path to the test details CSV file")
+        # parser.add_argument("file_path3", type=str, help="Path to the PDF Save Location")
+        # parser.add_argument("is_gui", type=bool, help="GUI or not")
+        # args = parser.parse_args()
+
+        # is_gui = args.is_gui
+
+        # # Gather file paths
+        # primary_data_file, test_details_file, pdf_output_path = get_file_paths(args.file_path1, args.file_path2, args.file_path3)
+
         # For testing purposes, hardcode the file paths
         primary_data_file = (
-            "Example_Data/_Data_13-8-2025_15-9-15.csv"
+            "./Example Data/_Data_13-8-2025_15-9-15.csv"
         )
         test_details_file = (
-            "Example_Data/_Test_Details_13-8-2025_15-9-15.csv"
+            "./Example Data/_Test_Details_13-8-2025_15-9-15.csv"
         )
         pdf_output_path = Path(
-            "results"
+            "./Example Data/"
         )
 
         is_gui = True

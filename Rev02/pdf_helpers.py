@@ -36,9 +36,9 @@ class Layout:
 
     # Graph section
     GRAPH_X = CONTENT_X_START
-    GRAPH_Y_TABLE = 67.5
-    GRAPH_H_TABLE = 416.5
-    GRAPH_Y_NO_TABLE = 16
+    GRAPH_Y_TABLE = CONTENT_Y_START
+    GRAPH_H_TABLE = 469
+    GRAPH_Y_NO_TABLE = CONTENT_X_START
     GRAPH_H_NO_TABLE = 468
     GRAPH_W = 600
 
@@ -135,20 +135,20 @@ def insert_plot_and_logo(figure, pdf, is_gui, is_table):
     if is_table:
         pdf.drawImage(
             fig_img,
-            Layout.GRAPH_X,
-            Layout.GRAPH_Y_TABLE,
-            Layout.GRAPH_W,
-            Layout.GRAPH_H_TABLE,
+            Layout.GRAPH_X+1,
+            Layout.GRAPH_Y_TABLE+1,
+            Layout.GRAPH_W-2,
+            Layout.GRAPH_H_TABLE-2,
             preserveAspectRatio=False,
             mask="auto",
         )
     else:
         pdf.drawImage(
             fig_img,
-            Layout.GRAPH_X,
-            Layout.GRAPH_Y_NO_TABLE,
-            Layout.GRAPH_W,
-            Layout.GRAPH_H_NO_TABLE,
+            Layout.GRAPH_X+1,
+            Layout.GRAPH_Y_NO_TABLE+1,
+            Layout.GRAPH_W-2,
+            Layout.GRAPH_H_NO_TABLE-2,
             preserveAspectRatio=False,
             mask="auto",
         )
@@ -195,11 +195,11 @@ def draw_text_on_pdf(
     pdf_canvas.drawString(draw_x, draw_y, text)
     pdf_canvas.setFillColor(colors.black)
 
-def draw_layout_boxes(pdf):
+def draw_layout_boxes(pdf, is_table):
     PDF_LAYOUT_BOXES = [
         (Layout.HEADER_X, Layout.HEADER_Y, Layout.HEADER_W, Layout.HEADER_H),
         (Layout.GRAPH_X, Layout.GRAPH_Y_TABLE, Layout.GRAPH_W, Layout.GRAPH_H_TABLE),
-        (Layout.TABLE_X, Layout.TABLE_Y, Layout.TABLE_W, Layout.TABLE_H),
+        ((Layout.TABLE_X, Layout.TABLE_Y, Layout.TABLE_W, Layout.TABLE_H),) if is_table else (0, 0, 0, 0),
         (Layout.CYCLE_COUNT_X, Layout.CYCLE_COUNT_Y, Layout.CYCLE_COUNT_W, Layout.CYCLE_COUNT_H),
         (Layout.TEST_PRESSURE_X, Layout.TEST_PRESSURE_Y, Layout.TEST_PRESSURE_W, Layout.TEST_PRESSURE_H),
         (Layout.BREAKOUT_TORQUE_X, Layout.BREAKOUT_TORQUE_Y, Layout.BREAKOUT_TORQUE_W, Layout.BREAKOUT_TORQUE_H),
@@ -227,10 +227,10 @@ def draw_headers(pdf, test_metadata, cleaned_data, light_blue):
         left_aligned=True,
     )
     draw_text_on_pdf(
-        pdf, "Data Recording Equipment Used", Layout.RIGHT_COL_VALUE_X, Layout.EQUIPMENT_TITLE_Y, "Helvetica-Bold", size=12
+        pdf, "Data Recording Equipment Used", Layout.RIGHT_COL_X + (Layout.RIGHT_COL_W / 2), Layout.EQUIPMENT_TITLE_Y, "Helvetica-Bold", size=12
     )
     draw_text_on_pdf(
-        pdf, "3rd Party Stamp and Date", Layout.RIGHT_COL_VALUE_X, Layout.STAMP_TITLE_Y, "Helvetica-Bold", size=12
+        pdf, "3rd Party Stamp and Date", Layout.RIGHT_COL_X + (Layout.RIGHT_COL_W / 2), Layout.STAMP_TITLE_Y, "Helvetica-Bold", size=12
     )
 
 def prepare_transducer_dataframe(transducer_details, active_channels):
@@ -367,7 +367,7 @@ def draw_test_details(test_metadata, transducer_details, active_channels, cleane
         test_metadata.at['Running Torque', 1] = 'See Table'    
     pdf = canvas.Canvas(str(pdf_output_path), pagesize=landscape(A4))
     pdf.setStrokeColor(colors.black)
-    draw_layout_boxes(pdf)
+    draw_layout_boxes(pdf, is_table)
     light_blue = Color(0.325, 0.529, 0.761)
     black = Color(0, 0, 0)
     draw_headers(pdf, test_metadata, cleaned_data, light_blue)
