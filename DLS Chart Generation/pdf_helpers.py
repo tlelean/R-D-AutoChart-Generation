@@ -153,7 +153,7 @@ def insert_plot_and_logo(figure, pdf, is_table):
             mask="auto",
         )
 
-    image_path = "./Rev02/R&D.png"
+    image_path = "./DLS Chart Generation/R&D.png"
     try:
         pdf.drawImage(
             image_path,
