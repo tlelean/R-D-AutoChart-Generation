@@ -34,6 +34,7 @@ class BaseReportGenerator:
         self.raw_data = kwargs.get("raw_data")
         self.additional_info = kwargs.get("additional_info")
         self.channels_to_record = kwargs.get("channels_to_record")
+        self.channel_map = kwargs.get("channel_map")
 
     def build_output_path(self, test_metadata) -> Path:
         """Construct the output PDF path from metadata."""
@@ -56,6 +57,7 @@ class GenericReportGenerator(BaseReportGenerator):
             cleaned_data=self.cleaned_data,
             channels_to_record=self.channels_to_record,
             is_table=is_table,
+            channel_map=self.channel_map,
         )
         pdf = draw_test_details(
             test_metadata=self.test_metadata,
@@ -95,6 +97,7 @@ class HoldsReportGenerator(BaseReportGenerator):
             cleaned_data=self.cleaned_data,
             channels_to_record=self.channels_to_record,
             is_table=is_table,
+            channel_map=self.channel_map,
         )
         plot_crosses(
             df=holds_indices,
@@ -112,9 +115,9 @@ class HoldsReportGenerator(BaseReportGenerator):
 class BreakoutsReportGenerator(BaseReportGenerator):
     def generate(self) -> List[Path]:
         breakout_values, breakout_indices = locate_bto_btc_rows(
-            self.raw_data, self.additional_info, self.channels_to_record
+            self.raw_data, self.additional_info, self.channels_to_record, self.channel_map
         )
-        cycle_ranges, max_cycle = find_cycle_breakpoints(self.raw_data, self.channels_to_record)
+        cycle_ranges, max_cycle = find_cycle_breakpoints(self.raw_data, self.channels_to_record, self.channel_map)
         base_section = self.test_metadata.at['Test Name', 1]
         all_cycles = list(range(1, max_cycle + 1))
         generated_paths = []
@@ -166,7 +169,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         index_slice = breakout_indices[breakout_indices['Cycle'].isin(group)]
 
         figure, axes, axis_map = plot_channel_data(
-            self.active_channels, data_slice, self.channels_to_record, is_table=True
+            self.active_channels, data_slice, self.channels_to_record, is_table=True, channel_map=self.channel_map
         )
         plot_crosses(df=index_slice, channel='Torque', data=data_slice, ax=axes[axis_map['Torque']])
         pdf = draw_test_details(
@@ -183,7 +186,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         data_slice = self._slice_data(self.cleaned_data, cycle_ranges, group)
 
         figure, _, _ = plot_channel_data(
-            self.active_channels, data_slice, self.channels_to_record, is_table=False
+            self.active_channels, data_slice, self.channels_to_record, is_table=False, channel_map=self.channel_map
         )
         pdf = draw_test_details(
             meta, self.transducer_details, self.active_channels, data_slice, unique_path, False, self.raw_data
@@ -194,7 +197,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
     def _generate_single_page_report(self, breakout_values, breakout_indices):
         unique_path = self.build_output_path(self.test_metadata)
         figure, axes, axis_map = plot_channel_data(
-            self.active_channels, self.cleaned_data, self.channels_to_record, is_table=True
+            self.active_channels, self.cleaned_data, self.channels_to_record, is_table=True, channel_map=self.channel_map
         )
         plot_crosses(df=breakout_indices, channel='Torque', data=self.cleaned_data, ax=axes[axis_map['Torque']])
         pdf = draw_test_details(
@@ -217,17 +220,17 @@ class BreakoutsReportGenerator(BaseReportGenerator):
 class SignaturesReportGenerator(BreakoutsReportGenerator):
     def generate(self) -> List[Path]:
         torque_values, torque_indices, actuator_values, actuator_indices = locate_signature_key_points(
-            self.channels_to_record, self.raw_data
+            self.channels_to_record, self.raw_data, self.channel_map
         )
-        cycle_ranges, max_cycle = find_cycle_breakpoints(self.raw_data, self.channels_to_record)
+        cycle_ranges, max_cycle = find_cycle_breakpoints(self.raw_data, self.channels_to_record, self.channel_map)
         base_section = self.test_metadata.at['Test Name', 1]
         all_cycles = list(range(1, max_cycle + 1))
         generated_paths = []
 
-        if self.channels_to_record.at["Torque", 1]:
-            values_df, indices_df, plot_channel, axis_key = torque_values, torque_indices, 'Torque', 'Torque'
+        if self.channels_to_record.at[self.channel_map['Torque'], 1]:
+            values_df, indices_df, plot_channel, axis_key = torque_values, torque_indices, self.channel_map['Torque'], 'Torque'
         else:
-            values_df, indices_df, plot_channel, axis_key = actuator_values, actuator_indices, 'Actuator', 'Pressure'
+            values_df, indices_df, plot_channel, axis_key = actuator_values, actuator_indices, self.channel_map['Actuator'], 'Pressure'
 
         if max_cycle >= 10:
             first_cycles, middle_cycles, last_cycles = all_cycles[:3], all_cycles[max(0, (max_cycle // 2) - 1):max(0, (max_cycle // 2) - 1) + 3], all_cycles[-3:]
@@ -265,7 +268,7 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
         index_slice = indices_df[indices_df['Cycle'] == cycle]
 
         figure, axes, axis_map = plot_channel_data(
-            self.active_channels, data_slice, self.channels_to_record, is_table=True
+            self.active_channels, data_slice, self.channels_to_record, is_table=True, channel_map=self.channel_map
         )
         plot_crosses(df=index_slice, channel=plot_channel, data=data_slice, ax=axes[axis_map[axis_key]])
         pdf = draw_test_details(
@@ -287,6 +290,7 @@ class CalibrationReportGenerator(BaseReportGenerator):
             cleaned_data=self.cleaned_data,
             channels_to_record=self.channels_to_record,
             is_table=is_table,
+            channel_map=self.channel_map,
         )
         for phase in calibration_indices.index:
             positions = calibration_indices.loc[phase].dropna().astype(int).tolist()

@@ -79,9 +79,9 @@ def plot_crosses(df, channel, data, ax, label_positions=None):
     #plt.show()
 
 
-def axis_location(active_channels):
+def axis_location(active_channels, custom_to_default_map):
     """Map each active channel to an axis position."""
-    axis_types = [CHANNEL_AXIS_NAMES_MAP.get(ch) for ch in active_channels]
+    axis_types = [CHANNEL_AXIS_NAMES_MAP.get(custom_to_default_map.get(ch)) for ch in active_channels]
     axis_types_set = set(axis_types)
     axis_types_present = [a for a in AXIS_PRIORITY if a in axis_types_set]
     return {
@@ -112,16 +112,17 @@ def _setup_axes(is_table, axis_map):
         axes[axis_name] = ax
     return fig, axes, ax_main
 
-def _plot_channels(active_channels, data_for_plot, axis_map, axes):
+def _plot_channels(active_channels, data_for_plot, axis_map, axes, custom_to_default_map):
     """Plot each active channel on its corresponding axis."""
     plotted_lines, plotted_labels, color_map, axis_label_map = [], [], {}, {}
     for ch in active_channels:
-        axis_type = axis_map.get(CHANNEL_AXIS_NAMES_MAP.get(ch))
+        default_ch = custom_to_default_map.get(ch)
+        axis_type = axis_map.get(CHANNEL_AXIS_NAMES_MAP.get(default_ch))
         if not axis_type:
             continue
         ax = axes[axis_type]
-        color = CHANNEL_COLOUR_MAP.get(ch, 'black')
-        unit = CHANNEL_UNITS_MAP.get(ch, '')
+        color = CHANNEL_COLOUR_MAP.get(default_ch, 'black')
+        unit = CHANNEL_UNITS_MAP.get(default_ch, '')
         label = f"{ch} ({unit})" if unit else ch
         line, = ax.plot(
             data_for_plot['Datetime'], data_for_plot[ch], label=label, color=color, linewidth=1
@@ -130,12 +131,12 @@ def _plot_channels(active_channels, data_for_plot, axis_map, axes):
         plotted_lines.append(line)
         plotted_labels.append(label)
         if axis_type not in axis_label_map:
-            axis_name = CHANNEL_AXIS_NAMES_MAP.get(ch, '')
-            axis_unit = CHANNEL_UNITS_MAP.get(ch, '')
+            axis_name = CHANNEL_AXIS_NAMES_MAP.get(default_ch, '')
+            axis_unit = CHANNEL_UNITS_MAP.get(default_ch, '')
             axis_label_map[axis_type] = f"{axis_name} ({axis_unit})".strip() if axis_unit else axis_name
     return plotted_lines, plotted_labels, color_map, axis_label_map
 
-def _style_axes(axes, axis_label_map, color_map, cleaned_data):
+def _style_axes(axes, axis_label_map, color_map, cleaned_data, custom_to_default_map):
     """Apply styling to all axes."""
     for axis_type, ax in axes.items():
         axis_label = axis_label_map.get(axis_type, '')
@@ -158,7 +159,10 @@ def _style_axes(axes, axis_label_map, color_map, cleaned_data):
             ax.set_ylim(-60, 260)
             ax.yaxis.set_major_locator(MultipleLocator(10))
         if 'Pressure' in axis_name:
-            pressure_channels = [ch for ch, axis in CHANNEL_AXIS_NAMES_MAP.items() if axis == "Pressure"]
+            pressure_channels = [
+                ch for ch in cleaned_data.columns
+                if custom_to_default_map.get(ch) and CHANNEL_AXIS_NAMES_MAP.get(custom_to_default_map.get(ch)) == "Pressure"
+            ]
             all_pressure_near_zero = all(cleaned_data[ch].mean() < 5 for ch in pressure_channels if ch in cleaned_data.columns)
             if all_pressure_near_zero:
                 ax.set_ylim(-1, 100)
@@ -189,17 +193,18 @@ def _configure_legend(fig, plotted_lines, plotted_labels):
     )
     return bottom_margin
 
-def plot_channel_data(active_channels, cleaned_data, channels_to_record, is_table):
+def plot_channel_data(active_channels, cleaned_data, channels_to_record, is_table, channel_map):
     """Return matplotlib figure and axes for the given channel data."""
+    custom_to_default_map = {v: k for k, v in channel_map.items()}
     data_for_plot = _prepare_plot_data(cleaned_data)
-    axis_map = axis_location(active_channels)
+    axis_map = axis_location(active_channels, custom_to_default_map)
     fig, axes, ax_main = _setup_axes(is_table, axis_map)
 
     plotted_lines, plotted_labels, color_map, axis_label_map = _plot_channels(
-        active_channels, data_for_plot, axis_map, axes
+        active_channels, data_for_plot, axis_map, axes, custom_to_default_map
     )
 
-    _style_axes(axes, axis_label_map, color_map, cleaned_data)
+    _style_axes(axes, axis_label_map, color_map, cleaned_data, custom_to_default_map)
 
     bottom_margin = _configure_legend(fig, plotted_lines, plotted_labels)
 

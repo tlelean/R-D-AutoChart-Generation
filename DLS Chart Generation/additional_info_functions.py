@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
 
-def find_cycle_breakpoints(raw_data, channels_to_record):
-    cycle_count_data = raw_data["Cycle Count"]
+def find_cycle_breakpoints(raw_data, channels_to_record, channel_map: dict[str, str]):
+    cycle_count_data = raw_data[channel_map["Cycle Count"]]
     total_cycle_count = int(cycle_count_data.max())
 
     cycle_ranges = []
@@ -17,12 +17,12 @@ def find_cycle_breakpoints(raw_data, channels_to_record):
         end_idx = matching.index[-1]
         n_points = len(matching)
 
-        if channels_to_record.at["Torque", 1]:
+        if channels_to_record.at[channel_map["Torque"], 1]:
             one_quarter_idx = matching.index[n_points // 4]
             middle_idx = matching.index[n_points // 2]
             three_quarter_idx = matching.index[(3 * n_points) // 4]
-        elif channels_to_record.at["Actuator", 1]:
-            actuator_series = raw_data.loc[matching.index, "Actuator"]
+        elif channels_to_record.at[channel_map["Actuator"], 1]:
+            actuator_series = raw_data.loc[matching.index, channel_map["Actuator"]]
             if actuator_series.empty:
                 one_quarter_idx = matching.index[n_points // 4]
                 middle_idx = matching.index[n_points // 2]
@@ -163,17 +163,17 @@ def locate_key_time_rows(cleaned_data, additional_info):
             holds_values.at[row, 3] = cleaned_data.iloc[rowpos, colpos_temp]
         return holds_indices, holds_values
 
-def locate_bto_btc_rows(raw_data, additional_info, channels_to_record):
+def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_map: dict[str, str]):
     if additional_info.empty:
         return None, None
-    elif additional_info.shape == (1, 4) and channels_to_record.at["Torque", 1]:
+    elif additional_info.shape == (1, 4) and channels_to_record.at[channel_map["Torque"], 1]:
         breakout_values: List[Dict[str, Any]] = []
         breakout_indices: List[Dict[str, Any]] = []
 
-        torque_series = raw_data["Torque"]
+        torque_series = raw_data[channel_map["Torque"]]
 
         # Get precomputed cycle boundaries
-        indices_ranges, _ = find_cycle_breakpoints(raw_data, channels_to_record)
+        indices_ranges, _ = find_cycle_breakpoints(raw_data, channels_to_record, channel_map)
 
         for cycle, start_idx, one_quarter, middle_idx, three_quarter, end_idx in indices_ranges.itertuples(index=False, name=None):
             # 1st third for BTO
@@ -204,7 +204,8 @@ def locate_bto_btc_rows(raw_data, additional_info, channels_to_record):
 
 def locate_signature_key_points(
     channels_to_record: pd.DataFrame,
-    raw_data: pd.DataFrame
+    raw_data: pd.DataFrame,
+    channel_map: dict[str, str],
 ) -> pd.DataFrame:
     """
     Processes raw_data to find signature key points for each cycle.
@@ -212,7 +213,7 @@ def locate_signature_key_points(
     """
     def find_a1() -> Tuple[Optional[float], Optional[int]]:
         """Finds A1 (Backseat Elbow)."""
-        if channels_to_record.at["Backseat", 1]:
+        if channels_to_record.at[channel_map["Backseat"], 1]:
             bs_slice = backseat_data.loc[:middle_idx]
             _, idx = find_above(bs_slice)
             abs_idx = bs_slice.index[idx]
@@ -228,7 +229,7 @@ def locate_signature_key_points(
 
     def find_a3() -> Tuple[Optional[float], Optional[int]]:
         """Finds A3 (Downstream Elbow)."""
-        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
             ds_slice = downstream_data.loc[:middle_idx]
             _, idx = find_above(ds_slice)
             abs_idx = ds_slice.index[idx]
@@ -237,7 +238,7 @@ def locate_signature_key_points(
 
     def find_a4() -> Tuple[Optional[float], Optional[int]]:
         """Finds A4 (Downstream Knee)."""
-        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
             ds_slice = downstream_data.loc[:middle_idx]
             _, idx = find_below(ds_slice)
             abs_idx = ds_slice.index[idx]
@@ -260,7 +261,7 @@ def locate_signature_key_points(
 
     def find_r2() -> Tuple[Optional[float], Optional[int]]:
         """Finds R2 (Downstream Knee in return stroke)."""
-        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
             ds_slice = downstream_data.loc[middle_idx:]
             _, idx = find_below(ds_slice)
             abs_idx = ds_slice.index[idx]
@@ -269,7 +270,7 @@ def locate_signature_key_points(
 
     def find_r3() -> Tuple[Optional[float], Optional[int]]:
         """Finds R3 (Downstream Elbow in return stroke)."""
-        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
             ds_slice = downstream_data.loc[middle_idx:]
             _, idx = find_above(ds_slice)
             abs_idx = ds_slice.index[idx]
@@ -298,7 +299,7 @@ def locate_signature_key_points(
         return val, abs_idx
 
     def find_rpo(start_idx: int) -> Tuple[Optional[float], Optional[int]]:
-        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
             ds_slice = downstream_data.loc[:middle_idx]
             _, end_idx = find_below(ds_slice)
             end_idx = ds_slice.index[end_idx]
@@ -312,7 +313,7 @@ def locate_signature_key_points(
         return None, None
 
     def find_rno(start_idx, end_idx) -> Tuple[float, int]:
-        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
             ds_slice = downstream_data.loc[:middle_idx]
             _, start_idx = find_below(ds_slice)
             start_idx = ds_slice.index[start_idx]
@@ -349,7 +350,7 @@ def locate_signature_key_points(
         _, start_idx = find_above(tq_slice)
         start_idx = tq_slice.index[start_idx]
 
-        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
             ds_slice = downstream_data.loc[middle_idx:]
             _, end_idx = find_above(ds_slice)
             end_idx = ds_slice.index[end_idx]
@@ -364,7 +365,7 @@ def locate_signature_key_points(
         return val, abs_idx
 
     def find_rpc(end_idx: int) -> Tuple[Optional[float], Optional[int]]:
-        if channels_to_record.at["Upstream", 1] or channels_to_record.at["Downstream", 1]:
+        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
             ds_slice = downstream_data.loc[middle_idx:]
             _, start_idx = find_above(ds_slice)
             start_idx = ds_slice.index[start_idx]
@@ -385,21 +386,21 @@ def locate_signature_key_points(
         return val, abs_idx
 
     # Main loop
-    df_cycle_breakpoints, total_cycles = find_cycle_breakpoints(raw_data, channels_to_record)
+    df_cycle_breakpoints, total_cycles = find_cycle_breakpoints(raw_data, channels_to_record, channel_map)
     torque_signature_values: List[Dict[str, Any]] = []
     torque_signature_indices: List[Dict[str, Any]] = []
     actuator_signature_values: List[Dict[str, Any]] = []
     actuator_signature_indices: List[Dict[str, Any]] = []
     for cycle, start_idx, one_quarter_idx, middle_idx, three_quarter_idx, end_idx in df_cycle_breakpoints.itertuples(index=False, name=None):
         datetime_data   = raw_data.loc[start_idx:end_idx, "Datetime"]
-        backseat_data   = raw_data.loc[start_idx:end_idx, "Backseat"]
-        actuator_data   = raw_data.loc[start_idx:end_idx, "Actuator"]
-        downstream_data = raw_data.loc[start_idx:end_idx, "Downstream"]
-        torque_data     = raw_data.loc[start_idx:end_idx, "Torque"]
-        open_data       = raw_data.loc[start_idx:end_idx, "Open"]
-        close_data      = raw_data.loc[start_idx:end_idx, "Close"]
+        backseat_data   = raw_data.loc[start_idx:end_idx, channel_map["Backseat"]]
+        actuator_data   = raw_data.loc[start_idx:end_idx, channel_map["Actuator"]]
+        downstream_data = raw_data.loc[start_idx:end_idx, channel_map["Downstream"]]
+        torque_data     = raw_data.loc[start_idx:end_idx, channel_map["Torque"]]
+        open_data       = raw_data.loc[start_idx:end_idx, channel_map["Open"]]
+        close_data      = raw_data.loc[start_idx:end_idx, channel_map["Close"]]
 
-        if channels_to_record.at["Torque", 1]:
+        if channels_to_record.at[channel_map["Torque"], 1]:
             bto, bto_idx = find_bto()
             rpo, rpo_idx = find_rpo(bto_idx)
             jto, jto_idx = find_jto()

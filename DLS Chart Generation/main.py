@@ -21,6 +21,7 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
         channels_to_record,
         additional_info,
         program_name,
+        default_to_custom_map,
     ) = load_test_information(test_details_file)
 
     cleaned_data, active_channels, raw_data = prepare_primary_data(
@@ -43,6 +44,7 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
         raw_data=raw_data,
         additional_info=additional_info,
         channels_to_record=channels_to_record,
+        channel_map=default_to_custom_map,
     )
     unique_pdf_output_path = handler_instance.generate()
 
