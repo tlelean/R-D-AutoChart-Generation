@@ -1,3 +1,49 @@
+Test Procedure Reference,Test Procedure Reference,,
+Unique Number,Unique Number,,
+R&D Reference,R&D Reference,,
+Valve Description,Valve Description,,
+Job Number,Job Number,,
+Valve Drawing Number,Valve Drawing Number,,
+Attempt,Attempt,,
+Test Name,Data Logger,,
+Test Section Number,,,
+Test Pressure,0,,
+Data Logger,DLS Prototype,,
+Serial Number,,,
+Operative,Toby Lelean,,
+Breakout Torque,0,,
+Running Torque,0,,
+Date Time,13-8-2025_15-9-15,,
+Program Name,Data Logger,,
+Show Breakout Torque,FALSE,,
+Test Start Time,,,
+Upstream,,,TRUE
+Downstream,,,FALSE
+Body,,,FALSE
+Actuator,,,FALSE
+Hyperbaric,,,FALSE
+Backseat,,,FALSE
+Spring Chamber,,,FALSE
+Primary Stem Seal,,,FALSE
+Secondary Stem Seal,,,FALSE
+Relief Port,,,FALSE
+BX Port,,,FALSE
+Spare,,,FALSE
+Flow Meter,,,FALSE
+Mass Spectrometer,,,FALSE
+LVDT,,,FALSE
+Torque,,,FALSE
+Number Of Turns,,,FALSE
+Motor Speed,,,FALSE
+Ambient Temperature,,,TRUE
+Body Temperature,,,TRUE
+Monitor Temperature,,,FALSE
+Chamber Temperature,,,FALSE
+Hyperbaric Water Temperature,,,FALSE
+Close,,,FALSE
+Open,,,FALSE
+Cycle Count,,,FALSE
+
 Test Procedure Reference,Test Procedure Reference
 Unique Number,Unique Number
 R&D Reference,R&D Reference
