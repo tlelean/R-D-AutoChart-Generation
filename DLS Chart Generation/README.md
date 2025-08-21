@@ -21,7 +21,7 @@ Test mode is designed for running the script on a development machine to verify 
 To run in test mode, use the `--run-tests` flag:
 
 ```bash
-python3 ./DLS Chart Generation/main.py --run-tests
+python3 "./DLS Chart Generation/main.py" --run-tests
 ```
 
 This will:
