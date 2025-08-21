@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import pandas as pd
+from channel_mapping import create_channel_name_mapping
 
 
 def get_file_paths(primary_data_path: str, test_details_path: str, output_pdf_path: str):
@@ -64,6 +65,10 @@ def load_test_information(test_details_path: str):
     channels_to_record.set_index(0, inplace=True)
     channels_to_record.fillna('', inplace=True)
 
+    # Create the channel name mapping
+    custom_channel_names = channels_to_record.index.tolist()
+    default_to_custom_map = create_channel_name_mapping(custom_channel_names)
+
     with open(test_details_path, 'r', encoding='utf-8') as f:
         row_count = sum(1 for _ in f)
 
@@ -86,6 +91,7 @@ def load_test_information(test_details_path: str):
         channels_to_record,
         additional_info,
         program_name,
+        default_to_custom_map,
     )
 
 def prepare_primary_data(primary_data_path: str, channels_to_record: pd.DataFrame):
