@@ -102,10 +102,7 @@ class HoldsReportGenerator(BaseReportGenerator):
 
         unique_path = self.build_output_path(self.test_metadata)
         holds_indices, holds_values = locate_key_time_rows(self.cleaned_data, single_info)
-
-        print(holds_indices)
-        print(holds_values)
-
+        
         figure, axes, axis_map = plot_channel_data(
             active_channels=self.active_channels,
             cleaned_data=self.cleaned_data,

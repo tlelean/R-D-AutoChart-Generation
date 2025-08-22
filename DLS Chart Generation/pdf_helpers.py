@@ -9,6 +9,7 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
+import os
 
 class Layout:
     """Class to hold all layout constants for the PDF report."""
@@ -151,7 +152,9 @@ def insert_plot_and_logo(figure, pdf, is_table):
             mask="auto",
         )
 
-    image_path = "./DLS Chart Generation/R&D.png"
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    image_path = os.path.join(BASE_DIR, "R&D.png")
+
     try:
         pdf.drawImage(
             image_path,

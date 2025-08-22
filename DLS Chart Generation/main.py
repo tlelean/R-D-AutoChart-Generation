@@ -69,7 +69,6 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
                 pix = page.get_pixmap(matrix=mat)
                 pix.save(output_path)
                 doc.close()
-                print(f"Successfully generated PNG preview at {output_path}")
 
 def main():
     """
