@@ -10,8 +10,6 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 
-import config
-
 class Layout:
     """Class to hold all layout constants for the PDF report."""
     PAGE_WIDTH, PAGE_HEIGHT = landscape(A4)

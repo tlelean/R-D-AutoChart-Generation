@@ -1,0 +1,46 @@
+Test Procedure Reference,Test Procedure Reference
+Unique Number,Unique Number
+R&D Reference,R&D Reference
+Valve Description,Valve Description
+Job Number,Job Number
+Valve Drawing Number,Valve Drawing Number
+Attempt,Attempt
+Test Name,  Upstream Seat Pressure Test
+Test Section Number,
+Test Pressure,10000
+Data Logger,DLS Prototype
+Serial Number,
+Operative,David Kay
+Breakout Torque,0.0
+Running Torque,0.0
+Date Time,22-8-2025_9-25-45
+Program Name,Holds-Seat
+Show Breakout Torque,FALSE
+Test Start Time,
+Upstream,,,TRUE
+Downstream,,,TRUE
+Body,,,FALSE
+Actuator,,,FALSE
+Hyperbaric,,,FALSE
+Backseat,,,FALSE
+Spring Chamber,,,FALSE
+Primary Stem Seal,,,FALSE
+Secondary Stem Seal,,,FALSE
+Relief Port,,,FALSE
+BX Port,,,FALSE
+Spare,,,FALSE
+Flow Meter,,,FALSE
+Mass Spectrometer,,,FALSE
+LVDT,,,FALSE
+Torque,,,FALSE
+Number Of Turns,,,TRUE
+Motor Speed,,,TRUE
+Ambient Temperature,,,TRUE
+Body Temperature,,,TRUE
+Monitor Temperature,,,FALSE
+Chamber Temperature,,,FALSE
+Hyperbaric Water Temperature,,,FALSE
+Close,,,FALSE
+Open,,,FALSE
+Cycle Count,,,FALSE
+,Datetime,Upstream,Temperature

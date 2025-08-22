@@ -15,7 +15,7 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/DLS Chart Generation/main.py",
-      "args": ["${workspaceFolder}/Example Data/_Data_13-8-2025_15-9-15.csv", "${workspaceFolder}/Example Data/_Test_Details_13-8-2025_15-9-15.csv", "${workspaceFolder}/Example Data/"],
+      "args": ["${workspaceFolder}/Example Data/_Data_22-8-2025_9-25-45.csv", "${workspaceFolder}/Example Data/_Test_Details_22-8-2025_9-25-45.csv", "${workspaceFolder}/Example Data/"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}"
     }
