@@ -1,0 +1,49 @@
+Test Procedure Reference,Test Procedure Reference
+Unique Number,Unique Number
+R&D Reference,R&D Reference
+Valve Description,Valve Description
+Job Number,Job Number
+Valve Drawing Number,Valve Drawing Number
+Attempt,Attempt
+Test Name,4.0 Hydrostatic Upstream Seat Pressure Test API 6A
+Test Section Number,4.0
+Test Pressure,10000
+Data Logger,DLS Prototype
+Serial Number,
+Operative,Toby Lelean
+Breakout Torque,0.0
+Running Torque,0.0
+Date Time,22-8-2025_11-47-35
+Program Name,Holds-Seat
+Show Breakout Torque,FALSE
+Test Start Time,
+Upstream,,,TRUE
+Downstream,,,TRUE
+Body,,,FALSE
+Actuator,,,FALSE
+Hyperbaric,,,FALSE
+Backseat,,,FALSE
+Spring Chamber,,,FALSE
+Primary Stem Seal,,,FALSE
+Secondary Stem Seal,,,FALSE
+Relief Port,,,FALSE
+BX Port,,,FALSE
+Spare,,,FALSE
+Flow Meter,,,FALSE
+Mass Spectrometer,,,FALSE
+LVDT,,,FALSE
+Torque,,,FALSE
+Number Of Turns,,,FALSE
+Motor Speed,,,FALSE
+Ambient Temperature,,,TRUE
+Body Temperature,,,TRUE
+Monitor Temperature,,,FALSE
+Chamber Temperature,,,FALSE
+Hyperbaric Water Temperature,,,FALSE
+Close,,,FALSE
+Open,,,FALSE
+Cycle Count,,,FALSE
+,Datetime,Upstream,Temperature
+Start of Stabilisation,22/8/2025 11:47:49.937,,
+Start of Hold,22/8/2025 11:50:53.937,,
+End of Hold,22/8/2025 11:51:55.937,,

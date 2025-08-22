@@ -72,25 +72,39 @@ class GenericReportGenerator(BaseReportGenerator):
         return unique_path
 
 class HoldsReportGenerator(BaseReportGenerator):
+    """Generate reports for hold tests.
+
+    The ``additional_info`` DataFrame is expected to contain a single header
+    row followed by groups of three data rows describing individual holds.
+    """
+
     def generate(self) -> Path:
         title_prefix = self.test_metadata.at['Test Section Number', 1]
+        header = self.additional_info.iloc[[0]]
         if len(self.additional_info) > 1:
-            for index in self.additional_info.index:
-                self._generate_single_hold_report(title_prefix, index)
+            for group_idx, start in enumerate(range(1, len(self.additional_info), 3)):
+                group = pd.concat(
+                    [header, self.additional_info.iloc[start:start + 3]],
+                    ignore_index=True,
+                )
+                self._generate_single_hold_report(title_prefix, group, group_idx)
         else:
-            self._generate_single_hold_report(title_prefix)
+            self._generate_single_hold_report(title_prefix, self.additional_info, None)
         return self.build_output_path(self.test_metadata)
 
-    def _generate_single_hold_report(self, title_prefix, index=None):
+    def _generate_single_hold_report(self, title_prefix, info_df, group_idx=None):
         is_table = True
-        if index is not None:
-            self.test_metadata.at['Test Section Number', 1] = f"{title_prefix}.{index + 1}"
-            single_info = self.additional_info.loc[[index]]
-        else:
-            single_info = self.additional_info
+        if group_idx is not None:
+            self.test_metadata.at['Test Section Number', 1] = (
+                f"{title_prefix}.{group_idx + 1}"
+            )
+        single_info = info_df
 
         unique_path = self.build_output_path(self.test_metadata)
         holds_indices, holds_values = locate_key_time_rows(self.cleaned_data, single_info)
+
+        print(holds_indices)
+        print(holds_values)
 
         figure, axes, axis_map = plot_channel_data(
             active_channels=self.active_channels,

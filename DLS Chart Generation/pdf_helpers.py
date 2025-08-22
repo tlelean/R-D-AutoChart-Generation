@@ -201,7 +201,7 @@ def draw_layout_boxes(pdf, is_table):
     PDF_LAYOUT_BOXES = [
         (Layout.HEADER_X, Layout.HEADER_Y, Layout.HEADER_W, Layout.HEADER_H),
         (Layout.GRAPH_X, Layout.GRAPH_Y_TABLE, Layout.GRAPH_W, Layout.GRAPH_H_TABLE),
-        ((Layout.TABLE_X, Layout.TABLE_Y, Layout.TABLE_W, Layout.TABLE_H),) if is_table else (0, 0, 0, 0),
+        (Layout.TABLE_X, Layout.TABLE_Y, Layout.TABLE_W, Layout.TABLE_H) if is_table else (0, 0, 0, 0),
         (Layout.CYCLE_COUNT_X, Layout.CYCLE_COUNT_Y, Layout.CYCLE_COUNT_W, Layout.CYCLE_COUNT_H),
         (Layout.TEST_PRESSURE_X, Layout.TEST_PRESSURE_Y, Layout.TEST_PRESSURE_W, Layout.TEST_PRESSURE_H),
         (Layout.BREAKOUT_TORQUE_X, Layout.BREAKOUT_TORQUE_Y, Layout.BREAKOUT_TORQUE_W, Layout.BREAKOUT_TORQUE_H),

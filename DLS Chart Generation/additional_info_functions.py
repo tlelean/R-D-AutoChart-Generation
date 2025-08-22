@@ -141,7 +141,7 @@ def locate_key_time_rows(cleaned_data, additional_info):
     if additional_info.empty:
         return None, None
     else:
-        holds_indices = additional_info.copy()
+        holds_indices = pd.DataFrame(index=range(1), columns=[1, 2, 3])
         holds_values = additional_info.copy()
         date_time_index = cleaned_data.set_index('Datetime')
 
@@ -152,15 +152,19 @@ def locate_key_time_rows(cleaned_data, additional_info):
                 errors="coerce",
                 dayfirst=True,
             )
-            holds_indices.at[row, 1] = date_time_index.index.get_indexer(
-                holds_values.iloc[row, 1],
+            if pd.isna(holds_values.iloc[row, 1]):
+                continue
+            holds_indices.at[0, row] = date_time_index.index.get_indexer(
+                [holds_values.iloc[row, 1]],
                 method="nearest",
             )[0]
-            rowpos = holds_indices.iloc[row, 1]
+
+            rowpos = holds_indices.at[0, row]
             colpos_value = cleaned_data.columns.get_loc(holds_values.at[0, 2])
             colpos_temp  = cleaned_data.columns.get_loc("Body Temperature")
             holds_values.at[row, 2] = cleaned_data.iloc[rowpos, colpos_value]
             holds_values.at[row, 3] = cleaned_data.iloc[rowpos, colpos_temp]
+        holds_indices.columns = ['SOS_Index', 'SOH_Index', 'EOH_Index']
         return holds_indices, holds_values
 
 def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_map: dict[str, str]):

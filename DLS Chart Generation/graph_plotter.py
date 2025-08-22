@@ -42,6 +42,9 @@ def plot_crosses(df, channel, data, ax, label_positions=None):
             "RPC": {"x_offset": 0, "y_offset": -14.14},
             "JTC": {"x_offset": 0,  "y_offset": 14.14},
             "RNC": {"x_offset": 0, "y_offset": -14.14},
+            "SOS": {"x_offset": 10, "y_offset": 10},
+            "SOH": {"x_offset": 10, "y_offset": 10},
+            "EOH": {"x_offset": 10, "y_offset": 10},
         }
 
         idx_cols = [c for c in df.columns if c.endswith("_Index")]
@@ -75,9 +78,6 @@ def plot_crosses(df, channel, data, ax, label_positions=None):
                     va="center",
                     fontsize=10,
                 )
-
-    #plt.show()
-
 
 def axis_location(active_channels, custom_to_default_map):
     """Map each active channel to an axis position."""
