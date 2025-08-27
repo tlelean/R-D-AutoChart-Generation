@@ -11,6 +11,19 @@ from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 import os
 
+def format_torque(value):
+    """Return a torque string with units or special cases."""
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped in {"See Table", "N/A"} or stripped.endswith("ft.lbs"):
+            return stripped
+    try:
+        if float(value) == 0:
+            return "N/A"
+    except (TypeError, ValueError):
+        return f"{value} ft.lbs"
+    return f"{value} ft.lbs"
+
 class Layout:
     """Class to hold all layout constants for the PDF report."""
     PAGE_WIDTH, PAGE_HEIGHT = landscape(A4)
@@ -269,9 +282,9 @@ def build_static_text_positions(test_metadata, light_blue, black, max_cycle=None
         (Layout.RIGHT_COL_LABEL_X, Layout.CYCLE_COUNT_TEXT_Y, "Cycle Count", black, False),
         (Layout.RIGHT_COL_VALUE_X, Layout.CYCLE_COUNT_TEXT_Y - 1.25, f"{max_cycle}" if max_cycle is not None else "", light_blue, True),
         (Layout.RIGHT_COL_LABEL_X, Layout.BREAKOUT_TORQUE_TEXT_Y, "Breakout Torque", black, False),
-        (Layout.RIGHT_COL_VALUE_X, Layout.BREAKOUT_TORQUE_TEXT_Y, f"{test_metadata.at['Breakout Torque', 1]} ft.lbs" if test_metadata.at['Breakout Torque', 1] != "See Table" else "See Table", light_blue, True),
+        (Layout.RIGHT_COL_VALUE_X, Layout.BREAKOUT_TORQUE_TEXT_Y, format_torque(test_metadata.at['Breakout Torque', 1]), light_blue, True),
         (Layout.RIGHT_COL_LABEL_X, Layout.RUNNING_TORQUE_TEXT_Y, "Running Torque", black, False),
-        (Layout.RIGHT_COL_VALUE_X, Layout.RUNNING_TORQUE_TEXT_Y, f"{test_metadata.at['Running Torque', 1]} ft.lbs" if test_metadata.at['Running Torque', 1] != "See Table" else "See Table", light_blue, True),
+        (Layout.RIGHT_COL_VALUE_X, Layout.RUNNING_TORQUE_TEXT_Y, format_torque(test_metadata.at['Running Torque', 1]), light_blue, True),
 
         (Layout.RIGHT_COL_LABEL_X, Layout.DATA_LOGGER_Y, "Data Logger", black, False),
         (Layout.RIGHT_COL_VALUE_X, Layout.DATA_LOGGER_Y, test_metadata.at['Data Logger', 1], light_blue, True),
@@ -366,10 +379,24 @@ def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:
         draw_text_on_pdf(pdf, text, x, y, colour=colour, size=10, left_aligned=True, replace_empty=replace_empty)
 
-def draw_test_details(test_metadata, transducer_details, active_channels, cleaned_data, pdf_output_path, is_table, raw_data):
-    if is_table:
-        test_metadata.at['Breakout Torque', 1] = 'See Table'
-        test_metadata.at['Running Torque', 1] = 'See Table'    
+def draw_test_details(
+    test_metadata,
+    transducer_details,
+    active_channels,
+    cleaned_data,
+    pdf_output_path,
+    is_table,
+    raw_data,
+    has_breakout_table: bool = False,
+):
+    if is_table and has_breakout_table:
+        for field in ("Breakout Torque", "Running Torque"):
+            test_metadata.at[field, 1] = "See Table"
+    else:
+        for field in ("Breakout Torque", "Running Torque"):
+            test_metadata.at[field, 1] = format_torque(
+                test_metadata.at[field, 1]
+            )
     pdf = canvas.Canvas(str(pdf_output_path), pagesize=landscape(A4))
     pdf.setStrokeColor(colors.black)
     draw_layout_boxes(pdf, is_table)

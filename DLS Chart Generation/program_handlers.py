@@ -190,7 +190,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         )
         plot_crosses(df=index_slice, channel='Torque', data=data_slice, ax=axes[axis_map['Torque']])
         pdf = draw_test_details(
-            meta, self.transducer_details, self.active_channels, data_slice, unique_path, True, self.raw_data
+            meta, self.transducer_details, self.active_channels, data_slice, unique_path, True, self.raw_data, has_breakout_table=True
         )
         draw_table(pdf_canvas=pdf, dataframe=result_slice)
         insert_plot_and_logo(figure, pdf, True)
@@ -219,7 +219,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         plot_crosses(df=breakout_indices, channel='Torque', data=self.cleaned_data, ax=axes[axis_map['Torque']])
         pdf = draw_test_details(
             self.test_metadata, self.transducer_details, self.active_channels,
-            self.cleaned_data, unique_path, True, self.raw_data
+            self.cleaned_data, unique_path, True, self.raw_data, has_breakout_table=True
         )
         draw_table(pdf_canvas=pdf, dataframe=breakout_values)
         insert_plot_and_logo(figure, pdf, True)
@@ -296,7 +296,7 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
         )
         plot_crosses(df=index_slice, channel=plot_channel, data=data_slice, ax=axes[axis_map[axis_key]])
         pdf = draw_test_details(
-            meta, self.transducer_details, self.active_channels, data_slice, unique_path, True, self.raw_data
+            meta, self.transducer_details, self.active_channels, data_slice, unique_path, True, self.raw_data, has_breakout_table=True
         )
         draw_table(pdf_canvas=pdf, dataframe=result_slice)
         insert_plot_and_logo(figure, pdf, True)
