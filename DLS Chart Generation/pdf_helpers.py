@@ -33,19 +33,19 @@ class Layout:
     HEADER_W = 600
     HEADER_H = 65
 
-    # Graph section
-    GRAPH_X = CONTENT_X_START
-    GRAPH_Y_TABLE = CONTENT_Y_START
-    GRAPH_H_TABLE = 469
-    GRAPH_Y_NO_TABLE = CONTENT_X_START
-    GRAPH_H_NO_TABLE = 468
-    GRAPH_W = 600
-
     # Graph index/table section
     TABLE_X = CONTENT_X_START
-    TABLE_Y = 15
-    TABLE_W = 600
+    TABLE_Y = CONTENT_Y_START
+    TABLE_W = HEADER_W
     TABLE_H = 51.5
+
+    # Graph section
+    GRAPH_X = CONTENT_X_START
+    GRAPH_Y_NO_TABLE = CONTENT_Y_START
+    GRAPH_H_NO_TABLE = 469
+    GRAPH_Y_TABLE = CONTENT_Y_START + TABLE_H
+    GRAPH_H_TABLE = GRAPH_H_NO_TABLE - TABLE_H
+    GRAPH_W = HEADER_W
 
     # Right-hand side boxes
     RIGHT_COL_X = 630
@@ -203,7 +203,7 @@ def draw_text_on_pdf(
 def draw_layout_boxes(pdf, is_table):
     PDF_LAYOUT_BOXES = [
         (Layout.HEADER_X, Layout.HEADER_Y, Layout.HEADER_W, Layout.HEADER_H),
-        (Layout.GRAPH_X, Layout.GRAPH_Y_TABLE, Layout.GRAPH_W, Layout.GRAPH_H_TABLE),
+        (Layout.GRAPH_X, Layout.GRAPH_Y_TABLE, Layout.GRAPH_W, Layout.GRAPH_H_TABLE) if is_table else (Layout.GRAPH_X, Layout.GRAPH_Y_NO_TABLE, Layout.GRAPH_W, Layout.GRAPH_H_NO_TABLE),
         (Layout.TABLE_X, Layout.TABLE_Y, Layout.TABLE_W, Layout.TABLE_H) if is_table else (0, 0, 0, 0),
         (Layout.CYCLE_COUNT_X, Layout.CYCLE_COUNT_Y, Layout.CYCLE_COUNT_W, Layout.CYCLE_COUNT_H),
         (Layout.TEST_PRESSURE_X, Layout.TEST_PRESSURE_Y, Layout.TEST_PRESSURE_W, Layout.TEST_PRESSURE_H),
