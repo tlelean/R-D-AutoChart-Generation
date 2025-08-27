@@ -40,6 +40,12 @@ def load_test_information(test_details_path: str):
         ).fillna("")
     )
 
+    test_section_number = str(test_metadata.at["Test Section Number", 1]).strip()
+    test_name = str(test_metadata.at["Test Name", 1]).strip()
+    prefix = f"{test_section_number} "
+    if test_section_number and test_name.startswith(prefix):
+        test_metadata.at["Test Name", 1] = test_name[len(prefix):]
+
     transducer_details = (
         load_csv_file(
             test_details_path,

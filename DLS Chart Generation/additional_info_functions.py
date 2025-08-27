@@ -170,7 +170,10 @@ def locate_key_time_rows(cleaned_data, additional_info):
 def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_map: dict[str, str]):
     if additional_info.empty:
         return None, None
-    elif additional_info.shape == (1, 4) and channels_to_record.at[channel_map["Torque"], 1]:
+    elif (
+        additional_info.iloc[0, :3].astype(str).tolist() == ["Cycle", "BTO", "BTC"]
+        and channels_to_record.at[channel_map["Torque"], 1]
+    ):
         breakout_values: List[Dict[str, Any]] = []
         breakout_indices: List[Dict[str, Any]] = []
 

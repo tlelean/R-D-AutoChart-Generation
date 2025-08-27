@@ -81,8 +81,10 @@ class HoldsReportGenerator(BaseReportGenerator):
     def generate(self) -> Path:
         title_prefix = self.test_metadata.at['Test Section Number', 1]
         header = self.additional_info.iloc[[0]]
-        if len(self.additional_info) > 1:
-            for group_idx, start in enumerate(range(1, len(self.additional_info), 3)):
+        group_count = (len(self.additional_info) - 1) // 3
+        if group_count > 1:
+            for group_idx in range(group_count):
+                start = 1 + group_idx * 3
                 group = pd.concat(
                     [header, self.additional_info.iloc[start:start + 3]],
                     ignore_index=True,
@@ -102,7 +104,7 @@ class HoldsReportGenerator(BaseReportGenerator):
 
         unique_path = self.build_output_path(self.test_metadata)
         holds_indices, holds_values = locate_key_time_rows(self.cleaned_data, single_info)
-        
+
         figure, axes, axis_map = plot_channel_data(
             active_channels=self.active_channels,
             cleaned_data=self.cleaned_data,
