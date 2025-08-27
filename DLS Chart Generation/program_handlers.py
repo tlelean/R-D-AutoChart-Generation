@@ -103,7 +103,7 @@ class HoldsReportGenerator(BaseReportGenerator):
         single_info = info_df
 
         unique_path = self.build_output_path(self.test_metadata)
-        holds_indices, holds_values = locate_key_time_rows(self.cleaned_data, single_info)
+        holds_indices, display_table = locate_key_time_rows(self.cleaned_data, single_info)
 
         figure, axes, axis_map = plot_channel_data(
             active_channels=self.active_channels,
@@ -114,7 +114,7 @@ class HoldsReportGenerator(BaseReportGenerator):
         )
         plot_crosses(
             df=holds_indices,
-            channel=holds_values.at[0, 2],
+            channel=single_info.iloc[0, 2],
             data=self.cleaned_data,
             ax=axes[axis_map["Pressure"]],
         )
@@ -122,7 +122,7 @@ class HoldsReportGenerator(BaseReportGenerator):
             self.test_metadata, self.transducer_details, self.active_channels,
             self.cleaned_data, unique_path, is_table, self.raw_data
         )
-        draw_table(pdf_canvas=pdf, dataframe=single_info)
+        draw_table(pdf_canvas=pdf, dataframe=display_table)
         insert_plot_and_logo(figure, pdf, is_table)
 
 class BreakoutsReportGenerator(BaseReportGenerator):
@@ -145,28 +145,32 @@ class BreakoutsReportGenerator(BaseReportGenerator):
             middle_cycles = all_cycles[middle_start:middle_start + 3]
             last_cycles = all_cycles[-3:]
             grouped_cycles = [first_cycles, middle_cycles, last_cycles]
-            remaining_cycles = [c for c in all_cycles if c not in set().union(*grouped_cycles)]
+            pre_middle_cycles = all_cycles[3:middle_start]
+            post_middle_cycles = all_cycles[middle_start + 3:-3]
+            remaining_segments = [seg for seg in (pre_middle_cycles, post_middle_cycles) if seg]
 
             total_group_pages = sum(1 for grp in grouped_cycles if grp)
-            total_remaining_pages = math.ceil(len(remaining_cycles) / 40)
+            total_remaining_pages = sum(math.ceil(len(seg) / 40) for seg in remaining_segments)
             total_pages = total_group_pages + total_remaining_pages
 
             page_idx = 1
             for group in grouped_cycles:
-                if not group: continue
+                if not group:
+                    continue
                 path = self._generate_grouped_cycle_page(
                     group, page_idx, total_pages, base_section, cycle_ranges, breakout_values, breakout_indices
                 )
                 generated_paths.append(path)
                 page_idx += 1
 
-            for i in range(0, len(remaining_cycles), 40):
-                group = remaining_cycles[i:i + 40]
-                path = self._generate_multi_cycle_page(
-                    group, page_idx, total_pages, base_section, cycle_ranges
-                )
-                generated_paths.append(path)
-                page_idx += 1
+            for seg in remaining_segments:
+                for i in range(0, len(seg), 40):
+                    group = seg[i:i + 40]
+                    path = self._generate_multi_cycle_page(
+                        group, page_idx, total_pages, base_section, cycle_ranges
+                    )
+                    generated_paths.append(path)
+                    page_idx += 1
         else:
             path = self._generate_single_page_report(breakout_values, breakout_indices)
             generated_paths.append(path)
@@ -246,25 +250,32 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
             values_df, indices_df, plot_channel, axis_key = actuator_values, actuator_indices, self.channel_map['Actuator'], 'Pressure'
 
         if max_cycle >= 10:
-            first_cycles, middle_cycles, last_cycles = all_cycles[:3], all_cycles[max(0, (max_cycle // 2) - 1):max(0, (max_cycle // 2) - 1) + 3], all_cycles[-3:]
-            selected_cycles = sorted(list(set(first_cycles + middle_cycles + last_cycles)))
-            remaining_cycles = [c for c in all_cycles if c not in selected_cycles]
+            middle_start = max(0, (max_cycle // 2) - 1)
+            first_cycles = all_cycles[:3]
+            middle_cycles = all_cycles[middle_start:middle_start + 3]
+            last_cycles = all_cycles[-3:]
+            grouped_cycles = sorted(set(first_cycles + middle_cycles + last_cycles))
 
-            total_pages = len(selected_cycles) + math.ceil(len(remaining_cycles) / 40)
+            pre_middle_cycles = all_cycles[3:middle_start]
+            post_middle_cycles = all_cycles[middle_start + 3:-3]
+            remaining_segments = [seg for seg in (pre_middle_cycles, post_middle_cycles) if seg]
+
+            total_pages = len(grouped_cycles) + sum(math.ceil(len(seg) / 40) for seg in remaining_segments)
 
             page_idx = 1
-            for cycle in selected_cycles:
+            for cycle in grouped_cycles:
                 path = self._generate_single_cycle_page(
                     cycle, page_idx, total_pages, base_section, cycle_ranges, values_df, indices_df, plot_channel, axis_key
                 )
                 generated_paths.append(path)
                 page_idx += 1
 
-            for i in range(0, len(remaining_cycles), 40):
-                group = remaining_cycles[i:i + 40]
-                path = self._generate_multi_cycle_page(group, page_idx, total_pages, base_section, cycle_ranges)
-                generated_paths.append(path)
-                page_idx += 1
+            for seg in remaining_segments:
+                for i in range(0, len(seg), 40):
+                    group = seg[i:i + 40]
+                    path = self._generate_multi_cycle_page(group, page_idx, total_pages, base_section, cycle_ranges)
+                    generated_paths.append(path)
+                    page_idx += 1
         else:
             path = self._generate_single_page_report(values_df, indices_df, plot_channel, axis_key)
             generated_paths.append(path)

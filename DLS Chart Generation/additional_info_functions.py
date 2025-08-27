@@ -165,8 +165,33 @@ def locate_key_time_rows(cleaned_data, additional_info):
             holds_values.at[row, 2] = cleaned_data.iloc[rowpos, colpos_value]
             holds_values.at[row, 3] = cleaned_data.iloc[rowpos, colpos_temp]
         holds_indices.columns = ['SOS_Index', 'SOH_Index', 'EOH_Index']
-        return holds_indices, holds_values
+        holds_values.columns = holds_values.iloc[0]
+        holds_values = holds_values.iloc[1:].set_index(holds_values.columns[0])
+        holds_values["Datetime"] = pd.to_datetime(
+            holds_values["Datetime"], format="%d/%m/%Y %H:%M:%S.%f", dayfirst=True
+        )
+        display_table = holds_values.copy()
+        display_table["Datetime"] = display_table["Datetime"].dt.strftime("%d/%m/%Y %H:%M:%S")
 
+        if len(display_table.columns) > 1:
+            pressure_col = display_table.columns[1]
+            display_table[pressure_col] = (
+                pd.to_numeric(display_table[pressure_col], errors="coerce")
+                .round(0)
+                .astype('Int64')
+            )
+            display_table.rename(
+                columns={pressure_col: f"{pressure_col} (psi)"}, inplace=True
+            )
+
+        if "Temperature" in display_table.columns:
+            display_table.rename(
+                columns={"Temperature": "Temperature (°C)"},
+                inplace=True,
+            )
+
+        return holds_indices, display_table
+    
 def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_map: dict[str, str]):
     if additional_info.empty:
         return None, None
@@ -196,8 +221,8 @@ def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_m
             # Store values
             breakout_values.append({
                 "Cycle": cycle,
-                "BTO": bto,
-                "BTC": btc,
+                "BTO (lb·ft)": bto,
+                "BTC (lb·ft)": btc,
             })
             breakout_indices.append({
                 "Cycle": cycle,
