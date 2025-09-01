@@ -107,7 +107,6 @@ def prepare_primary_data(primary_data_path: str, channels_to_record: pd.DataFram
     raw_data = load_csv_file(
         primary_data_path,
         header=0,
-        parse_dates=["Datetime"],
     ).iloc[:-1]
 
     # Identify which channels are actually recorded
@@ -122,7 +121,8 @@ def prepare_primary_data(primary_data_path: str, channels_to_record: pd.DataFram
     data_subset["Datetime"] = pd.to_datetime(
         data_subset["Datetime"],
         format="%d/%m/%Y %H:%M:%S.%f",
-        errors="coerce",  # in case of any parse issues
+        errors="coerce",
+        dayfirst=True,
     )
 
     # Ensure 'Datetime' is the first column

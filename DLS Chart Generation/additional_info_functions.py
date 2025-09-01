@@ -144,7 +144,6 @@ def locate_key_time_rows(cleaned_data, additional_info):
         holds_indices = pd.DataFrame(index=range(1), columns=[1, 2, 3])
         holds_values = additional_info.copy()
         date_time_index = cleaned_data.set_index('Datetime')
-
         for row in range(1, len(holds_values)):
             holds_values.at[row, 1] = pd.to_datetime(
                 holds_values.at[row, 1],
@@ -158,7 +157,6 @@ def locate_key_time_rows(cleaned_data, additional_info):
                 [holds_values.iloc[row, 1]],
                 method="nearest",
             )[0]
-
             rowpos = holds_indices.at[0, row]
             colpos_value = cleaned_data.columns.get_loc(holds_values.at[0, 2])
             colpos_temp  = cleaned_data.columns.get_loc("Body Temperature")
@@ -168,7 +166,7 @@ def locate_key_time_rows(cleaned_data, additional_info):
         holds_values.columns = holds_values.iloc[0]
         holds_values = holds_values.iloc[1:].set_index(holds_values.columns[0])
         holds_values["Datetime"] = pd.to_datetime(
-            holds_values["Datetime"], format="%d/%m/%Y %H:%M:%S.%f", dayfirst=True
+            holds_values["Datetime"], format="%Y-%m-%d %H:%M:%S.%f", dayfirst=True
         )
         display_table = holds_values.copy()
         display_table["Datetime"] = display_table["Datetime"].dt.strftime("%d/%m/%Y %H:%M:%S")
