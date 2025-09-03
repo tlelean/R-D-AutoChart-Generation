@@ -10,6 +10,7 @@ from data_loading import (
     prepare_primary_data,
 )
 from program_handlers import HANDLERS
+from mass_spec_report import generate_mass_spec_reports
 
 def process_files_and_generate_report(primary_data_file, test_details_file, pdf_output_path, run_tests):
     """
@@ -19,6 +20,7 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
         test_metadata,
         transducer_details,
         channels_to_record,
+        part_windows,
         additional_info,
         program_name,
         default_to_custom_map,
@@ -43,10 +45,28 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
         cleaned_data=cleaned_data,
         raw_data=raw_data,
         additional_info=additional_info,
+        part_windows=part_windows,
         channels_to_record=channels_to_record,
         channel_map=default_to_custom_map,
     )
     unique_pdf_output_path = handler_instance.generate()
+
+    mass_spec_channel = default_to_custom_map.get("Mass Spectrometer")
+    if (
+        (part_windows[["Start", "Stop"]].notna().sum().sum() != 0)
+        and mass_spec_channel in cleaned_data.columns
+        ):
+        generate_mass_spec_reports(
+            cleaned_data=cleaned_data,
+            part_windows=part_windows,
+            mass_spec_channel=mass_spec_channel,
+            test_metadata=test_metadata,
+            transducer_details=transducer_details,
+            pdf_output_path=pdf_output_path,
+            channels_to_record=channels_to_record,
+            channel_map=default_to_custom_map,
+            raw_data=raw_data,
+        )
 
     # Extra copy if not GUI
     if not run_tests:

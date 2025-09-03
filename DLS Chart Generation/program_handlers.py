@@ -33,6 +33,7 @@ class BaseReportGenerator:
         self.cleaned_data = kwargs.get("cleaned_data")
         self.raw_data = kwargs.get("raw_data")
         self.additional_info = kwargs.get("additional_info")
+        self.part_windows = kwargs.get("part_windows")
         self.channels_to_record = kwargs.get("channels_to_record")
         self.channel_map = kwargs.get("channel_map")
 

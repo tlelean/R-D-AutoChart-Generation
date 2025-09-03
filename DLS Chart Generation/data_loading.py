@@ -71,6 +71,18 @@ def load_test_information(test_details_path: str):
     channels_to_record.set_index(0, inplace=True)
     channels_to_record.fillna('', inplace=True)
 
+    part_windows = (
+        load_csv_file(
+            test_details_path,
+            header=None,
+            usecols=[0, 1, 2],
+            skiprows=45,
+            nrows=13,
+        ).fillna("")
+    )
+
+    part_windows.columns = ["Part", "Start", "Stop"]
+
     # Create the channel name mapping
     custom_channel_names = channels_to_record.index.tolist()
     default_to_custom_map = create_channel_name_mapping(custom_channel_names)
@@ -78,12 +90,12 @@ def load_test_information(test_details_path: str):
     with open(test_details_path, 'r', encoding='utf-8') as f:
         row_count = sum(1 for _ in f)
 
-    if row_count > 45:
+    if row_count > 58:
         additional_info = (
             load_csv_file(
                 test_details_path,
                 header=None,
-                skiprows=45,
+                skiprows=58,
             ).reset_index(drop=True)
         )
     else:
@@ -95,6 +107,7 @@ def load_test_information(test_details_path: str):
         test_metadata,
         transducer_details,
         channels_to_record,
+        part_windows,
         additional_info,
         program_name,
         default_to_custom_map,

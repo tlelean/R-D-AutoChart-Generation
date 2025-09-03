@@ -16,15 +16,9 @@ TEST_CASES = [
         "test_details_file": "V:/Userdoc/Mechatronics/Applications/Python/R&D AutoChart Generation/Example Data/Holds Seat/4.0_Test_Details_22-8-2025_11-47-35.csv",
         "pdf_output_path": "./Example Certs/",
     },
-        # Add more test cases here as needed, for example:
-    # {
-    #     "primary_data_file": "./Example Data/another_data_file.csv",
-    #     "test_details_file": "./Example Data/another_details_file.csv",
-    # },
-    # Add more test cases here as needed, for example:
-    # {
-    #     "primary_data_file": "./Example Data/another_data_file.csv",
-    #     "test_details_file": "./Example Data/another_details_file.csv",
-    #     "pdf_output_path": "./Example Data/",
-    # },
+    {
+        "primary_data_file": "V:/Userdoc/Mechatronics/Applications/Python/R&D AutoChart Generation/Example Data/Mass Spec/_Data_3-9-2025_15-24-3.csv",
+        "test_details_file": "V:/Userdoc/Mechatronics/Applications/Python/R&D AutoChart Generation/Example Data/Mass Spec/_Test_Details_3-9-2025_15-24-3.csv",
+        "pdf_output_path": "./Example Certs/",
+    },
 ]
