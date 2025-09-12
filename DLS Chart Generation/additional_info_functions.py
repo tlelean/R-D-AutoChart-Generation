@@ -92,11 +92,14 @@ def locate_calibration_points(cleaned_data, additional_info):
 
     for col in range(1, len(additional_info.columns)):
         calibration_times.at[0, col] = pd.to_datetime(
-            additional_info.at[0, col],
+            additional_info.at[1, col],
             format="%d/%m/%Y %H:%M:%S.%f",
             errors="coerce",
             dayfirst=True,
         )
+
+        # date_time_index = date_time_index[~date_time_index.index.duplicated(keep="first")]
+
         calibration_times.at[1, col] = calibration_times.at[0, col] + pd.Timedelta(seconds=10)
         calibration_indices.at[0, col] = date_time_index.index.get_indexer(
             [calibration_times.iloc[0, col]],
@@ -106,8 +109,8 @@ def locate_calibration_points(cleaned_data, additional_info):
             [calibration_times.iloc[1, col]],
             method="nearest",
         )[0]
-        calibration_values.at[0, col] = cleaned_data.iloc[calibration_indices.iloc[0, col]][additional_info.at[0, 0]]
-        calibration_values.at[1, col] = cleaned_data.iloc[calibration_indices.iloc[1, col]][additional_info.at[0, 0]]
+        calibration_values.at[0, col] = cleaned_data.iloc[calibration_indices.iloc[0, col]][additional_info.at[1, 0]]
+        calibration_values.at[1, col] = cleaned_data.iloc[calibration_indices.iloc[1, col]][additional_info.at[1, 0]]
     return calibration_indices, calibration_values
 
 def calculate_succesful_calibration(cleaned_data, calibration_indices, additional_info):
@@ -117,20 +120,20 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
     for i, col in enumerate(range(1, len(calibration_indices.columns))):
         start_idx = calibration_indices.iloc[0, col]
         end_idx = calibration_indices.iloc[1, col]
-        measured = cleaned_data.loc[start_idx:end_idx, additional_info.at[0, 0]].mean()
-        expected = (additional_info.at['', 0] / 4) * (col - 1)
+        measured = cleaned_data.loc[start_idx:end_idx, additional_info.at[1, 0]].mean()
+        expected = (float(additional_info.at[0, 0]) / 4) * (col - 1)
 
         measured_int = int(round(measured, 0))
         expected_int = int(round(expected, 0))
 
-        average_values.at['Measured', [i + 1]] = measured_int
-        average_values.at['Expected', [i + 1]] = expected_int
+        average_values.loc['Measured', [i + 1]] = measured_int
+        average_values.loc['Expected', [i + 1]] = expected_int
 
         if expected_int == 0:
-            average_values.at['Error %', [i + 1]] = float('NaN') if measured_int != 0 else 0.0
+            average_values.loc['Error %', [i + 1]] = float('NaN') if measured_int != 0 else 0.0
         else:
             error = ((measured_int - expected_int) / expected_int) * 100
-            average_values.at['Error %', [i + 1]] = round(error, 3)
+            average_values.loc['Error %', [i + 1]] = round(error, 3)
 
     average_values.insert(0, '', average_values.index)
 

@@ -15,7 +15,7 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/DLS Chart Generation/main.py",
-      "args": ["${workspaceFolder}/Example Data/Mass Spec/_Data_3-9-2025_15-24-3.csv", "${workspaceFolder}/Example Data/Mass Spec/_Test_Details_3-9-2025_15-24-3.csv", "${workspaceFolder}/Example Data/Mass Spec"],
+      "args": ["${workspaceFolder}/Example Data/Calibration/Calibration_Data_11-9-2025_14-28-6.csv", "${workspaceFolder}/Example Data/Calibration/Calibration_Test_Details_11-9-2025_14-28-6.csv", "${workspaceFolder}/Example Data/Calibration"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}"
     }

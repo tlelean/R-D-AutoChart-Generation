@@ -320,7 +320,7 @@ class CalibrationReportGenerator(BaseReportGenerator):
         for phase in calibration_indices.index:
             positions = calibration_indices.loc[phase].dropna().astype(int).tolist()
             times = self.cleaned_data["Datetime"].iloc[positions]
-            values = self.cleaned_data[self.additional_info.at[0, 0]].iloc[positions]
+            values = self.cleaned_data[self.additional_info.at[1, 0]].iloc[positions]
             axes[axis_map["Pressure"]].scatter(
                 times, values, marker='x', s=50, color='black', label=f'calib_{phase}'
             )

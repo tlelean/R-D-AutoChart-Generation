@@ -358,15 +358,16 @@ def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
                 break
 
         if error_row_idx is not None:
-            for col_idx, col_label in enumerate(header):
-                try:
-                    val = float(data[error_row_idx][col_idx])
-                    if abs(val) < 0.01:
-                        style.add('BACKGROUND', (col_idx, error_row_idx), (col_idx, error_row_idx), colors.limegreen)
-                    else:
-                        style.add('BACKGROUND', (col_idx, error_row_idx), (col_idx, error_row_idx), colors.red)
-                except Exception:
-                    pass 
+            numeric_row = pd.to_numeric(
+                dataframe.iloc[error_row_idx - 1, 1:], errors="coerce"
+            )
+            for col_idx, val in enumerate(numeric_row, start=1):
+                if pd.isna(val):
+                    continue
+                if abs(val) < 0.01:
+                    style.add('BACKGROUND', (col_idx, error_row_idx), (col_idx, error_row_idx), colors.limegreen)
+                else:
+                    style.add('BACKGROUND', (col_idx, error_row_idx), (col_idx, error_row_idx), colors.red)
 
         table.setStyle(style)
 
