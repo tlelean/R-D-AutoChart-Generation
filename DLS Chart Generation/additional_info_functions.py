@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
+import re
 
 def find_cycle_breakpoints(raw_data, channels_to_record, channel_map: dict[str, str]):
     cycle_count_data = raw_data[channel_map["Cycle Count"]]
@@ -98,8 +99,6 @@ def locate_calibration_points(cleaned_data, additional_info):
             dayfirst=True,
         )
 
-        # date_time_index = date_time_index[~date_time_index.index.duplicated(keep="first")]
-
         calibration_times.at[1, col] = calibration_times.at[0, col] + pd.Timedelta(seconds=10)
         calibration_indices.at[0, col] = date_time_index.index.get_indexer(
             [calibration_times.iloc[0, col]],
@@ -115,28 +114,28 @@ def locate_calibration_points(cleaned_data, additional_info):
 
 def calculate_succesful_calibration(cleaned_data, calibration_indices, additional_info):
     # Column labels: blank first column for row labels
-    average_values = pd.DataFrame(index=['', 'Measured', 'Expected', 'Error %'])
+    average_values = pd.DataFrame(index=['Applied (mA)', 'Counts (avg)', 'Converted (µA)', 'Abs Error (µA)'])
+
+    row = additional_info.iloc[0, 1:6]  # first row, columns 1 to 5
+    ma_values = row.str.extract(r"(\d+)")[0].astype(int).tolist()
 
     for i, col in enumerate(range(1, len(calibration_indices.columns))):
         start_idx = calibration_indices.iloc[0, col]
         end_idx = calibration_indices.iloc[1, col]
-        measured = cleaned_data.loc[start_idx:end_idx, additional_info.at[1, 0]].mean()
-        expected = (float(additional_info.at[0, 0]) / 4) * (col - 1)
+        applied = additional_info.at[0, col]
+        applied_int = ma_values[col-1]
+        counts = cleaned_data.loc[start_idx:end_idx, additional_info.at[1, 0]].mean()
+        converted = ((((ma_values[4] - ma_values[0]) / float(additional_info.at[0, 0])) * counts) + ma_values[0])*1000
+        error = (int(applied_int) * 1000) - converted
 
-        measured_int = int(round(measured, 0))
-        expected_int = int(round(expected, 0))
+        counts_round = int(counts)
+        converted_round = converted.round(2)
+        error_round = abs(error).round(2)
 
-        average_values.loc['Measured', [i + 1]] = measured_int
-        average_values.loc['Expected', [i + 1]] = expected_int
-
-        if expected_int == 0:
-            average_values.loc['Error %', [i + 1]] = float('NaN') if measured_int != 0 else 0.0
-        else:
-            error = ((measured_int - expected_int) / expected_int) * 100
-            average_values.loc['Error %', [i + 1]] = round(error, 3)
-
-    average_values.insert(0, '', average_values.index)
-
+        average_values.loc['Applied (mA)', [i + 1]] = applied
+        average_values.loc['Counts (avg)', [i + 1]] = counts_round
+        average_values.loc['Converted (µA)', [i + 1]] = converted_round
+        average_values.loc['Abs Error (µA)', [i + 1]] = error_round
     return average_values
 
 def locate_key_time_rows(cleaned_data, additional_info):

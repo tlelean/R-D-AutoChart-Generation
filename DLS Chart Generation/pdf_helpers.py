@@ -316,65 +316,78 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
 
 def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
     """Render a pandas DataFrame as a table on the PDF canvas."""
-    if dataframe is not None:
-        dataframe = dataframe.dropna(axis=1, how="all")
-        # 1) Build a list-of-lists with the header as the first row
-        header = list(dataframe.columns.astype(str))
-        body   = dataframe.astype(str).values.tolist()
-        data   = [header] + body
+    if dataframe is None:
+        return
 
-        # 2) Recompute rows/cols
-        rows = len(data)
-        cols = len(data[0])  # guaranteed >= 1
+    # Remove all-null columns (as you had)
+    df = dataframe.dropna(axis=1, how="all")
 
-        # 3) Compute uniform cell sizes
-        col_width  = width  / cols
-        row_height = height / rows
+    idx_labels  = list(df.index.astype(str))
 
-        # 4) Create the Table
-        table = Table(
-            data,
-            colWidths  =[col_width ] * cols,
-            rowHeights =[row_height] * rows,
-        )
+    # Body: each row starts with the index label, then row values
+    body_rows = [[idx_labels[i]] + [str(v) for v in row] for i, row in enumerate(df.values.tolist())]
 
-        # 5) Style: give the header a grey background, rest white
-        style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.white),  # header row
-            ('TEXTCOLOR',  (0, 0), (-1, 0), colors.black),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),     # body
-            ('TEXTCOLOR',  (0, 1), (-1, -1), colors.black),
-            ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME',   (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE',   (0, 0), (-1, -1), 8),
-            ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
-        ])
+    data = body_rows
 
-        error_row_idx = None
-        for i, row_label in enumerate(dataframe.index):
-            if row_label == "Error %":
-                error_row_idx = i + 1
-                break
+    # ---- Dimensions ----
+    rows = len(data)
+    cols = len(data[0])
 
-        if error_row_idx is not None:
-            numeric_row = pd.to_numeric(
-                dataframe.iloc[error_row_idx - 1, 1:], errors="coerce"
-            )
-            for col_idx, val in enumerate(numeric_row, start=1):
-                if pd.isna(val):
-                    continue
-                if abs(val) < 0.01:
-                    style.add('BACKGROUND', (col_idx, error_row_idx), (col_idx, error_row_idx), colors.limegreen)
-                else:
-                    style.add('BACKGROUND', (col_idx, error_row_idx), (col_idx, error_row_idx), colors.red)
+    # Give the first (index) column a bit more width
+    col_widths = width / cols
 
-        table.setStyle(style)
+    row_height = height / rows
 
-        # 6) Draw it
-        table.wrapOn(pdf_canvas, width, height)
-        table.drawOn(pdf_canvas, x, y)
+    table = Table(
+        data,
+        colWidths=col_widths,
+        rowHeights=[row_height] * rows,
+    )
 
+    style = TableStyle([
+        # Header row
+        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        ('TEXTCOLOR',  (0, 0), (-1, 0), colors.black),
+
+        # Body
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('TEXTCOLOR',  (0, 1), (-1, -1), colors.black),
+
+        # Alignment: centre first column (row labels) AND header row cell
+        ('ALIGN',      (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN',      (1, 0), (-1, -1), 'CENTER'),
+        ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+
+        ('FONTNAME',   (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE',   (0, 0), (-1, -1), 8),
+        ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
+    ])
+
+    # ---- Conditional colouring for "Abs Error (µA)" row ----
+    error_row_idx = None
+    for i, row_label in enumerate(df.index):
+        if row_label == "Abs Error (µA)":
+            # +1 because row 0 is the header row in the table
+            error_row_idx = i
+            break
+
+    if error_row_idx is not None:
+        # numeric values from the DataFrame (skip none)
+        numeric_row = pd.to_numeric(df.loc["Abs Error (µA)"], errors="coerce")
+        # In the table, data columns start at col 1 (col 0 is the index labels)
+        for col_offset, val in enumerate(numeric_row, start=1):
+            if pd.isna(val):
+                continue
+            if abs(val) < 3.6:
+                style.add('BACKGROUND', (col_offset, error_row_idx), (col_offset, error_row_idx), colors.limegreen)
+            else:
+                style.add('BACKGROUND', (col_offset, error_row_idx), (col_offset, error_row_idx), colors.red)
+
+    table.setStyle(style)
+
+    # ---- Draw ----
+    table.wrapOn(pdf_canvas, width, height)
+    table.drawOn(pdf_canvas, x, y)
 
 def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:
