@@ -9,6 +9,7 @@ from graph_plotter import (
     plot_channel_data,
     plot_crosses,
 )
+from plotter_info import CHANNEL_AXIS_NAMES_MAP
 from pdf_helpers import (
     draw_table,
     draw_test_details,
@@ -316,12 +317,19 @@ class CalibrationReportGenerator(BaseReportGenerator):
             channels_to_record=self.channels_to_record,
             is_table=is_table,
             channel_map=self.channel_map,
+            lock_temperature_axis=False,
         )
+        custom_to_default_map = {v: k for k, v in self.channel_map.items()}
         for phase in calibration_indices.index:
             positions = calibration_indices.loc[phase].dropna().astype(int).tolist()
             times = self.cleaned_data["Datetime"].iloc[positions]
-            values = self.cleaned_data[self.additional_info.at[1, 0]].iloc[positions]
-            axes[axis_map["Pressure"]].scatter(
+            channel_name = self.additional_info.at[1, 0]
+            default_channel_name = custom_to_default_map.get(channel_name, channel_name)
+            axis_type = CHANNEL_AXIS_NAMES_MAP.get(default_channel_name)
+            axis_location = axis_map.get(axis_type, "left")
+            axis = axes.get(axis_location, axes["left"])
+            values = self.cleaned_data[channel_name].iloc[positions]
+            axis.scatter(
                 times, values, marker='x', s=50, color='black', label=f'calib_{phase}'
             )
         

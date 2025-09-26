@@ -363,22 +363,32 @@ def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
         ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
     ])
 
-    # ---- Conditional colouring for "Abs Error (µA)" row ----
+    error_labels = [
+        "Abs Error (µA) - ±3.6 mV",
+        "Abs Error (mV) - ±0.12 mV"
+    ]
+
     error_row_idx = None
+    selected_label = None
+
     for i, row_label in enumerate(df.index):
-        if row_label == "Abs Error (µA)":
-            # +1 because row 0 is the header row in the table
+        if row_label in error_labels:
             error_row_idx = i
+            selected_label = row_label
             break
 
     if error_row_idx is not None:
-        # numeric values from the DataFrame (skip none)
-        numeric_row = pd.to_numeric(df.loc["Abs Error (µA)"], errors="coerce")
+        # numeric values from the DataFrame (skip None)
+        numeric_row = pd.to_numeric(df.loc[selected_label], errors="coerce")
+
+        # Set threshold based on which label matched
+        threshold = 3.6 if "µA" in selected_label else 0.12
+
         # In the table, data columns start at col 1 (col 0 is the index labels)
         for col_offset, val in enumerate(numeric_row, start=1):
             if pd.isna(val):
                 continue
-            if abs(val) < 3.6:
+            if abs(val) < threshold:
                 style.add('BACKGROUND', (col_offset, error_row_idx), (col_offset, error_row_idx), colors.limegreen)
             else:
                 style.add('BACKGROUND', (col_offset, error_row_idx), (col_offset, error_row_idx), colors.red)

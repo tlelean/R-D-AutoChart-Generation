@@ -136,8 +136,24 @@ def _plot_channels(active_channels, data_for_plot, axis_map, axes, custom_to_def
             axis_label_map[axis_type] = f"{axis_name} ({axis_unit})".strip() if axis_unit else axis_name
     return plotted_lines, plotted_labels, color_map, axis_label_map
 
-def _style_axes(axes, axis_label_map, color_map, cleaned_data, custom_to_default_map):
-    """Apply styling to all axes."""
+def _style_axes(
+    axes,
+    axis_label_map,
+    color_map,
+    cleaned_data,
+    custom_to_default_map,
+    *,
+    lock_temperature_axis=True,
+):
+    """Apply styling to all axes.
+
+    Parameters
+    ----------
+    lock_temperature_axis:
+        When ``True`` the temperature axis uses the standard -60 to 260 °C
+        range. When ``False`` the axis limits are derived from the plotted
+        data.
+    """
     for axis_type, ax in axes.items():
         axis_label = axis_label_map.get(axis_type, '')
         axis_name = axis_label.split('(')[0].strip() if axis_label else ''
@@ -156,8 +172,12 @@ def _style_axes(axes, axis_label_map, color_map, cleaned_data, custom_to_default
             ax.spines['right'].set_linewidth(0.5)
             ax.spines['left'].set_visible(False)
         if 'Temperature' in axis_name:
-            ax.set_ylim(-60, 260)
-            ax.yaxis.set_major_locator(MultipleLocator(10))
+            if lock_temperature_axis:
+                ax.set_ylim(-60, 260)
+                ax.yaxis.set_major_locator(MultipleLocator(10))
+            else:
+                ax.relim()
+                ax.autoscale_view()
         if 'Pressure' in axis_name:
             pressure_channels = [
                 ch for ch in cleaned_data.columns
@@ -193,8 +213,24 @@ def _configure_legend(fig, plotted_lines, plotted_labels):
     )
     return bottom_margin
 
-def plot_channel_data(active_channels, cleaned_data, channels_to_record, is_table, channel_map):
-    """Return matplotlib figure and axes for the given channel data."""
+def plot_channel_data(
+    active_channels,
+    cleaned_data,
+    channels_to_record,
+    is_table,
+    channel_map,
+    *,
+    lock_temperature_axis=True,
+):
+    """Return matplotlib figure and axes for the given channel data.
+
+    Parameters
+    ----------
+    lock_temperature_axis:
+        When ``True`` the temperature axis is locked to the standard range
+        used in the existing reports. When ``False`` the axis range is
+        derived from the plotted data.
+    """
     custom_to_default_map = {v: k for k, v in channel_map.items()}
     data_for_plot = _prepare_plot_data(cleaned_data)
     axis_map = axis_location(active_channels, custom_to_default_map)
@@ -204,7 +240,14 @@ def plot_channel_data(active_channels, cleaned_data, channels_to_record, is_tabl
         active_channels, data_for_plot, axis_map, axes, custom_to_default_map
     )
 
-    _style_axes(axes, axis_label_map, color_map, cleaned_data, custom_to_default_map)
+    _style_axes(
+        axes,
+        axis_label_map,
+        color_map,
+        cleaned_data,
+        custom_to_default_map,
+        lock_temperature_axis=lock_temperature_axis,
+    )
 
     bottom_margin = _configure_legend(fig, plotted_lines, plotted_labels)
 

@@ -113,29 +113,33 @@ def locate_calibration_points(cleaned_data, additional_info):
     return calibration_indices, calibration_values
 
 def calculate_succesful_calibration(cleaned_data, calibration_indices, additional_info):
-    # Column labels: blank first column for row labels
-    average_values = pd.DataFrame(index=['Applied (mA)', 'Counts (avg)', 'Converted (µA)', 'Abs Error (µA)'])
+    average_values = pd.DataFrame()
 
-    row = additional_info.iloc[0, 1:6]  # first row, columns 1 to 5
-    ma_values = row.str.extract(r"(\d+)")[0].astype(int).tolist()
+    slope = (float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / (float(additional_info.at[0, 0]))
+    intercept = float(additional_info.at[0, 1]) - (slope * float(additional_info.at[0, 0])) # this isn't correct - needs fixing
 
     for i, col in enumerate(range(1, len(calibration_indices.columns))):
         start_idx = calibration_indices.iloc[0, col]
         end_idx = calibration_indices.iloc[1, col]
         applied = additional_info.at[0, col]
-        applied_int = ma_values[col-1]
         counts = cleaned_data.loc[start_idx:end_idx, additional_info.at[1, 0]].mean()
-        converted = ((((ma_values[4] - ma_values[0]) / float(additional_info.at[0, 0])) * counts) + ma_values[0])*1000
-        error = (int(applied_int) * 1000) - converted
+        converted = ((((float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / float(additional_info.at[0, 0])) * counts) + float(additional_info.at[0, 1]))
+        error = float(applied) - converted
 
         counts_round = int(counts)
         converted_round = converted.round(2)
         error_round = abs(error).round(2)
 
-        average_values.loc['Applied (mA)', [i + 1]] = applied
-        average_values.loc['Counts (avg)', [i + 1]] = counts_round
-        average_values.loc['Converted (µA)', [i + 1]] = converted_round
-        average_values.loc['Abs Error (µA)', [i + 1]] = error_round
+        average_values.loc[0, [i + 1]] = applied
+        average_values.loc[1, [i + 1]] = counts_round
+        average_values.loc[2, [i + 1]] = converted_round
+        average_values.loc[3, [i + 1]] = error_round
+
+        # Column labels: blank first column for row labels
+    if additional_info.at[0,0] == "7812500.0":
+        average_values.index=['Applied (µA)', 'Counts (avg)', 'Converted (µA)', 'Abs Error (µA) - ±3.6 mV']
+    elif additional_info.at[0,0] == "1572":
+        average_values.index=['Applied (mV)', 'Counts (avg)', 'Converted (mV)', 'Abs Error (mV) - ±0.12 mV']
     return average_values
 
 def locate_key_time_rows(cleaned_data, additional_info):
