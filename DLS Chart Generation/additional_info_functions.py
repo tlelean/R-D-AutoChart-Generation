@@ -118,11 +118,17 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
     expected_count = pd.DataFrame()
 
     slope = (float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / (float(additional_info.at[0, 0]))
-    step = float(additional_info.at[0, 0]) / (len(calibration_indices.columns) - 2)
+    if additional_info.at[0,1] == "-10":
+        step = float(additional_info.at[0, 0]) / 2
+    else:
+        step = float(additional_info.at[0, 0]) / (len(calibration_indices.columns) - 2)
 
     for i, col in enumerate(range(1, len(calibration_indices.columns))):
         if additional_info.at[0,0] == "7812500.0":
-            expected_count.at[0, col] = (col - 1) * step
+            if additional_info.at[0,1] == "-10":
+                expected_count.at[0, col] = (col - 1) * step - additional_info.at[0,0]
+            else:
+                expected_count.at[0, col] = (col - 1) * step
         elif additional_info.at[0,0] == "1570":
             expected_count.at[0, col] = ((col - 1) * step) - 200
         intercept.at[0, (col-1)] = float(additional_info.iat[0, col]) - (slope * expected_count.iat[0, (col-1)])
@@ -148,7 +154,10 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
 
         # Column labels: blank first column for row labels
     if additional_info.at[0,0] == "7812500.0":
-        average_values.index=['Applied (µA)', 'Counts (avg)', 'Converted (µA)', 'Abs Error (µA) - ±3.6 mV']
+        if additional_info.at[0,1] == "4000":
+            average_values.index=['Applied (µA)', 'Counts (avg)', 'Converted (µA)', 'Abs Error (µA) - ±3.6 µA']
+        else:
+            average_values.index=['Applied (mV)', 'Counts (avg)', 'Converted (mV)', 'Abs Error (mV) - ±1.0 mV']
     elif additional_info.at[0,0] == "1570":
         average_values.index=['Applied (mV)', 'Counts (avg)', 'Converted (mV)', 'Abs Error (mV) - ±0.12 mV']
     return average_values

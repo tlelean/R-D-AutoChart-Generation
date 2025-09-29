@@ -363,35 +363,27 @@ def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
         ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
     ])
 
-    error_labels = [
-        "Abs Error (µA) - ±3.6 mV",
-        "Abs Error (mV) - ±0.12 mV"
-    ]
+    thresholds_by_label = {
+        "Abs Error (µA) - ±3.6 µA": 3.6,
+        "Abs Error (mV) - ±0.12 mV": 0.12,
+        "Abs Error (mV) - ±1.0 mV": 1.0,
+    }
 
-    error_row_idx = None
-    selected_label = None
+    for i, row_label in enumerate(df.index.astype(str)):
+        if row_label in thresholds_by_label:
+            threshold = thresholds_by_label[row_label]
+            numeric_row = pd.to_numeric(df.loc[row_label], errors="coerce")
 
-    for i, row_label in enumerate(df.index):
-        if row_label in error_labels:
-            error_row_idx = i
-            selected_label = row_label
-            break
-
-    if error_row_idx is not None:
-        # numeric values from the DataFrame (skip None)
-        numeric_row = pd.to_numeric(df.loc[selected_label], errors="coerce")
-
-        # Set threshold based on which label matched
-        threshold = 3.6 if "µA" in selected_label else 0.12
-
-        # In the table, data columns start at col 1 (col 0 is the index labels)
-        for col_offset, val in enumerate(numeric_row, start=1):
-            if pd.isna(val):
-                continue
-            if abs(val) < threshold:
-                style.add('BACKGROUND', (col_offset, error_row_idx), (col_offset, error_row_idx), colors.limegreen)
-            else:
-                style.add('BACKGROUND', (col_offset, error_row_idx), (col_offset, error_row_idx), colors.red)
+            # In the table, data columns start at col 1 (col 0 is the index labels)
+            for col_offset, val in enumerate(numeric_row, start=1):
+                if pd.isna(val):
+                    continue
+                style.add(
+                    'BACKGROUND',
+                    (col_offset, i),
+                    (col_offset, i),
+                    colors.limegreen if abs(val) < threshold else colors.red
+                )
 
     table.setStyle(style)
 
