@@ -114,20 +114,31 @@ def locate_calibration_points(cleaned_data, additional_info):
 
 def calculate_succesful_calibration(cleaned_data, calibration_indices, additional_info):
     average_values = pd.DataFrame()
+    intercept = pd.DataFrame()
+    expected_count = pd.DataFrame()
 
     slope = (float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / (float(additional_info.at[0, 0]))
-    intercept = float(additional_info.at[0, 1]) - (slope * float(additional_info.at[0, 0])) # this isn't correct - needs fixing
+    step = float(additional_info.at[0, 0]) / (len(calibration_indices.columns) - 2)
+
+    for i, col in enumerate(range(1, len(calibration_indices.columns))):
+        if additional_info.at[0,0] == "7812500.0":
+            expected_count.at[0, col] = (col - 1) * step
+        elif additional_info.at[0,0] == "1570":
+            expected_count.at[0, col] = ((col - 1) * step) - 200
+        intercept.at[0, (col-1)] = float(additional_info.iat[0, col]) - (slope * expected_count.iat[0, (col-1)])
+
+    intercept_value = intercept.to_numpy().mean()
 
     for i, col in enumerate(range(1, len(calibration_indices.columns))):
         start_idx = calibration_indices.iloc[0, col]
         end_idx = calibration_indices.iloc[1, col]
         applied = additional_info.at[0, col]
         counts = cleaned_data.loc[start_idx:end_idx, additional_info.at[1, 0]].mean()
-        converted = ((((float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / float(additional_info.at[0, 0])) * counts) + float(additional_info.at[0, 1]))
+        converted = ((((float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / float(additional_info.at[0, 0])) * counts) + intercept_value)
         error = float(applied) - converted
 
         counts_round = int(counts)
-        converted_round = converted.round(2)
+        converted_round = converted.round(3)
         error_round = abs(error).round(2)
 
         average_values.loc[0, [i + 1]] = applied
@@ -138,7 +149,7 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
         # Column labels: blank first column for row labels
     if additional_info.at[0,0] == "7812500.0":
         average_values.index=['Applied (µA)', 'Counts (avg)', 'Converted (µA)', 'Abs Error (µA) - ±3.6 mV']
-    elif additional_info.at[0,0] == "1572":
+    elif additional_info.at[0,0] == "1570":
         average_values.index=['Applied (mV)', 'Counts (avg)', 'Converted (mV)', 'Abs Error (mV) - ±0.12 mV']
     return average_values
 
