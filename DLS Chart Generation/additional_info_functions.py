@@ -117,16 +117,17 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
     intercept = pd.DataFrame()
     expected_count = pd.DataFrame()
 
-    slope = (float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / (float(additional_info.at[0, 0]))
-    if additional_info.at[0,1] == "-10":
+    if additional_info.at[0,1] == "-10000":
+        slope = (float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / (float(additional_info.at[0, 0]) * 2)
         step = float(additional_info.at[0, 0]) / 2
     else:
+        slope = (float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / (float(additional_info.at[0, 0]))
         step = float(additional_info.at[0, 0]) / (len(calibration_indices.columns) - 2)
 
     for i, col in enumerate(range(1, len(calibration_indices.columns))):
         if additional_info.at[0,0] == "7812500.0":
-            if additional_info.at[0,1] == "-10":
-                expected_count.at[0, col] = (col - 1) * step - additional_info.at[0,0]
+            if additional_info.at[0,1] == "-10000":
+                expected_count.at[0, col] = (col - 1) * step - float(additional_info.at[0, 0])
             else:
                 expected_count.at[0, col] = (col - 1) * step
         elif additional_info.at[0,0] == "1570":
@@ -140,7 +141,10 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
         end_idx = calibration_indices.iloc[1, col]
         applied = additional_info.at[0, col]
         counts = cleaned_data.loc[start_idx:end_idx, additional_info.at[1, 0]].mean()
-        converted = ((((float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / float(additional_info.at[0, 0])) * counts) + intercept_value)
+        if additional_info.at[0,1] == "-10000":
+            converted = ((((float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / (float(additional_info.at[0, 0]) * 2)) * counts) + intercept_value)
+        else:
+            converted = ((((float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / float(additional_info.at[0, 0])) * counts) + intercept_value)
         error = float(applied) - converted
 
         counts_round = int(counts)

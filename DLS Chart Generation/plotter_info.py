@@ -12,7 +12,7 @@ CHANNEL_COLOUR_MAP = {
     'Relief Port': '#6bb300',         # Strong Olive Green
     'BX Port': '#e377c2',             # Dusty Pink
     'Spare': '#005f5f',               # Dark Teal
-    'Leak Rate': '#9f7fff',           # Medium Lavender
+    'Flow Meter': '#9f7fff',           # Medium Lavender
     'Mass Spectrometer': '#8b4513',   # Saddle Brown
     'LVDT': '#800000',                # Maroon
     'Torque': '#b2a400',              # Dark Gold
@@ -70,7 +70,7 @@ CHANNEL_AXIS_NAMES_MAP = {
     'Relief Port': 'Pressure',
     'BX Port': 'Pressure',
     'Spare': '',
-    'Leak Rate': 'Leak Rate',
+    'Flow Meter': 'Leak Rate',
     'Mass Spectrometer': 'Mass Spectrometer',
     'LVDT': 'LVDT',
     'Torque': 'Torque',
