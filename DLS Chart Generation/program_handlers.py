@@ -13,6 +13,8 @@ from plotter_info import CHANNEL_AXIS_NAMES_MAP
 from pdf_helpers import (
     draw_table,
     draw_test_details,
+    draw_regression_table,
+    evaluate_calibration_thresholds,
     insert_plot_and_logo,
 )
 from additional_info_functions import (
@@ -22,6 +24,7 @@ from additional_info_functions import (
     find_cycle_breakpoints,
     locate_calibration_points,
     calculate_succesful_calibration,
+    calculate_calibration_regression,
 )
 
 class BaseReportGenerator:
@@ -309,7 +312,25 @@ class CalibrationReportGenerator(BaseReportGenerator):
         is_table = True
         unique_path = self.build_output_path(self.test_metadata)
         calibration_indices, _ = locate_calibration_points(self.cleaned_data, self.additional_info)
-        average_values = calculate_succesful_calibration(self.cleaned_data, calibration_indices, self.additional_info)
+        (
+            average_values,
+            counts_series,
+            expected_series,
+            abs_errors,
+        ) = calculate_succesful_calibration(
+            self.cleaned_data,
+            calibration_indices,
+            self.additional_info,
+        )
+
+        breach_mask = evaluate_calibration_thresholds(average_values, abs_errors)
+        has_breach = not breach_mask.empty and breach_mask.to_numpy().any()
+        regression_coefficients = None
+        if has_breach:
+            regression_coefficients = calculate_calibration_regression(
+                counts_series,
+                expected_series,
+            )
 
         figure, axes, axis_map = plot_channel_data(
             active_channels=self.active_channels,
@@ -338,6 +359,8 @@ class CalibrationReportGenerator(BaseReportGenerator):
             self.cleaned_data, unique_path, is_table, self.raw_data
         )
         draw_table(pdf_canvas=pdf, dataframe=average_values)
+        if regression_coefficients is not None and not regression_coefficients.dropna().empty:
+            draw_regression_table(pdf, regression_coefficients)
         insert_plot_and_logo(figure, pdf, is_table)
         return unique_path
 

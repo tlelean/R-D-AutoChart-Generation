@@ -1,6 +1,9 @@
 """Utilities for creating PDF reports from test data."""
 
 import io
+import os
+from typing import Optional
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from reportlab.lib import colors
@@ -9,7 +12,13 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
-import os
+
+
+CALIBRATION_THRESHOLDS = {
+    "Abs Error (µA) - ±3.6 µA": 3.6,
+    "Abs Error (mV) - ±0.12 mV": 0.12,
+    "Abs Error (mV) - ±1.0 mV": 1.0,
+}
 
 def format_torque(value):
     """Return a torque string with units or special cases."""
@@ -136,6 +145,37 @@ class Layout:
     GAUGE_TABLE_START_Y = 352.5
     GAUGE_COL_WIDTH = 50
     GAUGE_ROW_HEIGHT = 15
+
+
+def evaluate_calibration_thresholds(
+    table: pd.DataFrame,
+    precise_errors: Optional[pd.Series] = None,
+) -> pd.DataFrame:
+    """Return a boolean mask indicating threshold breaches for calibration tables."""
+
+    if table is None or table.empty:
+        return pd.DataFrame()
+
+    mask: dict[str, pd.Series] = {}
+    for row_label, threshold in CALIBRATION_THRESHOLDS.items():
+        if row_label not in table.index:
+            continue
+
+        if precise_errors is not None and row_label.startswith("Abs Error"):
+            values = pd.to_numeric(
+                precise_errors.reindex(table.columns),
+                errors="coerce",
+            )
+        else:
+            values = pd.to_numeric(table.loc[row_label], errors="coerce")
+
+        mask[row_label] = values.abs() > threshold
+
+    if not mask:
+        return pd.DataFrame(index=[], columns=table.columns, dtype=bool)
+
+    result = pd.DataFrame(mask).T.fillna(False)
+    return result.astype(bool)
 
 def insert_plot_and_logo(figure, pdf, is_table):
     png_figure = io.BytesIO()
@@ -363,33 +403,84 @@ def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
         ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
     ])
 
-    thresholds_by_label = {
-        "Abs Error (µA) - ±3.6 µA": 3.6,
-        "Abs Error (mV) - ±0.12 mV": 0.12,
-        "Abs Error (mV) - ±1.0 mV": 1.0,
-    }
+    breach_mask = evaluate_calibration_thresholds(df)
 
     for i, row_label in enumerate(df.index.astype(str)):
-        if row_label in thresholds_by_label:
-            threshold = thresholds_by_label[row_label]
-            numeric_row = pd.to_numeric(df.loc[row_label], errors="coerce")
+        if row_label not in CALIBRATION_THRESHOLDS:
+            continue
 
-            # In the table, data columns start at col 1 (col 0 is the index labels)
-            for col_offset, val in enumerate(numeric_row, start=1):
-                if pd.isna(val):
-                    continue
-                style.add(
-                    'BACKGROUND',
-                    (col_offset, i),
-                    (col_offset, i),
-                    colors.limegreen if abs(val) < threshold else colors.red
-                )
+        numeric_row = pd.to_numeric(df.loc[row_label], errors="coerce")
+        breaches = (
+            breach_mask.loc[row_label]
+            if row_label in breach_mask.index
+            else pd.Series(index=df.columns, data=False)
+        )
+
+        for col_offset, (column_key, value) in enumerate(numeric_row.items(), start=1):
+            if pd.isna(value):
+                continue
+            breached = bool(breaches.get(column_key, False))
+            style.add(
+                'BACKGROUND',
+                (col_offset, i),
+                (col_offset, i),
+                colors.red if breached else colors.limegreen,
+            )
 
     table.setStyle(style)
 
     # ---- Draw ----
     table.wrapOn(pdf_canvas, width, height)
     table.drawOn(pdf_canvas, x, y)
+
+
+def draw_regression_table(
+    pdf_canvas,
+    coefficients: Optional[pd.Series],
+    x: float = Layout.STAMP_X + 5,
+    y: Optional[float] = None,
+    width: float = Layout.STAMP_W - 10,
+    padding: float = 5,
+):
+    """Draw the polynomial coefficients table within the stamp area."""
+
+    if coefficients is None:
+        return
+
+    series = pd.Series(coefficients).reindex(["S3", "S2", "S1", "S0"])
+    if series.dropna().empty:
+        return
+
+    data = [["Coefficient", "Value"]]
+    for label, value in series.items():
+        display = "N/A" if pd.isna(value) else f"{value:.6g}"
+        data.append([label, display])
+
+    table = Table(
+        data,
+        colWidths=[width * 0.45, width * 0.55],
+    )
+
+    style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+    ])
+    table.setStyle(style)
+
+    available_height = Layout.STAMP_H - (2 * padding)
+    _, table_height = table.wrap(width, available_height)
+    draw_y = (
+        Layout.STAMP_Y + Layout.STAMP_H - padding - table_height
+        if y is None
+        else y
+    )
+
+    table.drawOn(pdf_canvas, x, draw_y)
 
 def draw_all_text(pdf, pdf_text_positions):
     for x, y, text, colour, replace_empty in pdf_text_positions:

@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
 import re
+import warnings
 
 def find_cycle_breakpoints(raw_data, channels_to_record, channel_map: dict[str, str]):
     cycle_count_data = raw_data[channel_map["Cycle Count"]]
@@ -113,58 +114,130 @@ def locate_calibration_points(cleaned_data, additional_info):
     return calibration_indices, calibration_values
 
 def calculate_succesful_calibration(cleaned_data, calibration_indices, additional_info):
-    average_values = pd.DataFrame()
-    intercept = pd.DataFrame()
-    expected_count = pd.DataFrame()
+    """Calculate calibration table along with unrounded measurement data."""
 
-    if additional_info.at[0,1] == "-10000":
-        slope = (float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / (float(additional_info.at[0, 0]) * 2)
-        step = float(additional_info.at[0, 0]) / 2
+    display_table = pd.DataFrame()
+    expected_counts = {}
+    intercepts: List[float] = []
+
+    def _to_float(value) -> float:
+        if isinstance(value, str):
+            match = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", value)
+            if match:
+                return float(match.group())
+        return float(value)
+
+    start_value = _to_float(additional_info.at[0, 0])
+    first_value = _to_float(additional_info.at[0, 1])
+    last_value = _to_float(additional_info.at[0, 5])
+
+    if additional_info.at[0, 1] == "-10000":
+        slope = (last_value - first_value) / (start_value * 2)
+        step = start_value / 2
     else:
-        slope = (float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / (float(additional_info.at[0, 0]))
-        step = float(additional_info.at[0, 0]) / (len(calibration_indices.columns) - 2)
+        slope = (last_value - first_value) / start_value
+        step = start_value / (len(calibration_indices.columns) - 2)
 
-    for i, col in enumerate(range(1, len(calibration_indices.columns))):
-        if additional_info.at[0,0] == "7812500.0":
-            if additional_info.at[0,1] == "-10000":
-                expected_count.at[0, col] = (col - 1) * step - float(additional_info.at[0, 0])
+    column_range = list(range(1, len(calibration_indices.columns)))
+
+    for col in column_range:
+        if additional_info.at[0, 0] == "7812500.0":
+            if additional_info.at[0, 1] == "-10000":
+                expected_value = (col - 1) * step - start_value
             else:
-                expected_count.at[0, col] = (col - 1) * step
-        elif additional_info.at[0,0] == "1570":
-            expected_count.at[0, col] = ((col - 1) * step) - 200
-        intercept.at[0, (col-1)] = float(additional_info.iat[0, col]) - (slope * expected_count.iat[0, (col-1)])
+                expected_value = (col - 1) * step
+        elif additional_info.at[0, 0] == "1570":
+            expected_value = ((col - 1) * step) - 200
+        else:
+            expected_value = (col - 1) * step
 
-    intercept_value = intercept.to_numpy().mean()
+        expected_counts[col] = expected_value
+        intercepts.append(_to_float(additional_info.iat[0, col]) - (slope * expected_value))
 
-    for i, col in enumerate(range(1, len(calibration_indices.columns))):
+    intercept_value = float(np.mean(intercepts)) if intercepts else 0.0
+
+    counts_series = pd.Series(dtype=float)
+    expected_series = pd.Series(dtype=float)
+    abs_error_series = pd.Series(dtype=float)
+
+    channel_name = additional_info.at[1, 0]
+
+    for i, col in enumerate(column_range):
         start_idx = calibration_indices.iloc[0, col]
         end_idx = calibration_indices.iloc[1, col]
-        applied = additional_info.at[0, col]
-        counts = cleaned_data.loc[start_idx:end_idx, additional_info.at[1, 0]].mean()
-        if additional_info.at[0,1] == "-10000":
-            converted = ((((float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / (float(additional_info.at[0, 0]) * 2)) * counts) + intercept_value)
+        applied = _to_float(additional_info.at[0, col])
+
+        counts = cleaned_data.loc[start_idx:end_idx, channel_name].mean()
+        converted = (slope * counts) + intercept_value
+        error = applied - converted
+
+        display_col = i + 1
+
+        counts_series.loc[display_col] = counts
+        expected_series.loc[display_col] = expected_counts.get(col, np.nan)
+        abs_error_series.loc[display_col] = abs(error)
+
+        counts_display = int(round(counts))
+        converted_display = round(converted, 3)
+        error_display = round(abs(error), 2)
+
+        display_table.loc[0, [display_col]] = applied
+        display_table.loc[1, [display_col]] = counts_display
+        display_table.loc[2, [display_col]] = converted_display
+        display_table.loc[3, [display_col]] = error_display
+
+    if additional_info.at[0, 0] == "7812500.0":
+        if additional_info.at[0, 1] == "4000":
+            display_table.index = [
+                'Applied (µA)',
+                'Counts (avg)',
+                'Converted (µA)',
+                'Abs Error (µA) - ±3.6 µA',
+            ]
         else:
-            converted = ((((float(additional_info.at[0, 5]) - float(additional_info.at[0, 1])) / float(additional_info.at[0, 0])) * counts) + intercept_value)
-        error = float(applied) - converted
+            display_table.index = [
+                'Applied (mV)',
+                'Counts (avg)',
+                'Converted (mV)',
+                'Abs Error (mV) - ±1.0 mV',
+            ]
+    elif additional_info.at[0, 0] == "1570":
+        display_table.index = [
+            'Applied (mV)',
+            'Counts (avg)',
+            'Converted (mV)',
+            'Abs Error (mV) - ±0.12 mV',
+        ]
 
-        counts_round = int(counts)
-        converted_round = converted.round(3)
-        error_round = abs(error).round(2)
+    return display_table, counts_series, expected_series, abs_error_series
 
-        average_values.loc[0, [i + 1]] = applied
-        average_values.loc[1, [i + 1]] = counts_round
-        average_values.loc[2, [i + 1]] = converted_round
-        average_values.loc[3, [i + 1]] = error_round
 
-        # Column labels: blank first column for row labels
-    if additional_info.at[0,0] == "7812500.0":
-        if additional_info.at[0,1] == "4000":
-            average_values.index=['Applied (µA)', 'Counts (avg)', 'Converted (µA)', 'Abs Error (µA) - ±3.6 µA']
-        else:
-            average_values.index=['Applied (mV)', 'Counts (avg)', 'Converted (mV)', 'Abs Error (mV) - ±1.0 mV']
-    elif additional_info.at[0,0] == "1570":
-        average_values.index=['Applied (mV)', 'Counts (avg)', 'Converted (mV)', 'Abs Error (mV) - ±0.12 mV']
-    return average_values
+def calculate_calibration_regression(counts: pd.Series, expected_counts: pd.Series) -> pd.Series:
+    """Return polynomial coefficients mapping counts to expected counts."""
+
+    labels = ["S3", "S2", "S1", "S0"]
+    if counts is None or expected_counts is None:
+        return pd.Series([np.nan] * 4, index=labels, dtype=float)
+
+    counts_series = pd.to_numeric(pd.Series(counts), errors="coerce")
+    expected_series = pd.to_numeric(pd.Series(expected_counts), errors="coerce")
+    mask = ~(counts_series.isna() | expected_series.isna())
+
+    valid_counts = counts_series[mask]
+    valid_expected = expected_series[mask]
+
+    if len(valid_counts) < 2:
+        return pd.Series([np.nan] * 4, index=labels, dtype=float)
+
+    degree = min(3, len(valid_counts) - 1)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        coefficients = np.polyfit(valid_counts, valid_expected, deg=degree)
+
+    padded = np.full(4, np.nan)
+    padded[-(degree + 1):] = coefficients
+    return pd.Series(padded, index=labels, dtype=float)
 
 def locate_key_time_rows(cleaned_data, additional_info):
     """Return indices of key time points closest to provided timestamps."""
