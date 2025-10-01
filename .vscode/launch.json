@@ -15,7 +15,7 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/DLS Chart Generation/main.py",
-      "args": ["V:/Userdoc/R & D/DAQ_Station/Calibration/DLS001 FAT Rig 1/Calibration_Data_30-9-2025_9-47-33.csv", "V:/Userdoc/R & D/DAQ_Station/Calibration/DLS001 FAT Rig 1/Calibration_Test_Details_30-9-2025_9-47-33.csv"
+      "args": ["V:/Userdoc/R & D/DAQ_Station/Calibration/DLS001 FAT Rig 1/_Data_30-9-2025_12-0-42.csv", "V:/Userdoc/R & D/DAQ_Station/Calibration/DLS001 FAT Rig 1/Calibration_Test_Details_30-9-2025_12-0-42.csv"
 , "${workspaceFolder}/Example Data/Calibration"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}"

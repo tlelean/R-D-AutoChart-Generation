@@ -453,7 +453,7 @@ def draw_regression_table(
 
     data = [["Coefficient", "Value"]]
     for label, value in series.items():
-        display = "N/A" if pd.isna(value) else f"{value:.15g}"
+        display = "N/A" if pd.isna(value) else f"{value:.5g}"
         data.append([label, display])
 
     table = Table(

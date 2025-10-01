@@ -11,8 +11,8 @@ CHANNEL_COLOUR_MAP = {
     'Secondary Stem Seal': '#f032e6', # Bright Magenta
     'Relief Port': '#6bb300',         # Strong Olive Green
     'BX Port': '#e377c2',             # Dusty Pink
-    'Spare': '#005f5f',               # Dark Teal
     'Flow Meter': '#9f7fff',           # Medium Lavender
+    'Mass Spectrometer Mantissa': '#005f5f',               # Dark Teal
     'Mass Spectrometer': '#8b4513',   # Saddle Brown
     'LVDT': '#800000',                # Maroon
     'Torque': '#b2a400',              # Dark Gold
@@ -40,8 +40,8 @@ CHANNEL_UNITS_MAP = {
     'Secondary Stem Seal': 'psi',
     'Relief Port': 'psi',
     'BX Port': 'psi',
-    'Spare': 'N/A',
     'Leak Rate': 'ml/min',
+    'Mass Spectrometer Mantissa': 'mbarl/sec',
     'Mass Spectrometer': 'mbarl/sec',
     'LVDT': 'mm',
     'Torque': 'lbs-ft',
@@ -69,8 +69,8 @@ CHANNEL_AXIS_NAMES_MAP = {
     'Secondary Stem Seal': 'Pressure',
     'Relief Port': 'Pressure',
     'BX Port': 'Pressure',
-    'Spare': '',
     'Flow Meter': 'Leak Rate',
+    'Mass Spectrometer Mantissa': 'Mass Spectrometer',
     'Mass Spectrometer': 'Mass Spectrometer',
     'LVDT': 'LVDT',
     'Torque': 'Torque',

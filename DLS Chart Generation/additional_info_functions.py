@@ -186,7 +186,7 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
         display_table.loc[2, [display_col]] = converted_display
         display_table.loc[3, [display_col]] = error_display
 
-    if additional_info.at[0, 0] == "7812500.0":
+    if additional_info.at[0, 0] == "7812500.0" or additional_info.at[0, 0] == "7812500":
         if additional_info.at[0, 1] == "4000":
             display_table.index = [
                 'Applied (µA)',

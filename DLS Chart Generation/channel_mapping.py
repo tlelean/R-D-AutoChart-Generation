@@ -16,7 +16,7 @@ DEFAULT_CHANNEL_NAMES = [
     "Relief Port",
     "BX Port",
     "Flow Meter",
-    "Spare",
+    "Mass Spectrometer Mantissa",
     "Mass Spectrometer",
     "LVDT",
     "Torque",
