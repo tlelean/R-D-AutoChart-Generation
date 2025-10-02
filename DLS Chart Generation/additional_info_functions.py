@@ -138,6 +138,8 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
         slope = (last_value - first_value) / start_value
         step = start_value / (len(calibration_indices.columns) - 2)
 
+    print(f"Slope: {slope}, Step: {step}")
+
     column_range = list(range(1, len(calibration_indices.columns)))
 
     for col in column_range:
@@ -146,8 +148,8 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
                 expected_value = (col - 1) * step - start_value
             else:
                 expected_value = (col - 1) * step
-        elif additional_info.at[0, 0] == "1570":
-            expected_value = ((col - 1) * step) - 200
+        elif additional_info.at[0, 0] == "15700":
+            expected_value = ((col - 1) * step) - 2000
         else:
             expected_value = (col - 1) * step
 
@@ -155,6 +157,8 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
         intercepts.append(_to_float(additional_info.iat[0, col]) - (slope * expected_value))
 
     intercept_value = float(np.mean(intercepts)) if intercepts else 0.0
+
+    print(f"Intercept: {intercept_value}")
 
     counts_series = pd.Series(dtype=float)
     expected_series = pd.Series(dtype=float)
@@ -201,7 +205,7 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
                 'Converted (mV)',
                 'Abs Error (mV) - ±1.0 mV',
             ]
-    elif additional_info.at[0, 0] == "1570":
+    elif additional_info.at[0, 0] == "15700":
         display_table.index = [
             'Applied (mV)',
             'Counts (avg)',
