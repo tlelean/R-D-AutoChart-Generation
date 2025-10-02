@@ -138,8 +138,6 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
         slope = (last_value - first_value) / start_value
         step = start_value / (len(calibration_indices.columns) - 2)
 
-    print(f"Slope: {slope}, Step: {step}")
-
     column_range = list(range(1, len(calibration_indices.columns)))
 
     for col in column_range:
@@ -157,8 +155,6 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
         intercepts.append(_to_float(additional_info.iat[0, col]) - (slope * expected_value))
 
     intercept_value = float(np.mean(intercepts)) if intercepts else 0.0
-
-    print(f"Intercept: {intercept_value}")
 
     counts_series = pd.Series(dtype=float)
     expected_series = pd.Series(dtype=float)
@@ -298,9 +294,7 @@ def locate_key_time_rows(cleaned_data, additional_info):
         return holds_indices, display_table
     
 def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_map: dict[str, str]):
-    if additional_info.empty:
-        return None, None
-    elif (
+    if (
         additional_info.iloc[0, :3].astype(str).tolist() == ["Cycle", "BTO", "BTC"]
         and channels_to_record.at[channel_map["Torque"], 1]
     ):
@@ -338,6 +332,8 @@ def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_m
             pd.DataFrame.from_records(breakout_values), 
             pd.DataFrame.from_records(breakout_indices),
         )
+    else:
+        return None, None
 
 def locate_signature_key_points(
     channels_to_record: pd.DataFrame,

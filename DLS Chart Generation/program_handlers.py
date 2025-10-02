@@ -221,7 +221,8 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         figure, axes, axis_map = plot_channel_data(
             self.active_channels, self.cleaned_data, self.channels_to_record, is_table=True, channel_map=self.channel_map
         )
-        plot_crosses(df=breakout_indices, channel='Torque', data=self.cleaned_data, ax=axes[axis_map['Torque']])
+        if self.channels_to_record.at[self.channel_map["Torque"], 1]:
+            plot_crosses(df=breakout_indices, channel='Torque', data=self.cleaned_data, ax=axes[axis_map['Torque']])
         pdf = draw_test_details(
             self.test_metadata, self.transducer_details, self.active_channels,
             self.cleaned_data, unique_path, True, self.raw_data, has_breakout_table=True

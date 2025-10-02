@@ -18,7 +18,7 @@ Program Name,Data Logger,,
 Show Breakout Torque,FALSE,,
 Test Start Time,,,
 Upstream,PT001,SUB001,TRUE
-Downstream,,,TRUE
+Downstream,,,FALSE
 Body,,,FALSE
 Actuator,,,FALSE
 Hyperbaric,,,FALSE
@@ -32,11 +32,11 @@ Spare,,,FALSE
 Flow Meter,,,FALSE
 Mass Spectrometer,,,TRUE
 LVDT,,,FALSE
-Torque,,,TRUE
-Number Of Turns,,,TRUE
-Motor Speed,,,TRUE
-Ambient Temperature,,,TRUE
-Body Temperature,,,TRUE
+Torque,,,FALSE
+Number Of Turns,,,FALSE
+Motor Speed,,,FALSE
+Ambient Temperature,,,FALSE
+Body Temperature,,,FALSE
 Monitor Temperature,,,FALSE
 Chamber Temperature,,,FALSE
 Hyperbaric Water Temperature,,,FALSE

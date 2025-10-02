@@ -356,7 +356,7 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
 
 def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
     """Render a pandas DataFrame as a table on the PDF canvas."""
-    if dataframe is None:
+    if dataframe is None or dataframe.empty:
         return
 
     # Remove all-null columns (as you had)
