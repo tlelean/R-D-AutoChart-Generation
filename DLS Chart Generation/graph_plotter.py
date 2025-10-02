@@ -201,6 +201,8 @@ def _style_axes(
 
 def _configure_legend(fig, plotted_lines, plotted_labels):
     """Configure and position the legend."""
+    if not plotted_lines:
+        return 0.05
     max_cols = 5
     n_channels = len(plotted_labels)
     ncol = min(n_channels, max_cols)

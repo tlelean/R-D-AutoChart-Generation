@@ -41,6 +41,27 @@ class BaseReportGenerator:
         self.channels_to_record = kwargs.get("channels_to_record")
         self.channel_map = kwargs.get("channel_map")
 
+    def _channels_for_main_plot(self, include_mass_spec: bool = False) -> List[str]:
+        """Return the active channels for the primary plot.
+
+        Unless ``include_mass_spec`` is ``True`` the channel mapped from the
+        default ``"Mass Spectrometer"`` entry is removed so it does not appear
+        on standard report pages.
+        """
+
+        channels = list(self.active_channels or [])
+        if include_mass_spec:
+            return channels
+
+        mass_spec_channel = None
+        if self.channel_map:
+            mass_spec_channel = self.channel_map.get("Mass Spectrometer")
+
+        if mass_spec_channel and mass_spec_channel in channels:
+            channels = [ch for ch in channels if ch != mass_spec_channel]
+
+        return channels
+
     def build_output_path(self, test_metadata) -> Path:
         """Construct the output PDF path from metadata."""
         return self.pdf_output_path / (
@@ -58,7 +79,7 @@ class GenericReportGenerator(BaseReportGenerator):
         is_table = False
         unique_path = self.build_output_path(self.test_metadata)
         figure, _, _ = plot_channel_data(
-            active_channels=self.active_channels,
+            active_channels=self._channels_for_main_plot(),
             cleaned_data=self.cleaned_data,
             channels_to_record=self.channels_to_record,
             is_table=is_table,
@@ -111,7 +132,7 @@ class HoldsReportGenerator(BaseReportGenerator):
         holds_indices, display_table = locate_key_time_rows(self.cleaned_data, single_info)
 
         figure, axes, axis_map = plot_channel_data(
-            active_channels=self.active_channels,
+            active_channels=self._channels_for_main_plot(),
             cleaned_data=self.cleaned_data,
             channels_to_record=self.channels_to_record,
             is_table=is_table,
@@ -191,7 +212,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         index_slice = breakout_indices[breakout_indices['Cycle'].isin(group)]
 
         figure, axes, axis_map = plot_channel_data(
-            self.active_channels, data_slice, self.channels_to_record, is_table=True, channel_map=self.channel_map
+            self._channels_for_main_plot(), data_slice, self.channels_to_record, is_table=True, channel_map=self.channel_map
         )
         plot_crosses(df=index_slice, channel='Torque', data=data_slice, ax=axes[axis_map['Torque']])
         pdf = draw_test_details(
@@ -208,7 +229,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         data_slice = self._slice_data(self.cleaned_data, cycle_ranges, group)
 
         figure, _, _ = plot_channel_data(
-            self.active_channels, data_slice, self.channels_to_record, is_table=False, channel_map=self.channel_map
+            self._channels_for_main_plot(), data_slice, self.channels_to_record, is_table=False, channel_map=self.channel_map
         )
         pdf = draw_test_details(
             meta, self.transducer_details, self.active_channels, data_slice, unique_path, False, self.raw_data
@@ -219,7 +240,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
     def _generate_single_page_report(self, breakout_values, breakout_indices):
         unique_path = self.build_output_path(self.test_metadata)
         figure, axes, axis_map = plot_channel_data(
-            self.active_channels, self.cleaned_data, self.channels_to_record, is_table=True, channel_map=self.channel_map
+            self._channels_for_main_plot(), self.cleaned_data, self.channels_to_record, is_table=True, channel_map=self.channel_map
         )
         if self.channels_to_record.at[self.channel_map["Torque"], 1]:
             plot_crosses(df=breakout_indices, channel='Torque', data=self.cleaned_data, ax=axes[axis_map['Torque']])
@@ -298,7 +319,7 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
         index_slice = indices_df[indices_df['Cycle'] == cycle]
 
         figure, axes, axis_map = plot_channel_data(
-            self.active_channels, data_slice, self.channels_to_record, is_table=True, channel_map=self.channel_map
+            self._channels_for_main_plot(), data_slice, self.channels_to_record, is_table=True, channel_map=self.channel_map
         )
         plot_crosses(df=index_slice, channel=plot_channel, data=data_slice, ax=axes[axis_map[axis_key]])
         pdf = draw_test_details(
@@ -334,7 +355,7 @@ class CalibrationReportGenerator(BaseReportGenerator):
             )
 
         figure, axes, axis_map = plot_channel_data(
-            active_channels=self.active_channels,
+            active_channels=self._channels_for_main_plot(include_mass_spec=True),
             cleaned_data=self.cleaned_data,
             channels_to_record=self.channels_to_record,
             is_table=is_table,
