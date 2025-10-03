@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import re
 import warnings
 
+from . import config
+
 def find_cycle_breakpoints(raw_data, channels_to_record, channel_map: dict[str, str]):
     cycle_count_data = raw_data[channel_map["Cycle Count"]]
     total_cycle_count = int(cycle_count_data.max())
@@ -605,6 +607,37 @@ def locate_signature_key_points(
     return (
         pd.DataFrame.from_records(torque_signature_values), 
         pd.DataFrame.from_records(torque_signature_indices), 
-        pd.DataFrame.from_records(actuator_signature_values), 
+        pd.DataFrame.from_records(actuator_signature_values),
         pd.DataFrame.from_records(actuator_signature_indices),
     )
+
+
+def evaluate_calibration_thresholds(
+    table: pd.DataFrame,
+    precise_errors: Optional[pd.Series] = None,
+) -> pd.DataFrame:
+    """Return a boolean mask indicating threshold breaches for calibration tables."""
+
+    if table is None or table.empty:
+        return pd.DataFrame()
+
+    mask: dict[str, pd.Series] = {}
+    for row_label, threshold in config.CALIBRATION_THRESHOLDS.items():
+        if row_label not in table.index:
+            continue
+
+        if precise_errors is not None and row_label.startswith("Abs Error"):
+            values = pd.to_numeric(
+                precise_errors.reindex(table.columns),
+                errors="coerce",
+            )
+        else:
+            values = pd.to_numeric(table.loc[row_label], errors="coerce")
+
+        mask[row_label] = values.abs() > threshold
+
+    if not mask:
+        return pd.DataFrame(index=[], columns=table.columns, dtype=bool)
+
+    result = pd.DataFrame(mask).T.fillna(False)
+    return result.astype(bool)

@@ -6,17 +6,10 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 
-import sys
-
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.append(str(PROJECT_ROOT))
-
-from additional_info_functions import (  # noqa: E402  (added to path above)
+from src.dls_chart_generation.additional_info_functions import (
     calculate_calibration_regression,
 )
-from program_handlers import CalibrationReportGenerator  # noqa: E402
+from src.dls_chart_generation.reports.calibration_report import CalibrationReportGenerator
 
 
 def test_calculate_calibration_regression_returns_expected_coefficients():
@@ -104,12 +97,15 @@ def test_calibration_report_generator_draws_regression_table(monkeypatch, tmp_pa
     def fake_locate_calibration_points(*_, **__):
         return calibration_indices, None
 
-    monkeypatch.setattr('program_handlers.plot_channel_data', fake_plot_channel_data)
-    monkeypatch.setattr('program_handlers.draw_test_details', fake_draw_test_details)
-    monkeypatch.setattr('program_handlers.draw_table', fake_draw_table)
-    monkeypatch.setattr('program_handlers.draw_regression_table', fake_draw_regression_table)
-    monkeypatch.setattr('program_handlers.insert_plot_and_logo', fake_insert_plot_and_logo)
-    monkeypatch.setattr('program_handlers.locate_calibration_points', fake_locate_calibration_points)
+    calibration_report_module = 'src.dls_chart_generation.reports.calibration_report'
+    base_report_module = 'src.dls_chart_generation.reports.base_report'
+
+    monkeypatch.setattr(f'{calibration_report_module}.plot_channel_data', fake_plot_channel_data)
+    monkeypatch.setattr(f'{base_report_module}.draw_test_details', fake_draw_test_details)
+    monkeypatch.setattr(f'{calibration_report_module}.draw_table', fake_draw_table)
+    monkeypatch.setattr(f'{calibration_report_module}.draw_regression_table', fake_draw_regression_table)
+    monkeypatch.setattr(f'{base_report_module}.insert_plot_and_logo', fake_insert_plot_and_logo)
+    monkeypatch.setattr(f'{calibration_report_module}.locate_calibration_points', fake_locate_calibration_points)
 
     generator = CalibrationReportGenerator(
         program_name='Calibration',

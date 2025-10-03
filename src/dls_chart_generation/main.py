@@ -5,17 +5,20 @@ from pathlib import Path
 import argparse
 import os
 
-from data_loading import (
-    load_test_information,
-    prepare_primary_data,
-)
-from program_handlers import HANDLERS
-from mass_spec_report import generate_mass_spec_reports
+from .data_loading import DataLoader
+from .program_handlers import ReportGeneratorFactory
+from .mass_spec_report import generate_mass_spec_reports
+from . import config
+
 
 def process_files_and_generate_report(primary_data_file, test_details_file, pdf_output_path, run_tests):
     """
     Processes a single set of data files to generate a PDF report.
     """
+    loader = DataLoader(
+        primary_data_path=primary_data_file,
+        test_details_path=test_details_file
+    )
     (
         test_metadata,
         transducer_details,
@@ -24,19 +27,13 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
         additional_info,
         program_name,
         default_to_custom_map,
-    ) = load_test_information(test_details_file)
+        cleaned_data,
+        active_channels,
+        raw_data,
+    ) = loader.load_and_process_data()
 
-    cleaned_data, active_channels, raw_data = prepare_primary_data(
-        primary_data_file,
-        channels_to_record,
-    )
-
-    program_name = test_metadata.at['Program Name', 1]
-    handler_class = HANDLERS.get(program_name)
-    if handler_class is None:
-        raise ValueError(f"Unsupported program: {program_name}")
-
-    handler_instance = handler_class(
+    # Use the factory to get the correct report generation strategy
+    strategy = ReportGeneratorFactory.get_strategy(
         program_name=program_name,
         pdf_output_path=pdf_output_path,
         test_metadata=test_metadata,
@@ -49,13 +46,13 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
         channels_to_record=channels_to_record,
         channel_map=default_to_custom_map,
     )
-    unique_pdf_output_path = handler_instance.generate()
+    unique_pdf_output_path = strategy.generate()
 
-    mass_spec_channel = default_to_custom_map.get("Mass Spectrometer")
+    mass_spec_channel = default_to_custom_map.get(config.MASS_SPECTROMETER_CHANNEL)
     if (
         (part_windows[["Start", "Stop"]].notna().sum().sum() != 0)
         and mass_spec_channel in cleaned_data.columns
-        ):
+    ):
         generate_mass_spec_reports(
             cleaned_data=cleaned_data,
             part_windows=part_windows,
@@ -70,10 +67,9 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
 
     # Extra copy if not GUI
     if not run_tests:
-        output_dir = "/var/opt/codesys/PlcLogic/visu"
-        output_path = os.path.join(output_dir, "pdf.png")
+        output_path = os.path.join(config.VISU_OUTPUT_DIR, config.VISU_OUTPUT_FILENAME)
 
-        if os.path.isdir(output_dir):
+        if os.path.isdir(config.VISU_OUTPUT_DIR):
             paths = (
                 unique_pdf_output_path
                 if isinstance(unique_pdf_output_path, list)
@@ -84,8 +80,7 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
             if paths:
                 doc = fitz.open(paths[0])
                 page = doc.load_page(0)
-                zoom_factor = 3
-                mat = fitz.Matrix(zoom_factor, zoom_factor)
+                mat = fitz.Matrix(config.PDF_IMAGE_ZOOM_FACTOR, config.PDF_IMAGE_ZOOM_FACTOR)
                 pix = page.get_pixmap(matrix=mat)
                 pix.save(output_path)
                 doc.close()
@@ -112,7 +107,7 @@ def main():
 
     try:
         if args.run_tests:
-            from test_config import TEST_CASES
+            from .test_config import TEST_CASES
             print("Running in test mode...")
             for i, test_case in enumerate(TEST_CASES):
                 print(f"--- Running Test Case {i+1} ---")

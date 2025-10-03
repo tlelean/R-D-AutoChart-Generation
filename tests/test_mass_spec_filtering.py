@@ -6,17 +6,8 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-import sys
-
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.append(str(PROJECT_ROOT))
-
-from program_handlers import (  # noqa: E402  (added to path above)
-    CalibrationReportGenerator,
-    GenericReportGenerator,
-)
+from src.dls_chart_generation.reports.calibration_report import CalibrationReportGenerator
+from src.dls_chart_generation.reports.generic_report import GenericReportGenerator
 
 
 @pytest.fixture()
@@ -61,8 +52,9 @@ def common_data():
     return cleaned, channels_to_record, channel_map
 
 
-def _stub_dependencies(monkeypatch):
-    """Replace heavy drawing functions with light-weight stubs."""
+def _stub_base_report_dependencies(monkeypatch):
+    """Replace heavy drawing functions from base_report with stubs."""
+    base_report_module = 'src.dls_chart_generation.reports.base_report'
 
     def fake_draw_test_details(*args, **kwargs):
         return MagicMock()
@@ -70,17 +62,14 @@ def _stub_dependencies(monkeypatch):
     def fake_insert_plot_and_logo(*args, **kwargs):
         return None
 
-    def fake_draw_table(*args, **kwargs):
-        return None
-
-    monkeypatch.setattr('program_handlers.draw_test_details', fake_draw_test_details)
-    monkeypatch.setattr('program_handlers.insert_plot_and_logo', fake_insert_plot_and_logo)
-    monkeypatch.setattr('program_handlers.draw_table', fake_draw_table)
+    monkeypatch.setattr(f'{base_report_module}.draw_test_details', fake_draw_test_details)
+    monkeypatch.setattr(f'{base_report_module}.insert_plot_and_logo', fake_insert_plot_and_logo)
 
 
 def test_mass_spec_channel_filtered_for_standard_reports(monkeypatch, tmp_path, base_metadata, common_data):
     cleaned_data, channels_to_record, channel_map = common_data
     captured = []
+    generic_report_module = 'src.dls_chart_generation.reports.generic_report'
 
     def fake_plot_channel_data(*, active_channels, **kwargs):
         captured.append(list(active_channels))
@@ -88,8 +77,8 @@ def test_mass_spec_channel_filtered_for_standard_reports(monkeypatch, tmp_path, 
         axis_map = {'Pressure': 'left', 'Mass Spectrometer': 'right_1'}
         return MagicMock(), axes, axis_map
 
-    _stub_dependencies(monkeypatch)
-    monkeypatch.setattr('program_handlers.plot_channel_data', fake_plot_channel_data)
+    _stub_base_report_dependencies(monkeypatch)
+    monkeypatch.setattr(f'{generic_report_module}.plot_channel_data', fake_plot_channel_data)
 
     generator = GenericReportGenerator(
         program_name='Generic',
@@ -114,6 +103,7 @@ def test_mass_spec_channel_filtered_for_standard_reports(monkeypatch, tmp_path, 
 def test_mass_spec_channel_retained_for_calibration(monkeypatch, tmp_path, base_metadata, common_data):
     cleaned_data, channels_to_record, channel_map = common_data
     captured = []
+    calibration_report_module = 'src.dls_chart_generation.reports.calibration_report'
 
     def fake_plot_channel_data(*, active_channels, **kwargs):
         captured.append(list(active_channels))
@@ -121,8 +111,10 @@ def test_mass_spec_channel_retained_for_calibration(monkeypatch, tmp_path, base_
         axis_map = {'Pressure': 'left', 'Mass Spectrometer': 'right_1'}
         return MagicMock(), axes, axis_map
 
-    _stub_dependencies(monkeypatch)
-    monkeypatch.setattr('program_handlers.plot_channel_data', fake_plot_channel_data)
+    _stub_base_report_dependencies(monkeypatch)
+    monkeypatch.setattr(f'{calibration_report_module}.plot_channel_data', fake_plot_channel_data)
+    monkeypatch.setattr(f'{calibration_report_module}.draw_table', lambda *a, **k: None)
+
 
     def fake_locate_calibration_points(*args, **kwargs):
         return pd.DataFrame({0: [0]} , index=['Phase']), None
@@ -137,9 +129,9 @@ def test_mass_spec_channel_retained_for_calibration(monkeypatch, tmp_path, base_
     def fake_evaluate_thresholds(*args, **kwargs):
         return pd.Series(dtype=bool)
 
-    monkeypatch.setattr('program_handlers.locate_calibration_points', fake_locate_calibration_points)
-    monkeypatch.setattr('program_handlers.calculate_succesful_calibration', fake_calculate_success)
-    monkeypatch.setattr('program_handlers.evaluate_calibration_thresholds', fake_evaluate_thresholds)
+    monkeypatch.setattr(f'{calibration_report_module}.locate_calibration_points', fake_locate_calibration_points)
+    monkeypatch.setattr(f'{calibration_report_module}.calculate_succesful_calibration', fake_calculate_success)
+    monkeypatch.setattr(f'{calibration_report_module}.evaluate_calibration_thresholds', fake_evaluate_thresholds)
 
     generator = CalibrationReportGenerator(
         program_name='Calibration',

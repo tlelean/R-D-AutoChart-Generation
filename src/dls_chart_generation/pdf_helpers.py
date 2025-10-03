@@ -13,12 +13,8 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 
+from .additional_info_functions import evaluate_calibration_thresholds
 
-CALIBRATION_THRESHOLDS = {
-    "Abs Error (µA) - ±3.6 µA": 3.6,
-    "Abs Error (mV) - ±0.12 mV": 0.12,
-    "Abs Error (mV) - ±1.0 mV": 1.0,
-}
 
 def format_torque(value):
     """Return a torque string with units or special cases."""
@@ -146,36 +142,6 @@ class Layout:
     GAUGE_COL_WIDTH = 50
     GAUGE_ROW_HEIGHT = 15
 
-
-def evaluate_calibration_thresholds(
-    table: pd.DataFrame,
-    precise_errors: Optional[pd.Series] = None,
-) -> pd.DataFrame:
-    """Return a boolean mask indicating threshold breaches for calibration tables."""
-
-    if table is None or table.empty:
-        return pd.DataFrame()
-
-    mask: dict[str, pd.Series] = {}
-    for row_label, threshold in CALIBRATION_THRESHOLDS.items():
-        if row_label not in table.index:
-            continue
-
-        if precise_errors is not None and row_label.startswith("Abs Error"):
-            values = pd.to_numeric(
-                precise_errors.reindex(table.columns),
-                errors="coerce",
-            )
-        else:
-            values = pd.to_numeric(table.loc[row_label], errors="coerce")
-
-        mask[row_label] = values.abs() > threshold
-
-    if not mask:
-        return pd.DataFrame(index=[], columns=table.columns, dtype=bool)
-
-    result = pd.DataFrame(mask).T.fillna(False)
-    return result.astype(bool)
 
 def insert_plot_and_logo(figure, pdf, is_table):
     png_figure = io.BytesIO()
@@ -411,29 +377,31 @@ def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5, calibr
         ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
     ])
 
-    breach_mask = evaluate_calibration_thresholds(df)
+    if calibration:
+        from . import config
+        breach_mask = evaluate_calibration_thresholds(df)
 
-    for i, row_label in enumerate(df.index.astype(str)):
-        if row_label not in CALIBRATION_THRESHOLDS:
-            continue
-
-        numeric_row = pd.to_numeric(df.loc[row_label], errors="coerce")
-        breaches = (
-            breach_mask.loc[row_label]
-            if row_label in breach_mask.index
-            else pd.Series(index=df.columns, data=False)
-        )
-
-        for col_offset, (column_key, value) in enumerate(numeric_row.items(), start=1):
-            if pd.isna(value):
+        for i, row_label in enumerate(df.index.astype(str)):
+            if row_label not in config.CALIBRATION_THRESHOLDS:
                 continue
-            breached = bool(breaches.get(column_key, False))
-            style.add(
-                'BACKGROUND',
-                (col_offset, i),
-                (col_offset, i),
-                colors.red if breached else colors.limegreen,
+
+            numeric_row = pd.to_numeric(df.loc[row_label], errors="coerce")
+            breaches = (
+                breach_mask.loc[row_label]
+                if row_label in breach_mask.index
+                else pd.Series(index=df.columns, data=False)
             )
+
+            for col_offset, (column_key, value) in enumerate(numeric_row.items(), start=1):
+                if pd.isna(value):
+                    continue
+                breached = bool(breaches.get(column_key, False))
+                style.add(
+                    'BACKGROUND',
+                    (col_offset, i),
+                    (col_offset, i),
+                    colors.red if breached else colors.limegreen,
+                )
 
     table.setStyle(style)
 
