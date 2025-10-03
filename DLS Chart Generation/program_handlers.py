@@ -380,7 +380,7 @@ class CalibrationReportGenerator(BaseReportGenerator):
             self.test_metadata, self.transducer_details, self.active_channels,
             self.cleaned_data, unique_path, is_table, self.raw_data
         )
-        draw_table(pdf_canvas=pdf, dataframe=average_values)
+        draw_table(pdf_canvas=pdf, dataframe=average_values, calibration=True)
         if regression_coefficients is not None and not regression_coefficients.dropna().empty:
             draw_regression_table(pdf, regression_coefficients)
         insert_plot_and_logo(figure, pdf, is_table)

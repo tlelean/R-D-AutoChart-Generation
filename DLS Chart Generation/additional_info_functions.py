@@ -267,15 +267,16 @@ def locate_key_time_rows(cleaned_data, additional_info):
             holds_values.at[row, 3] = cleaned_data.iloc[rowpos, colpos_temp]
         holds_indices.columns = ['SOS_Index', 'SOH_Index', 'EOH_Index']
         holds_values.columns = holds_values.iloc[0]
-        holds_values = holds_values.iloc[1:].set_index(holds_values.columns[0])
+        holds_values = holds_values.iloc[1:]
         holds_values["Datetime"] = pd.to_datetime(
             holds_values["Datetime"], format="%Y-%m-%d %H:%M:%S.%f", dayfirst=True
         )
+
         display_table = holds_values.copy()
         display_table["Datetime"] = display_table["Datetime"].dt.strftime("%d/%m/%Y %H:%M:%S")
 
         if len(display_table.columns) > 1:
-            pressure_col = display_table.columns[1]
+            pressure_col = display_table.columns[2]
             display_table[pressure_col] = (
                 pd.to_numeric(display_table[pressure_col], errors="coerce")
                 .round(0)
@@ -291,6 +292,8 @@ def locate_key_time_rows(cleaned_data, additional_info):
                 inplace=True,
             )
 
+        display_table.columns = display_table.columns.fillna('')
+        print(display_table)
         return holds_indices, display_table
     
 def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_map: dict[str, str]):

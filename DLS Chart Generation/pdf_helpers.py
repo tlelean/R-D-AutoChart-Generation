@@ -354,7 +354,7 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
         (Layout.OPERATIVE_VALUE_X, Layout.OPERATIVE_Y, test_metadata.at['Operative', 1], light_blue, False),
     ]
 
-def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
+def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5, calibration=False):
     """Render a pandas DataFrame as a table on the PDF canvas."""
     if dataframe is None or dataframe.empty:
         return
@@ -365,16 +365,22 @@ def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
     idx_labels  = list(df.index.astype(str))
 
     # Body: each row starts with the index label, then row values
+    header = list(dataframe.columns.astype(str))
     body_rows = [[idx_labels[i]] + [str(v) for v in row] for i, row in enumerate(df.values.tolist())]
 
-    data = body_rows
+    if calibration:
+        data = body_rows
+    else:
+        data = [header] + body_rows
 
     # ---- Dimensions ----
     rows = len(data)
     cols = len(data[0])
 
-    # Give the first (index) column a bit more width
-    col_widths = width / cols
+    if calibration:
+        col_widths = width / cols
+    else:
+        col_widths = width / (cols + 1)
 
     row_height = height / rows
 
@@ -383,6 +389,8 @@ def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
         colWidths=col_widths,
         rowHeights=[row_height] * rows,
     )
+
+    print(table)
 
     style = TableStyle([
         # Header row
