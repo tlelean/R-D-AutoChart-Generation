@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import List, Dict, Any
 import pandas as pd
 
-from .. import config
-from ..pdf_helpers import draw_test_details, insert_plot_and_logo
-from ..graph_plotter import plot_channel_data
+from dls_chart_generation import config
+from dls_chart_generation.pdf_helpers import draw_test_details, insert_plot_and_logo
+from dls_chart_generation.graph_plotter import plot_channel_data
 
 class ReportStrategy(ABC):
     """

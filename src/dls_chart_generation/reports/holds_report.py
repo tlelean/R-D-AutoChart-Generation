@@ -6,11 +6,11 @@ Defines the strategy for generating reports for hold tests.
 from pathlib import Path
 import pandas as pd
 
-from .. import config
-from .base_report import ReportStrategy
-from ..graph_plotter import plot_channel_data, plot_crosses
-from ..pdf_helpers import draw_table, insert_plot_and_logo
-from ..additional_info_functions import locate_key_time_rows
+from dls_chart_generation import config
+from dls_chart_generation.reports.base_report import ReportStrategy
+from dls_chart_generation.graph_plotter import plot_channel_data, plot_crosses
+from dls_chart_generation.pdf_helpers import draw_table, insert_plot_and_logo
+from dls_chart_generation.additional_info_functions import locate_key_time_rows
 
 class HoldsReportGenerator(ReportStrategy):
     """

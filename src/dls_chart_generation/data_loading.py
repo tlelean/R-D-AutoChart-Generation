@@ -10,8 +10,8 @@ from pathlib import Path
 import pandas as pd
 from typing import Tuple, List, Dict, Any
 
-from . import config
-from .channel_mapping import create_channel_name_mapping
+from dls_chart_generation import config
+from dls_chart_generation.channel_mapping import create_channel_name_mapping
 
 class DataLoader:
     """

@@ -3,7 +3,7 @@
 Defines a strategy that performs no action.
 """
 
-from .base_report import ReportStrategy
+from dls_chart_generation.reports.base_report import ReportStrategy
 
 class DoNothingReportGenerator(ReportStrategy):
     """

@@ -11,13 +11,13 @@ report generator implementations.
 from typing import Type, Dict
 
 # Import the base strategy and all concrete strategy implementations
-from .reports.base_report import ReportStrategy
-from .reports.generic_report import GenericReportGenerator
-from .reports.holds_report import HoldsReportGenerator
-from .reports.breakouts_report import BreakoutsReportGenerator
-from .reports.signatures_report import SignaturesReportGenerator
-from .reports.calibration_report import CalibrationReportGenerator
-from .reports.do_nothing_report import DoNothingReportGenerator
+from dls_chart_generation.reports.base_report import ReportStrategy
+from dls_chart_generation.reports.generic_report import GenericReportGenerator
+from dls_chart_generation.reports.holds_report import HoldsReportGenerator
+from dls_chart_generation.reports.breakouts_report import BreakoutsReportGenerator
+from dls_chart_generation.reports.signatures_report import SignaturesReportGenerator
+from dls_chart_generation.reports.calibration_report import CalibrationReportGenerator
+from dls_chart_generation.reports.do_nothing_report import DoNothingReportGenerator
 
 
 class ReportGeneratorFactory:

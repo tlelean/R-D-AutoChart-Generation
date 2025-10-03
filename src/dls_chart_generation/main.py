@@ -1,14 +1,22 @@
 """Entry point for generating R&D test reports."""
 
-import fitz
-from pathlib import Path
-import argparse
+import sys
 import os
+from pathlib import Path
+import fitz
+import argparse
 
-from .data_loading import DataLoader
-from .program_handlers import ReportGeneratorFactory
-from .mass_spec_report import generate_mass_spec_reports
-from . import config
+# Allow the script to be run directly by adding the project root to the path
+if __name__ == "__main__" and __package__ is None:
+    project_root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(project_root))
+    # Set the package to allow relative imports
+    __package__ = "dls_chart_generation"
+
+from dls_chart_generation.data_loading import DataLoader
+from dls_chart_generation.program_handlers import ReportGeneratorFactory
+from dls_chart_generation.mass_spec_report import generate_mass_spec_reports
+from dls_chart_generation import config
 
 
 def process_files_and_generate_report(primary_data_file, test_details_file, pdf_output_path, run_tests):
@@ -107,7 +115,7 @@ def main():
 
     try:
         if args.run_tests:
-            from .test_config import TEST_CASES
+            from dls_chart_generation.test_config import TEST_CASES
             print("Running in test mode...")
             for i, test_case in enumerate(TEST_CASES):
                 print(f"--- Running Test Case {i+1} ---")

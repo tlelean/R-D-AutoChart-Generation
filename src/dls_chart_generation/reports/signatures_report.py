@@ -8,11 +8,11 @@ from pathlib import Path
 import math
 import pandas as pd
 
-from .. import config
-from .breakouts_report import BreakoutsReportGenerator
-from ..graph_plotter import plot_channel_data, plot_crosses
-from ..pdf_helpers import draw_table, insert_plot_and_logo
-from ..additional_info_functions import locate_signature_key_points, find_cycle_breakpoints
+from dls_chart_generation import config
+from dls_chart_generation.reports.breakouts_report import BreakoutsReportGenerator
+from dls_chart_generation.graph_plotter import plot_channel_data, plot_crosses
+from dls_chart_generation.pdf_helpers import draw_table, insert_plot_and_logo
+from dls_chart_generation.additional_info_functions import locate_signature_key_points, find_cycle_breakpoints
 
 class SignaturesReportGenerator(BreakoutsReportGenerator):
     """

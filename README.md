@@ -55,14 +55,14 @@ The project is organized as follows:
 
 ## Usage
 
-Because this project is structured as a Python package, it should be run as a module to ensure all internal imports work correctly.
+The application can be run from the command line in two modes:
 
 ### Standard Mode
 
 In standard mode, you provide the paths to the primary data file, the test details file, and the output PDF path.
 
 ```bash
-python -m src.dls_chart_generation.main <primary_data_file> <test_details_file> <pdf_output_path>
+python src/dls_chart_generation/main.py <primary_data_file> <test_details_file> <pdf_output_path>
 ```
 
 ### Test Mode
@@ -70,7 +70,7 @@ python -m src.dls_chart_generation.main <primary_data_file> <test_details_file> 
 In test mode, the application processes a series of predefined test cases from `src/dls_chart_generation/test_config.py`.
 
 ```bash
-python -m src.dls_chart_generation.main --run-tests
+python src/dls_chart_generation/main.py --run-tests
 ```
 
 ## Extending the Application

@@ -3,8 +3,8 @@
 Defines the strategy for generating a generic report.
 """
 
-from .base_report import ReportStrategy
-from ..graph_plotter import plot_channel_data
+from dls_chart_generation.reports.base_report import ReportStrategy
+from dls_chart_generation.graph_plotter import plot_channel_data
 
 class GenericReportGenerator(ReportStrategy):
     """

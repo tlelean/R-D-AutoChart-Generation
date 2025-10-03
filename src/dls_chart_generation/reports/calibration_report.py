@@ -6,12 +6,12 @@ Defines the strategy for generating reports for calibration tests.
 from typing import Any
 import pandas as pd
 
-from .. import config
-from .base_report import ReportStrategy
-from ..graph_plotter import plot_channel_data
-from ..plotter_info import CHANNEL_AXIS_NAMES_MAP
-from ..pdf_helpers import draw_table, draw_regression_table
-from ..additional_info_functions import (
+from dls_chart_generation import config
+from dls_chart_generation.reports.base_report import ReportStrategy
+from dls_chart_generation.graph_plotter import plot_channel_data
+from dls_chart_generation.plotter_info import CHANNEL_AXIS_NAMES_MAP
+from dls_chart_generation.pdf_helpers import draw_table, draw_regression_table
+from dls_chart_generation.additional_info_functions import (
     locate_calibration_points,
     calculate_succesful_calibration,
     calculate_calibration_regression,
