@@ -6,12 +6,10 @@ from pathlib import Path
 import fitz
 import argparse
 
-# Allow the script to be run directly by adding the project root to the path
+# Allow the script to be run directly by adding the project's source directory to the path
 if __name__ == "__main__" and __package__ is None:
-    project_root = Path(__file__).resolve().parents[1]
-    sys.path.insert(0, str(project_root))
-    # Set the package to allow relative imports
-    __package__ = "dls_chart_generation"
+    src_dir = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(src_dir))
 
 from dls_chart_generation.data_loading import DataLoader
 from dls_chart_generation.program_handlers import ReportGeneratorFactory

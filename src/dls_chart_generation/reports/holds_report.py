@@ -17,6 +17,14 @@ class HoldsReportGenerator(ReportStrategy):
     Generate reports for hold tests. This strategy overrides the default
     `generate` method to handle multiple holds within a single test file.
     """
+
+    def create_plot(self, is_table: bool):
+        """
+        This method is not used by this strategy as it overrides the main
+        `generate` method. It is implemented to satisfy the abstract base class.
+        """
+        pass
+
     def generate(self) -> Path:
         """
         Generates a report for each hold specified in the additional info.

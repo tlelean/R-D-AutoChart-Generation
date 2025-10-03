@@ -19,6 +19,14 @@ class BreakoutsReportGenerator(ReportStrategy):
     Generates reports for breakout tests, potentially creating multiple pages
     for a large number of cycles. Overrides the default `generate` method.
     """
+
+    def create_plot(self, is_table: bool):
+        """
+        This method is not used by this strategy as it overrides the main
+        `generate` method. It is implemented to satisfy the abstract base class.
+        """
+        pass
+
     def generate(self) -> List[Path]:
         """
         Generates a multi-page report for breakout tests, grouping cycles
