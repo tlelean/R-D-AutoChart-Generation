@@ -211,6 +211,9 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         result_slice = breakout_values[breakout_values['Cycle'].isin(group)]
         index_slice = breakout_indices[breakout_indices['Cycle'].isin(group)]
 
+        header_row = result_slice.columns.tolist()
+        result_slice = pd.concat([pd.DataFrame([header_row], columns=header_row), result_slice], ignore_index=True)
+
         figure, axes, axis_map = plot_channel_data(
             self._channels_for_main_plot(), data_slice, self.channels_to_record, is_table=True, channel_map=self.channel_map
         )
@@ -380,7 +383,7 @@ class CalibrationReportGenerator(BaseReportGenerator):
             self.test_metadata, self.transducer_details, self.active_channels,
             self.cleaned_data, unique_path, is_table, self.raw_data
         )
-        draw_table(pdf_canvas=pdf, dataframe=average_values, calibration=True)
+        draw_table(pdf_canvas=pdf, dataframe=average_values)
         if regression_coefficients is not None and not regression_coefficients.dropna().empty:
             draw_regression_table(pdf, regression_coefficients)
         insert_plot_and_logo(figure, pdf, is_table)

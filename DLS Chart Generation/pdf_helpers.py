@@ -354,61 +354,40 @@ def build_torque_and_stamp_positions(transducer_details, test_metadata, light_bl
         (Layout.OPERATIVE_VALUE_X, Layout.OPERATIVE_Y, test_metadata.at['Operative', 1], light_blue, False),
     ]
 
-def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5, calibration=False):
-    """Render a pandas DataFrame as a table on the PDF canvas."""
+def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
+    """Render a pandas DataFrame as a table on the PDF canvas (no headers, no index) with calibration colouring."""
     if dataframe is None or dataframe.empty:
         return
 
-    # Remove all-null columns (as you had)
+    # Remove all-null columns
     df = dataframe.dropna(axis=1, how="all")
 
-    idx_labels  = list(df.index.astype(str))
-
-    # Body: each row starts with the index label, then row values
-    header = list(dataframe.columns.astype(str))
-    body_rows = [[idx_labels[i]] + [str(v) for v in row] for i, row in enumerate(df.values.tolist())]
-
-    if calibration:
-        data = body_rows
-    else:
-        data = [header] + body_rows
+    # Table data = just the values (no headers, no index)
+    data = df.astype(str).values.tolist()
+    if not data or not data[0]:
+        return
 
     # ---- Dimensions ----
     rows = len(data)
     cols = len(data[0])
-
-    if calibration:
-        col_widths = width / cols
-    else:
-        col_widths = width / (cols + 1)
-
+    col_width  = width / cols
     row_height = height / rows
 
     table = Table(
         data,
-        colWidths=col_widths,
+        colWidths=col_width,
         rowHeights=[row_height] * rows,
     )
 
-    print(table)
-
+    # Base style (uniform across all cells)
     style = TableStyle([
-        # Header row
-        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
-        ('TEXTCOLOR',  (0, 0), (-1, 0), colors.black),
-
-        # Body
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('TEXTCOLOR',  (0, 1), (-1, -1), colors.black),
-
-        # Alignment: centre first column (row labels) AND header row cell
-        ('ALIGN',      (0, 0), (0, -1), 'CENTER'),
-        ('ALIGN',      (1, 0), (-1, -1), 'CENTER'),
+        ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
-
         ('FONTNAME',   (0, 0), (-1, -1), 'Helvetica'),
         ('FONTSIZE',   (0, 0), (-1, -1), 8),
         ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('TEXTCOLOR',  (0, 0), (-1, -1), colors.black),
     ])
 
     breach_mask = evaluate_calibration_thresholds(df)
@@ -424,7 +403,7 @@ def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5, calibr
             else pd.Series(index=df.columns, data=False)
         )
 
-        for col_offset, (column_key, value) in enumerate(numeric_row.items(), start=1):
+        for col_offset, (column_key, value) in enumerate(numeric_row.items(), start=0):
             if pd.isna(value):
                 continue
             breached = bool(breaches.get(column_key, False))

@@ -209,6 +209,9 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
             'Abs Error (mV) - ±0.12 mV',
         ]
 
+    # After you've set display_table.index
+    display_table.insert(0, "0", display_table.index)  # add index as a new first column
+
     return display_table, counts_series, expected_series, abs_error_series
 
 
@@ -263,38 +266,25 @@ def locate_key_time_rows(cleaned_data, additional_info):
             rowpos = holds_indices.at[0, row]
             colpos_value = cleaned_data.columns.get_loc(holds_values.at[0, 2])
             colpos_temp  = cleaned_data.columns.get_loc("Body Temperature")
-            holds_values.at[row, 2] = cleaned_data.iloc[rowpos, colpos_value]
+            holds_values.at[row, 2] = int(cleaned_data.iloc[rowpos, colpos_value])
             holds_values.at[row, 3] = cleaned_data.iloc[rowpos, colpos_temp]
         holds_indices.columns = ['SOS_Index', 'SOH_Index', 'EOH_Index']
         holds_values.columns = holds_values.iloc[0]
-        holds_values = holds_values.iloc[1:]
-        holds_values["Datetime"] = pd.to_datetime(
-            holds_values["Datetime"], format="%Y-%m-%d %H:%M:%S.%f", dayfirst=True
+        holds_values.loc[1:, "Datetime"] = (
+            pd.to_datetime(
+                holds_values.loc[1:, "Datetime"],
+                format="%d/%m/%Y %H:%M:%S.%f",
+                errors="coerce",
+                dayfirst=True,
+            )
+            .dt.strftime("%d/%m/%Y %H:%M:%S.%f")
+            .str.slice(0, 19)   # trims to 3 decimals (.905 instead of .905000)
         )
+        holds_values.iat[0, 2] = str(holds_values.iat[0, 2]) + " (psi)"
+        holds_values.iat[0, 3] = str(holds_values.iat[0, 3]) + " (°C)"
+        holds_values = holds_values.fillna('')
 
-        display_table = holds_values.copy()
-        display_table["Datetime"] = display_table["Datetime"].dt.strftime("%d/%m/%Y %H:%M:%S")
-
-        if len(display_table.columns) > 1:
-            pressure_col = display_table.columns[2]
-            display_table[pressure_col] = (
-                pd.to_numeric(display_table[pressure_col], errors="coerce")
-                .round(0)
-                .astype('Int64')
-            )
-            display_table.rename(
-                columns={pressure_col: f"{pressure_col} (psi)"}, inplace=True
-            )
-
-        if "Temperature" in display_table.columns:
-            display_table.rename(
-                columns={"Temperature": "Temperature (°C)"},
-                inplace=True,
-            )
-
-        display_table.columns = display_table.columns.fillna('')
-        print(display_table)
-        return holds_indices, display_table
+        return holds_indices, holds_values
     
 def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_map: dict[str, str]):
     if (
