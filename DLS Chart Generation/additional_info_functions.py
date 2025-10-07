@@ -58,9 +58,7 @@ def find_cycle_breakpoints(raw_data, channels_to_record, channel_map: dict[str, 
         "Three-Quarter Index",
         "End Index",
     ])
-
     return df_ranges, total_cycle_count
-
 
 def signed_distances_to_baseline(y: pd.Series) -> np.ndarray:
     if len(y) < 2: 
@@ -168,6 +166,9 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
         applied = _to_float(additional_info.at[0, col])
 
         counts = cleaned_data.loc[start_idx:end_idx, channel_name].mean()
+
+        print(f"Calibration Point {i+1}: Slope={slope}, Counts={counts}, Intercept={intercept_value}")
+
         converted = (slope * counts) + intercept_value
         error = applied - converted
 
@@ -185,6 +186,8 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
         display_table.loc[1, [display_col]] = counts_display
         display_table.loc[2, [display_col]] = converted_display
         display_table.loc[3, [display_col]] = error_display
+
+    print(additional_info)
 
     if additional_info.at[0, 0] == "7812500.0" or additional_info.at[0, 0] == "7812500":
         if additional_info.at[0, 1] == "4000":
@@ -209,11 +212,9 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
             'Abs Error (mV) - ±0.12 mV',
         ]
 
-    # After you've set display_table.index
-    display_table.insert(0, "0", display_table.index)  # add index as a new first column
+    display_table.insert(0, "0", display_table.index)
 
     return display_table, counts_series, expected_series, abs_error_series
-
 
 def calculate_calibration_regression(counts: pd.Series, expected_counts: pd.Series) -> pd.Series:
     """Return polynomial coefficients mapping counts to expected counts."""

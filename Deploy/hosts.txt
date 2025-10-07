@@ -3,6 +3,9 @@
 # F.A.T. Rig 1
 10.1.6.10
 
+# F.A.T. Rig 2
+10.1.6.11
+
 # Right Hand Large Temperature Cabinet
 10.1.6.14
 

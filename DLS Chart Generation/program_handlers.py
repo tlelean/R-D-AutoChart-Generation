@@ -65,7 +65,6 @@ class BaseReportGenerator:
     def build_output_path(self, test_metadata) -> Path:
         """Construct the output PDF path from metadata."""
         return self.pdf_output_path / (
-            f"{test_metadata.at['Test Section Number', 1]} "
             f"{test_metadata.at['Test Name', 1]}_"
             f"{test_metadata.at['Date Time', 1]}.pdf"
         )
