@@ -61,6 +61,21 @@ class BaseReportGenerator:
             channels = [ch for ch in channels if ch != mass_spec_channel]
 
         return channels
+    
+    def _is_channel_recorded(self, default_channel: str) -> bool:
+        """Return ``True`` when the default channel has recorded data."""
+
+        if not isinstance(self.channels_to_record, pd.DataFrame):
+            return False
+
+        if not self.channel_map or default_channel not in self.channel_map:
+            return False
+
+        channel_name = self.channel_map[default_channel]
+        if channel_name not in self.channels_to_record.index:
+            return False
+
+        return bool(self.channels_to_record.at[channel_name, 1])
 
     def build_output_path(self, test_metadata) -> Path:
         """Construct the output PDF path from metadata."""
@@ -174,28 +189,34 @@ class BreakoutsReportGenerator(BaseReportGenerator):
             post_middle_cycles = all_cycles[middle_start + 3:-3]
             remaining_segments = [seg for seg in (pre_middle_cycles, post_middle_cycles) if seg]
 
-            total_group_pages = sum(1 for grp in grouped_cycles if grp)
-            total_remaining_pages = sum(math.ceil(len(seg) / 40) for seg in remaining_segments)
-            total_pages = total_group_pages + total_remaining_pages
-
-            page_idx = 1
+            planned_pages = []
             for group in grouped_cycles:
                 if not group:
                     continue
-                path = self._generate_grouped_cycle_page(
-                    group, page_idx, total_pages, base_section, cycle_ranges, breakout_values, breakout_indices
-                )
-                generated_paths.append(path)
-                page_idx += 1
+                planned_pages.append(("grouped", group, group[0]))
 
             for seg in remaining_segments:
                 for i in range(0, len(seg), 40):
                     group = seg[i:i + 40]
+                    planned_pages.append(("multi", group, group[0]))
+
+            total_pages = len(planned_pages)
+            ordered_indices = sorted(
+                range(len(planned_pages)), key=lambda idx: planned_pages[idx][2]
+            )
+            page_numbers = {idx: order + 1 for order, idx in enumerate(ordered_indices)}
+
+            for idx, (page_type, group, _) in enumerate(planned_pages):
+                page_idx = page_numbers[idx]
+                if page_type == "grouped":
+                    path = self._generate_grouped_cycle_page(
+                        group, page_idx, total_pages, base_section, cycle_ranges, breakout_values, breakout_indices
+                    )
+                else:
                     path = self._generate_multi_cycle_page(
                         group, page_idx, total_pages, base_section, cycle_ranges
                     )
-                    generated_paths.append(path)
-                    page_idx += 1
+                generated_paths.append(path)
         else:
             path = self._generate_single_page_report(breakout_values, breakout_indices)
             generated_paths.append(path)
@@ -216,7 +237,14 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         figure, axes, axis_map = plot_channel_data(
             self._channels_for_main_plot(), data_slice, self.channels_to_record, is_table=True, channel_map=self.channel_map
         )
-        plot_crosses(df=index_slice, channel='Torque', data=data_slice, ax=axes[axis_map['Torque']])
+        torque_axis_location = axis_map.get('Torque')
+        if torque_axis_location and self._is_channel_recorded('Torque'):
+            plot_crosses(
+                df=index_slice,
+                channel=self.channel_map['Torque'],
+                data=data_slice,
+                ax=axes[torque_axis_location],
+            )
         pdf = draw_test_details(
             meta, self.transducer_details, self.active_channels, data_slice, unique_path, True, self.raw_data, has_breakout_table=True
         )
@@ -244,8 +272,14 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         figure, axes, axis_map = plot_channel_data(
             self._channels_for_main_plot(), self.cleaned_data, self.channels_to_record, is_table=True, channel_map=self.channel_map
         )
-        if self.channels_to_record.at[self.channel_map["Torque"], 1]:
-            plot_crosses(df=breakout_indices, channel='Torque', data=self.cleaned_data, ax=axes[axis_map['Torque']])
+        torque_axis_location = axis_map.get('Torque')
+        if torque_axis_location and self._is_channel_recorded('Torque'):
+            plot_crosses(
+                df=breakout_indices,
+                channel=self.channel_map['Torque'],
+                data=self.cleaned_data,
+                ax=axes[torque_axis_location],
+            )
         pdf = draw_test_details(
             self.test_metadata, self.transducer_details, self.active_channels,
             self.cleaned_data, unique_path, True, self.raw_data, has_breakout_table=True
@@ -273,7 +307,7 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
         all_cycles = list(range(1, max_cycle + 1))
         generated_paths = []
 
-        if self.channels_to_record.at[self.channel_map['Torque'], 1]:
+        if self._is_channel_recorded('Torque'):
             values_df, indices_df, plot_channel, axis_key = torque_values, torque_indices, self.channel_map['Torque'], 'Torque'
         else:
             values_df, indices_df, plot_channel, axis_key = actuator_values, actuator_indices, self.channel_map['Actuator'], 'Pressure'
@@ -289,22 +323,31 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
             post_middle_cycles = all_cycles[middle_start + 3:-3]
             remaining_segments = [seg for seg in (pre_middle_cycles, post_middle_cycles) if seg]
 
-            total_pages = len(grouped_cycles) + sum(math.ceil(len(seg) / 40) for seg in remaining_segments)
-
-            page_idx = 1
+            planned_pages = []
             for cycle in grouped_cycles:
-                path = self._generate_single_cycle_page(
-                    cycle, page_idx, total_pages, base_section, cycle_ranges, values_df, indices_df, plot_channel, axis_key
-                )
-                generated_paths.append(path)
-                page_idx += 1
+                planned_pages.append(("single", cycle, cycle))
 
             for seg in remaining_segments:
                 for i in range(0, len(seg), 40):
                     group = seg[i:i + 40]
+                    planned_pages.append(("multi", group, group[0]))
+
+            total_pages = len(planned_pages)
+            ordered_indices = sorted(
+                range(len(planned_pages)), key=lambda idx: planned_pages[idx][2]
+            )
+            page_numbers = {idx: order + 1 for order, idx in enumerate(ordered_indices)}
+
+            for idx, (page_type, group, _) in enumerate(planned_pages):
+                page_idx = page_numbers[idx]
+                if page_type == "single":
+                    cycle = group
+                    path = self._generate_single_cycle_page(
+                        cycle, page_idx, total_pages, base_section, cycle_ranges, values_df, indices_df, plot_channel, axis_key
+                    )
+                else:
                     path = self._generate_multi_cycle_page(group, page_idx, total_pages, base_section, cycle_ranges)
-                    generated_paths.append(path)
-                    page_idx += 1
+                generated_paths.append(path)
         else:
             path = self._generate_single_page_report(values_df, indices_df, plot_channel, axis_key)
             generated_paths.append(path)
@@ -323,7 +366,14 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
         figure, axes, axis_map = plot_channel_data(
             self._channels_for_main_plot(), data_slice, self.channels_to_record, is_table=True, channel_map=self.channel_map
         )
-        plot_crosses(df=index_slice, channel=plot_channel, data=data_slice, ax=axes[axis_map[axis_key]])
+        axis_location = axis_map.get(axis_key)
+        if axis_location:
+            plot_crosses(
+                df=index_slice,
+                channel=plot_channel,
+                data=data_slice,
+                ax=axes[axis_location],
+            )
         pdf = draw_test_details(
             meta, self.transducer_details, self.active_channels, data_slice, unique_path, True, self.raw_data, has_breakout_table=True
         )

@@ -167,8 +167,6 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
 
         counts = cleaned_data.loc[start_idx:end_idx, channel_name].mean()
 
-        print(f"Calibration Point {i+1}: Slope={slope}, Counts={counts}, Intercept={intercept_value}")
-
         converted = (slope * counts) + intercept_value
         error = applied - converted
 
@@ -186,8 +184,6 @@ def calculate_succesful_calibration(cleaned_data, calibration_indices, additiona
         display_table.loc[1, [display_col]] = counts_display
         display_table.loc[2, [display_col]] = converted_display
         display_table.loc[3, [display_col]] = error_display
-
-    print(additional_info)
 
     if additional_info.at[0, 0] == "7812500.0" or additional_info.at[0, 0] == "7812500":
         if additional_info.at[0, 1] == "4000":
@@ -271,16 +267,9 @@ def locate_key_time_rows(cleaned_data, additional_info):
             holds_values.at[row, 3] = cleaned_data.iloc[rowpos, colpos_temp]
         holds_indices.columns = ['SOS_Index', 'SOH_Index', 'EOH_Index']
         holds_values.columns = holds_values.iloc[0]
-        holds_values.loc[1:, "Datetime"] = (
-            pd.to_datetime(
-                holds_values.loc[1:, "Datetime"],
-                format="%d/%m/%Y %H:%M:%S.%f",
-                errors="coerce",
-                dayfirst=True,
-            )
-            .dt.strftime("%d/%m/%Y %H:%M:%S.%f")
-            .str.slice(0, 19)   # trims to 3 decimals (.905 instead of .905000)
-        )
+        s = holds_values.loc[1:, "Datetime"].astype(str).str.strip()
+        dt = pd.to_datetime(s, errors="coerce")     # no explicit format
+        holds_values.loc[1:, "Datetime"] = dt.dt.floor("s").dt.strftime("%d/%m/%Y %H:%M:%S")
         holds_values.iat[0, 2] = str(holds_values.iat[0, 2]) + " (psi)"
         holds_values.iat[0, 3] = str(holds_values.iat[0, 3]) + " (°C)"
         holds_values = holds_values.fillna('')

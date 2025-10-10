@@ -1,10 +1,14 @@
-# To use run .\Deploy\scp-deploy.ps1 or V:\Userdoc\Mechatronics\Applications\Python\R&D AutoChart Generation\Deploy\scp-deploy.ps1 if not in the current folder
-
 # F.A.T. Rig 1
 10.1.6.10
 
 # F.A.T. Rig 2
 10.1.6.11
+
+# F.A.T. Rig 3
+10.1.6.12
+
+# F.A.T. Rig 4
+10.1.6.13
 
 # Right Hand Large Temperature Cabinet
 10.1.6.14

@@ -1,4 +1,4 @@
-# To use run .\Deploy\scp-deploy.ps1 or V:\Userdoc\Mechatronics\Applications\Python\R&D AutoChart Generation\Deploy\scp-deploy.ps1 if not in the current folder
+# To use run .\Deploy\deploy_py.ps1 or V:\Userdoc\Mechatronics\Applications\Python\R&D AutoChart Generation\Deploy\deploy_py.ps1 if not in the current folder
 
 param(
     [string]$SourceDir = "V:\Userdoc\Mechatronics\Applications\Python\R&D AutoChart Generation\DLS Chart Generation",
