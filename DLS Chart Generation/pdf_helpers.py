@@ -267,10 +267,32 @@ def draw_layout_boxes(pdf, is_table):
     for box in PDF_LAYOUT_BOXES:
         draw_bounding_box(pdf, *box)
 
+def _combine_section_and_name(section_number: Optional[str], test_name: Optional[str]) -> str:
+    """Return a formatted test title with the section number prefix."""
+
+    section = str(section_number or "").strip()
+    name = str(test_name or "").strip()
+
+    if not section:
+        return name
+    if not name:
+        return section
+    if name.startswith(section):
+        return name
+    return f"{section} {name}".strip()
+
+
+def build_test_title(test_metadata) -> str:
+    """Construct the display title for a test from its metadata."""
+
+    section = test_metadata.at['Test Section Number', 1]
+    name = test_metadata.at['Test Name', 1]
+    return _combine_section_and_name(section, name)
+
 def draw_headers(pdf, test_metadata, cleaned_data, light_blue):
     draw_text_on_pdf(
         pdf,
-        f"{test_metadata.at['Test Section Number', 1]} {test_metadata.at['Test Name', 1]}",
+        build_test_title(test_metadata),
         Layout.MAIN_TITLE_X,
         Layout.MAIN_TITLE_Y,
         font="Helvetica-Bold",

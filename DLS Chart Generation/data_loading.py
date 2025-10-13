@@ -129,6 +129,13 @@ def prepare_primary_data(primary_data_path: str, channels_to_record: pd.DataFram
     # Extract only the required columns
     data_subset = raw_data[required_columns].copy()
 
+    # Drop duplicate timestamps so downstream consumers always see unique
+    # Datetime values (while preserving the first occurrence).
+    dedupe_mask = ~data_subset["Datetime"].duplicated(keep="first")
+    if not dedupe_mask.all():
+        data_subset = data_subset.loc[dedupe_mask].copy()
+        raw_data = raw_data.loc[dedupe_mask].copy()
+
     # Convert the single 'Datetime' column to a proper datetime type
     # (assuming format dd/mm/yyyy hh:mm:ss.000)
     data_subset["Datetime"] = pd.to_datetime(

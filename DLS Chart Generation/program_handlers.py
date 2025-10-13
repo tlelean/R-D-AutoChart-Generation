@@ -15,6 +15,7 @@ from pdf_helpers import (
     draw_test_details,
     draw_regression_table,
     evaluate_calibration_thresholds,
+    build_test_title,
     insert_plot_and_logo,
 )
 from additional_info_functions import (
@@ -79,8 +80,9 @@ class BaseReportGenerator:
 
     def build_output_path(self, test_metadata) -> Path:
         """Construct the output PDF path from metadata."""
+        full_name = build_test_title(test_metadata)
         return self.pdf_output_path / (
-            f"{test_metadata.at['Test Name', 1]}_"
+            f"{full_name}_"
             f"{test_metadata.at['Date Time', 1]}.pdf"
         )
 

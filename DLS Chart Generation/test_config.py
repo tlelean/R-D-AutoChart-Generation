@@ -42,16 +42,4 @@ TEST_CASES = [
         "test_details_file": "V:/Userdoc/Mechatronics/Applications/Python/R&D AutoChart Generation/Example Data/Atmospheric Breakouts/Calibration_Test_Details_1-10-2025_16-23-24.csv",
         "pdf_output_path": "./Example Certs/",
     },
-    # Calibration Mass Spec
-    {
-        "primary_data_file": "V:/Userdoc/R & D/DAQ_Station/Calibration/DLS005 Right Hand Large Temperature Cabinet/CSV/Calibration_Data_30-9-2025_15-32-33.csv",
-        "test_details_file": "V:/Userdoc/R & D/DAQ_Station/Calibration/DLS005 Right Hand Large Temperature Cabinet/CSV/Calibration_Test_Details_30-9-2025_15-32-33.csv",
-        "pdf_output_path": "./Example Certs/",
-    },
-    # Calibration Mass Spec Mantissa
-    {
-        "primary_data_file": "V:/Userdoc/R & D/DAQ_Station/Calibration/DLS005 Right Hand Large Temperature Cabinet/CSV/Calibration_Data_30-9-2025_15-29-39.csv",
-        "test_details_file": "V:/Userdoc/R & D/DAQ_Station/Calibration/DLS005 Right Hand Large Temperature Cabinet/CSV/Calibration_Test_Details_30-9-2025_15-29-39.csv",
-        "pdf_output_path": "./Example Certs/",
-    },
 ]
