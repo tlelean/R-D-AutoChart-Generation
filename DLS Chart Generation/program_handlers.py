@@ -304,6 +304,7 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
         torque_values, torque_indices, actuator_values, actuator_indices = locate_signature_key_points(
             self.channels_to_record, self.raw_data, self.channel_map
         )
+
         cycle_ranges, max_cycle = find_cycle_breakpoints(self.raw_data, self.channels_to_record, self.channel_map)
         base_section = self.test_metadata.at['Test Name', 1]
         all_cycles = list(range(1, max_cycle + 1))
@@ -314,7 +315,7 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
         else:
             values_df, indices_df, plot_channel, axis_key = actuator_values, actuator_indices, self.channel_map['Actuator'], 'Pressure'
 
-        if max_cycle >= 10:
+        if max_cycle >= 5:
             middle_start = max(0, (max_cycle // 2) - 1)
             first_cycles = all_cycles[:3]
             middle_cycles = all_cycles[middle_start:middle_start + 3]
@@ -351,7 +352,9 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
                     path = self._generate_multi_cycle_page(group, page_idx, total_pages, base_section, cycle_ranges)
                 generated_paths.append(path)
         else:
-            path = self._generate_single_page_report(values_df, indices_df, plot_channel, axis_key)
+            path = self._generate_single_cycle_page(
+                    cycle, page_idx, total_pages, base_section, cycle_ranges, values_df, indices_df, plot_channel, axis_key
+                )            
             generated_paths.append(path)
 
         return generated_paths

@@ -82,13 +82,17 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
             # This currently only saves the first page of the first PDF.
             # This matches the original logic.
             if paths:
-                doc = fitz.open(paths[0])
-                page = doc.load_page(0)
-                zoom_factor = 3
-                mat = fitz.Matrix(zoom_factor, zoom_factor)
-                pix = page.get_pixmap(matrix=mat)
-                pix.save(output_path)
-                doc.close()
+                with fitz.open(paths[0]) as doc:
+                    page = doc.load_page(0)
+                    zoom_factor = 3
+                    mat = fitz.Matrix(zoom_factor, zoom_factor)
+                    pix = page.get_pixmap(matrix=mat)
+                    # Write the PNG bytes directly and fsync to guarantee the data is
+                    # persisted before the file is consumed elsewhere.
+                    with open(output_path, "wb") as image_file:
+                        image_file.write(pix.tobytes("png"))
+                        image_file.flush()
+                        os.fsync(image_file.fileno())
 
 def main():
     """
@@ -132,11 +136,12 @@ def main():
                 pdf_output_path=Path(args.pdf_output_path),
                 run_tests=False,
             )
-
-        print("Done")
-
+        
     except Exception as exc:
         print(f"An error occurred: {exc}")
+
+    finally:
+        print("Done")
 
 if __name__ == "__main__":
     main()

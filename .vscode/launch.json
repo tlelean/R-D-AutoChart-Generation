@@ -15,7 +15,7 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/DLS Chart Generation/main.py",
-      "args": ["V:/Userdoc/R & D/DAQ_Station/lkantordyson/TJ80218/TSK3259-2/Attempt 1/CSV/12.0.1/12.0.1_Data_13-10-2025_14-30-56.csv", "V:/Userdoc/R & D/DAQ_Station/lkantordyson/TJ80218/TSK3259-2/Attempt 1/CSV/12.0.1/12.0.1_Test_Details_13-10-2025_14-30-56.csv"
+      "args": ["V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/19.0/19.0_Data_17-10-2025_15-57-15.csv", "V:/Userdoc/R & D/DAQ_Station/tlelean/Job Number/Valve Drawing Number/Attempt Attempt/CSV/19.0/19.0_Test_Details_17-10-2025_15-57-15.csv"
 , "${workspaceFolder}/Example Certs"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}"

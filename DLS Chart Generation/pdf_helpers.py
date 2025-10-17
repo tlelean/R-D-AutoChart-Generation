@@ -222,6 +222,7 @@ def insert_plot_and_logo(figure, pdf, is_table):
         print(f"Warning: Could not load logo image at {image_path}. Error: {e}")
 
     pdf.save()
+    plt.close('all')
 
 def draw_bounding_box(pdf_canvas, x, y, width, height):
     pdf_canvas.setLineWidth(0.5)

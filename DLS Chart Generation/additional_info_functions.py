@@ -3,6 +3,7 @@ import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
 import re
 import warnings
+from datetime import datetime
 
 def find_cycle_breakpoints(raw_data, channels_to_record, channel_map: dict[str, str]):
     cycle_count_data = raw_data[channel_map["Cycle Count"]]
@@ -393,12 +394,12 @@ def locate_signature_key_points(
             return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
-    def find_r4(r3_idx: int, r1_idx: int) -> Tuple[Optional[float], Optional[int]]:
+    def find_r4(r3_idx: int, r1_idx: int, end_idx) -> Tuple[Optional[float], Optional[int]]:
         """Finds R4 (Actuator Knee after start_idx)."""
         if r3_idx is None:
-            recording_speed = datetime_data.loc[r1_idx+1] - datetime_data.loc[r1_idx]
-            forty_s_in_rows = pd.Timedelta(seconds=40) / recording_speed
-            end_idx = r1_idx + forty_s_in_rows
+            # recording_speed = datetime.strptime(datetime_data.loc[r1_idx+1], "%d/%m/%Y %H:%M:%S.%f") - datetime.strptime(datetime_data.loc[r1_idx], "%d/%m/%Y %H:%M:%S.%f")
+            # forty_s_in_rows = pd.Timedelta(seconds=40) / recording_speed
+            # end_idx = r1_idx + forty_s_in_rows
             ac_slice = actuator_data.loc[r1_idx:end_idx]
         else:
             ac_slice = actuator_data.loc[r3_idx:]
@@ -556,7 +557,7 @@ def locate_signature_key_points(
             r2, r2_idx = find_r2()
             r1, r1_idx = find_r1(r2_idx if r2_idx is not None else end_idx)
             r3, r3_idx = find_r3()
-            r4, r4_idx = find_r4(r3_idx, r1_idx)
+            r4, r4_idx = find_r4(r3_idx, r1_idx, end_idx)
             actuator_signature_values.append({
                 "Cycle": cycle,
                 "A1": a1,
@@ -581,10 +582,14 @@ def locate_signature_key_points(
                 "R3_Index": r3_idx,
                 "R4_Index": r4_idx,
             })
+    actuator_signature_values = pd.DataFrame.from_records(actuator_signature_values).dropna(axis=1, how='all').astype('Int64')
+    actuator_signature_values.loc[-1] = actuator_signature_values.columns
+    actuator_signature_values.index = actuator_signature_values.index + 1
+    actuator_signature_values = actuator_signature_values.sort_index()
 
     return (
         pd.DataFrame.from_records(torque_signature_values), 
         pd.DataFrame.from_records(torque_signature_indices), 
-        pd.DataFrame.from_records(actuator_signature_values), 
+        actuator_signature_values,
         pd.DataFrame.from_records(actuator_signature_indices),
     )
