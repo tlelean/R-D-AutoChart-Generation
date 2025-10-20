@@ -293,12 +293,12 @@ def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_m
         for cycle, start_idx, one_quarter, middle_idx, three_quarter, end_idx in indices_ranges.itertuples(index=False, name=None):
             # 1st third for BTO
             torque_first = torque_series.loc[start_idx:one_quarter]
-            bto = torque_first.min().round(2)
+            bto = round(torque_first.min(), 2)
             bto_index = torque_first.idxmin()
 
             # 3rd third for BTC
             torque_third = torque_series.loc[middle_idx:three_quarter]
-            btc = torque_third.max().round(2)
+            btc = round(torque_first.max(), 2)
             btc_index = torque_third.idxmax()
 
             # Store values
