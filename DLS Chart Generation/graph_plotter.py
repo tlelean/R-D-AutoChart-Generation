@@ -141,7 +141,7 @@ def _style_axes(
     axis_label_map,
     color_map,
     cleaned_data,
-    custom_to_default_map,
+    test_metadata,
     *,
     lock_temperature_axis=True,
 ):
@@ -179,12 +179,7 @@ def _style_axes(
                 ax.relim()
                 ax.autoscale_view()
         if 'Pressure' in axis_name:
-            pressure_channels = [
-                ch for ch in cleaned_data.columns
-                if custom_to_default_map.get(ch) and CHANNEL_AXIS_NAMES_MAP.get(custom_to_default_map.get(ch)) == "Pressure"
-            ]
-            all_pressure_near_zero = all(cleaned_data[ch].mean() < 5 for ch in pressure_channels if ch in cleaned_data.columns)
-            if all_pressure_near_zero:
+            if test_metadata.at["Test Pressure", 1] == '0':
                 ax.set_ylim(-1, 100)
             else:
                 _, y_max = ax.get_ylim()
@@ -218,7 +213,7 @@ def _configure_legend(fig, plotted_lines, plotted_labels):
 def plot_channel_data(
     active_channels,
     cleaned_data,
-    channels_to_record,
+    test_metadata,
     is_table,
     channel_map,
     *,
@@ -247,7 +242,7 @@ def plot_channel_data(
         axis_label_map,
         color_map,
         cleaned_data,
-        custom_to_default_map,
+        test_metadata,
         lock_temperature_axis=lock_temperature_axis,
     )
 

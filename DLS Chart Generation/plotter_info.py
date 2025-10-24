@@ -5,7 +5,7 @@ CHANNEL_COLOUR_MAP = {
     'Body': '#f58231',                # Vivid Orange
     'Actuator': '#000000',            # Black
     'Hyperbaric': '#0082c8',          # Strong Blue
-    'Backseat': '#ffe119',            # Bright Yellow
+    'Backseat': "#ffee00",            # Bright Yellow
     'Spring Chamber': '#911eb4',      # Vivid Purple
     'Primary Stem Seal': '#00ced1',   # Dark Turquoise
     'Secondary Stem Seal': '#f032e6', # Bright Magenta

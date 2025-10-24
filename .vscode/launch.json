@@ -16,9 +16,9 @@
       "request": "launch",
       "program": "${workspaceFolder}/DLS Chart Generation/main.py",
       "args": [
-          "V:/Userdoc/R & D/DAQ_Station/jedwards/J000250752/60910-283 HEX NUT/Attempt 1/CSV/8.4/8.4_Data_17-10-2025_16-50-15.csv", 
-          "V:/Userdoc/R & D/DAQ_Station/jedwards/J000250752/60910-283 HEX NUT/Attempt 1/CSV/8.4/8.4_Test_Details_17-10-2025_16-50-15.csv", 
-          "V:/Userdoc/R & D/DAQ_Station/jedwards/J000250752/60910-283 HEX NUT/Attempt 1/PDF"],
+          "V:/Userdoc/R & D/DAQ_Station/lkantordyson/TJ80218/TSK3259-2/Attempt 2/CSV/14.0/14.0_Data_23-10-2025_13-11-28.csv", 
+          "V:/Userdoc/R & D/DAQ_Station/lkantordyson/TJ80218/TSK3259-2/Attempt 2/CSV/14.0/14.0_Test_Details_23-10-2025_13-11-28.csv", 
+          "C:/Users/tlelean/Downloads"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}"
     }

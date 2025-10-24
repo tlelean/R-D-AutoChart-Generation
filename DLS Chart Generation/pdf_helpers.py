@@ -4,6 +4,7 @@ import io
 import os
 from typing import Optional
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 from reportlab.lib import colors
@@ -13,6 +14,7 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 
+mpl.rcParams['agg.path.chunksize'] = 10000
 
 CALIBRATION_THRESHOLDS = {
     "Abs Error (µA) - ±3.6 µA": 3.6,

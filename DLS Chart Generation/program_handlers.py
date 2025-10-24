@@ -26,6 +26,7 @@ from additional_info_functions import (
     locate_calibration_points,
     calculate_succesful_calibration,
     calculate_calibration_regression,
+    calculate_number_of_turns_table,
 )
 
 class BaseReportGenerator:
@@ -97,7 +98,7 @@ class GenericReportGenerator(BaseReportGenerator):
         figure, _, _ = plot_channel_data(
             active_channels=self._channels_for_main_plot(),
             cleaned_data=self.cleaned_data,
-            channels_to_record=self.channels_to_record,
+            test_metadata=self.test_metadata,
             is_table=is_table,
             channel_map=self.channel_map,
         )
@@ -110,6 +111,35 @@ class GenericReportGenerator(BaseReportGenerator):
             is_table=is_table,
             raw_data=self.raw_data,
         )
+        insert_plot_and_logo(figure, pdf, is_table)
+        return unique_path
+    
+class NumberOfTurnsReportGenerator(BaseReportGenerator):
+    def generate(self) -> Path:
+        is_table = True
+        unique_path = self.build_output_path(self.test_metadata)
+        figure, _, _ = plot_channel_data(
+            active_channels=self._channels_for_main_plot(),
+            cleaned_data=self.cleaned_data,
+            test_metadata=self.test_metadata,
+            is_table=is_table,
+            channel_map=self.channel_map,
+        )
+        pdf = draw_test_details(
+            test_metadata=self.test_metadata,
+            transducer_details=self.transducer_details,
+            active_channels=self.active_channels,
+            cleaned_data=self.cleaned_data,
+            pdf_output_path=unique_path,
+            is_table=is_table,
+            raw_data=self.raw_data,
+        )
+        table = calculate_number_of_turns_table(
+            raw_data=self.raw_data,
+            channels_to_record=self.channels_to_record,
+            channel_map=self.channel_map,
+        )
+        draw_table(pdf_canvas=pdf, dataframe=table)
         insert_plot_and_logo(figure, pdf, is_table)
         return unique_path
 
@@ -150,7 +180,7 @@ class HoldsReportGenerator(BaseReportGenerator):
         figure, axes, axis_map = plot_channel_data(
             active_channels=self._channels_for_main_plot(),
             cleaned_data=self.cleaned_data,
-            channels_to_record=self.channels_to_record,
+            test_metadata=self.test_metadata,
             is_table=is_table,
             channel_map=self.channel_map,
         )
@@ -172,8 +202,8 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         breakout_values, breakout_indices = locate_bto_btc_rows(
             self.raw_data, self.additional_info, self.channels_to_record, self.channel_map
         )
+
         cycle_ranges, max_cycle = find_cycle_breakpoints(self.raw_data, self.channels_to_record, self.channel_map)
-        base_section = self.test_metadata.at['Test Name', 1]
         all_cycles = list(range(1, max_cycle + 1))
         generated_paths = []
 
@@ -181,118 +211,84 @@ class BreakoutsReportGenerator(BaseReportGenerator):
             breakout_values = pd.DataFrame(columns=['Cycle'])
             breakout_indices = pd.DataFrame(columns=['Cycle'])
 
-        if max_cycle >= 10:
-            first_cycles = all_cycles[:3]
-            middle_start = max(0, (max_cycle // 2) - 1)
-            middle_cycles = all_cycles[middle_start:middle_start + 3]
-            last_cycles = all_cycles[-3:]
-            grouped_cycles = [first_cycles, middle_cycles, last_cycles]
-            pre_middle_cycles = all_cycles[3:middle_start]
-            post_middle_cycles = all_cycles[middle_start + 3:-3]
-            remaining_segments = [seg for seg in (pre_middle_cycles, post_middle_cycles) if seg]
+        show_breakout = bool(self.test_metadata.at[("Show Breakout Torque"), 1] == 'TRUE')
 
-            planned_pages = []
-            for group in grouped_cycles:
-                if not group:
-                    continue
-                planned_pages.append(("grouped", group, group[0]))
-
-            for seg in remaining_segments:
-                for i in range(0, len(seg), 40):
-                    group = seg[i:i + 40]
-                    planned_pages.append(("multi", group, group[0]))
-
-            total_pages = len(planned_pages)
-            ordered_indices = sorted(
-                range(len(planned_pages)), key=lambda idx: planned_pages[idx][2]
-            )
-            page_numbers = {idx: order + 1 for order, idx in enumerate(ordered_indices)}
-
-            for idx, (page_type, group, _) in enumerate(planned_pages):
-                page_idx = page_numbers[idx]
-                if page_type == "grouped":
-                    path = self._generate_grouped_cycle_page(
-                        group, page_idx, total_pages, base_section, cycle_ranges, breakout_values, breakout_indices
-                    )
-                else:
-                    path = self._generate_multi_cycle_page(
-                        group, page_idx, total_pages, base_section, cycle_ranges
-                    )
-                generated_paths.append(path)
+        if show_breakout:
+            cycles_to_display = all_cycles[-3:] or all_cycles
         else:
-            path = self._generate_single_page_report(breakout_values, breakout_indices)
-            generated_paths.append(path)
+            cycles_to_display = all_cycles
+
+        if not cycles_to_display:
+            return generated_paths
+
+        path = self._generate_breakout_cycles_page(
+            cycles=cycles_to_display,
+            cycle_ranges=cycle_ranges,
+            breakout_values=breakout_values,
+            breakout_indices=breakout_indices,
+            show_breakout=show_breakout,
+        )
+        generated_paths.append(path)
 
         return generated_paths
-
-    def _generate_grouped_cycle_page(self, group, page_idx, total_pages, base_section, cycle_ranges, breakout_values, breakout_indices):
-        meta = self.test_metadata.copy()
-        meta.at['Test Name', 1] = f"{base_section} Cycles {self._cycle_str(group)} (Page {page_idx} of {total_pages})"
-        unique_path = self.build_output_path(meta)
-        data_slice = self._slice_data(self.cleaned_data, cycle_ranges, group)
-        result_slice = breakout_values[breakout_values['Cycle'].isin(group)]
-        index_slice = breakout_indices[breakout_indices['Cycle'].isin(group)]
-
-        header_row = result_slice.columns.tolist()
-        result_slice = pd.concat([pd.DataFrame([header_row], columns=header_row), result_slice], ignore_index=True)
-
-        figure, axes, axis_map = plot_channel_data(
-            self._channels_for_main_plot(), data_slice, self.channels_to_record, is_table=True, channel_map=self.channel_map
-        )
-        torque_axis_location = axis_map.get('Torque')
-        if torque_axis_location and self._is_channel_recorded('Torque'):
-            plot_crosses(
-                df=index_slice,
-                channel=self.channel_map['Torque'],
-                data=data_slice,
-                ax=axes[torque_axis_location],
-            )
-        pdf = draw_test_details(
-            meta, self.transducer_details, self.active_channels, data_slice, unique_path, True, self.raw_data, has_breakout_table=True
-        )
-        draw_table(pdf_canvas=pdf, dataframe=result_slice)
-        insert_plot_and_logo(figure, pdf, True)
-        return unique_path
-
-    def _generate_multi_cycle_page(self, group, page_idx, total_pages, base_section, cycle_ranges):
-        meta = self.test_metadata.copy()
-        meta.at['Test Name', 1] = f"{base_section} Cycles {self._cycle_str(group)} (Page {page_idx} of {total_pages})"
-        unique_path = self.build_output_path(meta)
-        data_slice = self._slice_data(self.cleaned_data, cycle_ranges, group)
-
-        figure, _, _ = plot_channel_data(
-            self._channels_for_main_plot(), data_slice, self.channels_to_record, is_table=False, channel_map=self.channel_map
-        )
-        pdf = draw_test_details(
-            meta, self.transducer_details, self.active_channels, data_slice, unique_path, False, self.raw_data
-        )
-        insert_plot_and_logo(figure, pdf, False)
-        return unique_path
-
-    def _generate_single_page_report(self, breakout_values, breakout_indices):
+    
+    def _generate_breakout_cycles_page(self, cycles, cycle_ranges, breakout_values, breakout_indices, show_breakout):
+        ordered_cycles = sorted(cycles)
         unique_path = self.build_output_path(self.test_metadata)
-        figure, axes, axis_map = plot_channel_data(
-            self._channels_for_main_plot(), self.cleaned_data, self.channels_to_record, is_table=True, channel_map=self.channel_map
-        )
-        torque_axis_location = axis_map.get('Torque')
-        if torque_axis_location and self._is_channel_recorded('Torque'):
-            plot_crosses(
-                df=breakout_indices,
-                channel=self.channel_map['Torque'],
-                data=self.cleaned_data,
-                ax=axes[torque_axis_location],
-            )
-        pdf = draw_test_details(
-            self.test_metadata, self.transducer_details, self.active_channels,
-            self.cleaned_data, unique_path, True, self.raw_data, has_breakout_table=True
-        )
-        draw_table(pdf_canvas=pdf, dataframe=breakout_values)
-        insert_plot_and_logo(figure, pdf, True)
-        return unique_path
+        data_slice = self._slice_data(self.cleaned_data, cycle_ranges, ordered_cycles)
 
-    def _cycle_str(self, cycles):
-        if isinstance(cycles, int): return str(cycles)
-        return str(cycles[0]) if len(cycles) == 1 else f"{cycles[0]}-{cycles[-1]}"
+        figure, axes, axis_map = plot_channel_data(
+            self._channels_for_main_plot(),
+            data_slice,
+            self.test_metadata,
+            is_table=show_breakout,
+            channel_map=self.channel_map,
+        )
+
+        if show_breakout:
+            result_slice = breakout_values[breakout_values['Cycle'].isin(ordered_cycles)]
+            index_slice = breakout_indices[breakout_indices['Cycle'].isin(ordered_cycles)]
+
+            header_row = result_slice.columns.tolist()
+            result_slice = pd.concat(
+                [pd.DataFrame([header_row], columns=header_row), result_slice],
+                ignore_index=True,
+            )
+
+            torque_axis_location = axis_map.get('Torque')
+            if torque_axis_location and self._is_channel_recorded('Torque'):
+                plot_crosses(
+                    df=index_slice,
+                    channel=self.channel_map['Torque'],
+                    data=data_slice,
+                    ax=axes[torque_axis_location],
+                )
+
+            pdf = draw_test_details(
+                self.test_metadata,
+                self.transducer_details,
+                self.active_channels,
+                data_slice,
+                unique_path,
+                True,
+                self.raw_data,
+                has_breakout_table=True,
+            )
+            draw_table(pdf_canvas=pdf, dataframe=result_slice)
+            insert_plot_and_logo(figure, pdf, True)
+        else:
+            pdf = draw_test_details(
+                self.test_metadata,
+                self.transducer_details,
+                self.active_channels,
+                data_slice,
+                unique_path,
+                False,
+                self.raw_data,
+            )
+            insert_plot_and_logo(figure, pdf, False)
+
+        return unique_path
 
     def _slice_data(self, data, cycle_ranges, cycles):
         start_idx = cycle_ranges.loc[cycle_ranges['Cycle'] == cycles[0], 'Start Index'].iat[0]
@@ -302,90 +298,100 @@ class BreakoutsReportGenerator(BaseReportGenerator):
 class SignaturesReportGenerator(BreakoutsReportGenerator):
     def generate(self) -> List[Path]:
         torque_values, torque_indices, actuator_values, actuator_indices = locate_signature_key_points(
-            self.channels_to_record, self.raw_data, self.channel_map
+            self.channels_to_record, self.raw_data, self.channel_map, self.test_metadata
         )
 
         cycle_ranges, max_cycle = find_cycle_breakpoints(self.raw_data, self.channels_to_record, self.channel_map)
-        base_section = self.test_metadata.at['Test Name', 1]
         all_cycles = list(range(1, max_cycle + 1))
         generated_paths = []
+        show_breakout = bool(self.test_metadata.at[("Show Breakout Torque"), 1] == 'TRUE')
 
         if self._is_channel_recorded('Torque'):
             values_df, indices_df, plot_channel, axis_key = torque_values, torque_indices, self.channel_map['Torque'], 'Torque'
         else:
             values_df, indices_df, plot_channel, axis_key = actuator_values, actuator_indices, self.channel_map['Actuator'], 'Pressure'
 
-        if max_cycle >= 5:
-            middle_start = max(0, (max_cycle // 2) - 1)
-            first_cycles = all_cycles[:3]
-            middle_cycles = all_cycles[middle_start:middle_start + 3]
-            last_cycles = all_cycles[-3:]
-            grouped_cycles = sorted(set(first_cycles + middle_cycles + last_cycles))
-
-            pre_middle_cycles = all_cycles[3:middle_start]
-            post_middle_cycles = all_cycles[middle_start + 3:-3]
-            remaining_segments = [seg for seg in (pre_middle_cycles, post_middle_cycles) if seg]
-
-            planned_pages = []
-            for cycle in grouped_cycles:
-                planned_pages.append(("single", cycle, cycle))
-
-            for seg in remaining_segments:
-                for i in range(0, len(seg), 40):
-                    group = seg[i:i + 40]
-                    planned_pages.append(("multi", group, group[0]))
-
-            total_pages = len(planned_pages)
-            ordered_indices = sorted(
-                range(len(planned_pages)), key=lambda idx: planned_pages[idx][2]
-            )
-            page_numbers = {idx: order + 1 for order, idx in enumerate(ordered_indices)}
-
-            for idx, (page_type, group, _) in enumerate(planned_pages):
-                page_idx = page_numbers[idx]
-                if page_type == "single":
-                    cycle = group
-                    path = self._generate_single_cycle_page(
-                        cycle, page_idx, total_pages, base_section, cycle_ranges, values_df, indices_df, plot_channel, axis_key
-                    )
-                else:
-                    path = self._generate_multi_cycle_page(group, page_idx, total_pages, base_section, cycle_ranges)
-                generated_paths.append(path)
+        if show_breakout:
+            cycles_to_display = all_cycles[-3:] or all_cycles
         else:
-            path = self._generate_single_cycle_page(
-                    cycle, page_idx, total_pages, base_section, cycle_ranges, values_df, indices_df, plot_channel, axis_key
-                )            
-            generated_paths.append(path)
+            cycles_to_display = all_cycles
+
+        if not cycles_to_display:
+            return generated_paths
+
+        path = self._generate_signature_cycles_page(
+            cycles=cycles_to_display,
+            cycle_ranges=cycle_ranges,
+            values_df=values_df,
+            indices_df=indices_df,
+            plot_channel=plot_channel,
+            axis_key=axis_key,
+            show_breakout=show_breakout,
+        )
+        generated_paths.append(path)
 
         return generated_paths
 
-    def _generate_single_cycle_page(self, cycle, page_idx, total_pages, base_section, cycle_ranges, values_df, indices_df, plot_channel, axis_key):
-        meta = self.test_metadata.copy()
-        meta.at['Test Section Number', 1] = f"{base_section} Cycle {self._cycle_str([cycle])}"
-        meta.at['Test Name', 1] = f"{base_section} Cycle {self._cycle_str([cycle])} (Page {page_idx} of {total_pages})"
-        unique_path = self.build_output_path(meta)
-        data_slice = self._slice_data(self.cleaned_data, cycle_ranges, [cycle])
-        result_slice = values_df[values_df['Cycle'] == cycle]
-        index_slice = indices_df[indices_df['Cycle'] == cycle]
+    def _generate_signature_cycles_page(
+        self,
+        cycles,
+        cycle_ranges,
+        values_df,
+        indices_df,
+        plot_channel,
+        axis_key,
+        show_breakout,
+    ):
+        ordered_cycles = sorted(cycles)
+        unique_path = self.build_output_path(self.test_metadata)
+        data_slice = self._slice_data(self.cleaned_data, cycle_ranges, ordered_cycles)
 
         figure, axes, axis_map = plot_channel_data(
-            self._channels_for_main_plot(), data_slice, self.channels_to_record, is_table=True, channel_map=self.channel_map
+            self._channels_for_main_plot(),
+            data_slice,
+            self.test_metadata,
+            is_table=show_breakout,
+            channel_map=self.channel_map,
         )
-        axis_location = axis_map.get(axis_key)
-        if axis_location:
-            plot_crosses(
-                df=index_slice,
-                channel=plot_channel,
-                data=data_slice,
-                ax=axes[axis_location],
-            )
-        pdf = draw_test_details(
-            meta, self.transducer_details, self.active_channels, data_slice, unique_path, True, self.raw_data, has_breakout_table=True
-        )
-        draw_table(pdf_canvas=pdf, dataframe=result_slice)
-        insert_plot_and_logo(figure, pdf, True)
-        return unique_path
 
+        if show_breakout:
+            axis_location = axis_map.get(axis_key)
+            if axis_location is not None:
+                index_slice = indices_df[indices_df['Cycle'].isin(ordered_cycles)]
+                plot_crosses(
+                    df=index_slice,
+                    channel=plot_channel,
+                    data=data_slice,
+                    ax=axes[axis_location],
+                )
+
+            pdf = draw_test_details(
+                self.test_metadata,
+                self.transducer_details,
+                self.active_channels,
+                data_slice,
+                unique_path,
+                True,
+                self.raw_data,
+                has_breakout_table=True,
+            )
+
+            draw_table(pdf_canvas=pdf, dataframe=values_df)
+            insert_plot_and_logo(figure, pdf, True)
+        else:
+            pdf = draw_test_details(
+                self.test_metadata,
+                self.transducer_details,
+                self.active_channels,
+                data_slice,
+                unique_path,
+                False,
+                self.raw_data,
+            )
+            insert_plot_and_logo(figure, pdf, False)
+
+        return unique_path
+    
 class CalibrationReportGenerator(BaseReportGenerator):
     def generate(self) -> Path:
         is_table = True
@@ -414,7 +420,7 @@ class CalibrationReportGenerator(BaseReportGenerator):
         figure, axes, axis_map = plot_channel_data(
             active_channels=self._channels_for_main_plot(include_mass_spec=True),
             cleaned_data=self.cleaned_data,
-            channels_to_record=self.channels_to_record,
+            test_metadata=self.test_metadata,
             is_table=is_table,
             channel_map=self.channel_map,
             lock_temperature_axis=False,
@@ -459,7 +465,7 @@ HANDLERS: Dict[str, Callable[..., Any]] = {
     "Holds-Body": HoldsReportGenerator,
     "Holds-Body onto Seat": HoldsReportGenerator,
     "Open-Close": BreakoutsReportGenerator,
-    "Number Of Turns": DoNothingReportGenerator,
+    "Number of Turns": NumberOfTurnsReportGenerator,
     "Calibration": CalibrationReportGenerator,
     "Data Logger": GenericReportGenerator,
 }
