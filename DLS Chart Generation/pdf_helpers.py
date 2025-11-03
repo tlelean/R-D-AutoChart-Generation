@@ -317,11 +317,22 @@ def draw_headers(pdf, test_metadata, cleaned_data, light_blue):
     )
 
 def prepare_transducer_dataframe(transducer_details, active_channels):
-    empty_rows = pd.DataFrame([["", ""]] * 14)
-    used_transducers = transducer_details.loc[active_channels].reset_index(drop=True)
-    used_transducers.columns = [0, 1]
-    used_transducers = pd.concat([used_transducers, empty_rows], ignore_index=True)
-    return used_transducers
+    # Select used transducers and gauges
+    used_transducers = transducer_details.loc[active_channels, 1].reset_index(drop=True)
+    used_gauges = transducer_details.loc[active_channels, 2].reset_index(drop=True)
+
+    # Drop blank/NaN/empty-string rows and shift up
+    used_transducers = used_transducers[used_transducers.fillna("") != ""].reset_index(drop=True)
+    used_gauges = used_gauges[used_gauges.fillna("") != ""].reset_index(drop=True)
+
+    # Add 14 empty rows at the end
+    empty_rows = pd.DataFrame([""] * 14, columns=[0])
+
+    # Concatenate, ensure no NaNs
+    used_transducers = pd.concat([used_transducers.to_frame(), empty_rows], ignore_index=True).fillna("")
+    used_gauges = pd.concat([used_gauges.to_frame(), empty_rows], ignore_index=True).fillna("")
+
+    return used_transducers, used_gauges
 
 def build_static_text_positions(test_metadata, light_blue, black, max_cycle=None):
     return [
@@ -359,16 +370,16 @@ def build_static_text_positions(test_metadata, light_blue, black, max_cycle=None
         (Layout.RIGHT_COL_LABEL_X, Layout.GAUGES_Y, "Gauges", black, False),
     ]
 
-def build_transducer_and_gauge_positions(used_transducers, light_blue):
+def build_transducer_and_gauge_positions(used_transducers, used_gauges, light_blue):
     positions = []
-    for i in range(15):
+    for i in range(14):
         x = Layout.TRANSDUCER_TABLE_START_X + (i % 5) * Layout.TRANSDUCER_COL_WIDTH
         y = Layout.TRANSDUCER_TABLE_START_Y - (i // 5) * Layout.TRANSDUCER_ROW_HEIGHT
         positions.append((x, y, used_transducers.iat[i, 0], light_blue, False))
     for i in range(12):
         x = Layout.GAUGE_TABLE_START_X + (i % 4) * Layout.GAUGE_COL_WIDTH
         y = Layout.GAUGE_TABLE_START_Y - (i // 4) * Layout.GAUGE_ROW_HEIGHT
-        positions.append((x, y, used_transducers.iat[i, 1], light_blue, False))
+        positions.append((x, y, used_gauges.iat[i, 0], light_blue, False))
     return positions
 
 def build_torque_and_stamp_positions(transducer_details, test_metadata, light_blue, black):
@@ -522,10 +533,13 @@ def draw_test_details(
     light_blue = Color(0.325, 0.529, 0.761)
     black = Color(0, 0, 0)
     draw_headers(pdf, test_metadata, cleaned_data, light_blue)
-    used_transducers = prepare_transducer_dataframe(transducer_details, active_channels)
-    max_cycle = int(raw_data["Cycle Count"].max())
+    used_transducers, used_gauges = prepare_transducer_dataframe(transducer_details, active_channels)
+    if test_metadata.at["Program Name", 1] == "Signatures":
+        max_cycle = 3
+    else:
+        max_cycle = int(raw_data["Cycle Count"].max())
     pdf_text_positions = build_static_text_positions(test_metadata, light_blue, black, max_cycle)
-    pdf_text_positions += build_transducer_and_gauge_positions(used_transducers, light_blue)
+    pdf_text_positions += build_transducer_and_gauge_positions(used_transducers, used_gauges, light_blue)
     pdf_text_positions += build_torque_and_stamp_positions(transducer_details, test_metadata, light_blue, black)
     draw_all_text(pdf, pdf_text_positions)
     return pdf

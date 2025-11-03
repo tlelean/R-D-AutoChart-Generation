@@ -1,7 +1,7 @@
 """Program specific handlers for creating PDFs."""
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 import math
 import pandas as pd
 
@@ -84,7 +84,7 @@ class BaseReportGenerator:
         full_name = build_test_title(test_metadata)
         return self.pdf_output_path / (
             f"{full_name}_"
-            f"{test_metadata.at['Date Time', 1]}.pdf"
+            f"{test_metadata.at['Date Time', 1]}.tmp.pdf"
         )
 
     def generate(self) -> Path:
@@ -150,10 +150,11 @@ class HoldsReportGenerator(BaseReportGenerator):
     row followed by groups of three data rows describing individual holds.
     """
 
-    def generate(self) -> Path:
+    def generate(self) -> List[Path]:
         title_prefix = self.test_metadata.at['Test Section Number', 1]
         header = self.additional_info.iloc[[0]]
         group_count = (len(self.additional_info) - 1) // 3
+        generated_paths = []
         if group_count > 1:
             for group_idx in range(group_count):
                 start = 1 + group_idx * 3
@@ -161,10 +162,12 @@ class HoldsReportGenerator(BaseReportGenerator):
                     [header, self.additional_info.iloc[start:start + 3]],
                     ignore_index=True,
                 )
-                self._generate_single_hold_report(title_prefix, group, group_idx)
+                path = self._generate_single_hold_report(title_prefix, group, group_idx)
+                generated_paths.append(path)
         else:
-            self._generate_single_hold_report(title_prefix, self.additional_info, None)
-        return self.build_output_path(self.test_metadata)
+            path = self._generate_single_hold_report(title_prefix, self.additional_info, None)
+            generated_paths.append(path)
+        return generated_paths
 
     def _generate_single_hold_report(self, title_prefix, info_df, group_idx=None):
         is_table = True
@@ -196,6 +199,7 @@ class HoldsReportGenerator(BaseReportGenerator):
         )
         draw_table(pdf_canvas=pdf, dataframe=display_table)
         insert_plot_and_logo(figure, pdf, is_table)
+        return unique_path
 
 class BreakoutsReportGenerator(BaseReportGenerator):
     def generate(self) -> List[Path]:
@@ -246,22 +250,14 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         )
 
         if show_breakout:
-            result_slice = breakout_values[breakout_values['Cycle'].isin(ordered_cycles)]
-            index_slice = breakout_indices[breakout_indices['Cycle'].isin(ordered_cycles)]
-
-            header_row = result_slice.columns.tolist()
-            result_slice = pd.concat(
-                [pd.DataFrame([header_row], columns=header_row), result_slice],
-                ignore_index=True,
-            )
-
-            torque_axis_location = axis_map.get('Torque')
-            if torque_axis_location and self._is_channel_recorded('Torque'):
+            axis_location = axis_map.get('Torque')
+            if axis_location is not None:
+                index_slice = breakout_indices[breakout_indices['Cycle'].isin(ordered_cycles)]
                 plot_crosses(
                     df=index_slice,
                     channel=self.channel_map['Torque'],
                     data=data_slice,
-                    ax=axes[torque_axis_location],
+                    ax=axes[axis_location],
                 )
 
             pdf = draw_test_details(
@@ -274,7 +270,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
                 self.raw_data,
                 has_breakout_table=True,
             )
-            draw_table(pdf_canvas=pdf, dataframe=result_slice)
+            draw_table(pdf_canvas=pdf, dataframe=breakout_values)
             insert_plot_and_logo(figure, pdf, True)
         else:
             pdf = draw_test_details(
@@ -309,9 +305,10 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
         if self._is_channel_recorded('Torque'):
             values_df, indices_df, plot_channel, axis_key = torque_values, torque_indices, self.channel_map['Torque'], 'Torque'
         else:
-            values_df, indices_df, plot_channel, axis_key = actuator_values, actuator_indices, self.channel_map['Actuator'], 'Pressure'
+            values_df, indices_df, plot_channel, axis_key = actuator_values, actuator_indices, self.channel_map['Actuator'], 'Actuator'
 
         if show_breakout:
+            values_df = self._select_first_and_last_rows(values_df)
             cycles_to_display = all_cycles[-3:] or all_cycles
         else:
             cycles_to_display = all_cycles
@@ -391,6 +388,27 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
             insert_plot_and_logo(figure, pdf, False)
 
         return unique_path
+    
+    @staticmethod
+    def _select_first_and_last_rows(df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+        indices = [df.index[0], *df.index[-3:]]
+        seen = []
+        for idx in indices:
+            if idx not in seen:
+                seen.append(idx)
+
+        subset = df.loc[seen].copy()
+        subset.reset_index(drop=True, inplace=True)
+
+        if "Cycle" in subset.columns:
+            start = max(len(subset) - 3, 0)
+            cycle_values = [pd.NA] * len(subset)
+            cycle_values[start:] = list(range(1, len(subset) - start + 1))
+            subset.loc[:, "Cycle"] = cycle_values
+
+        subset.at[0, 'Cycle'] = 'Cycle'
+
+        return subset
     
 class CalibrationReportGenerator(BaseReportGenerator):
     def generate(self) -> Path:

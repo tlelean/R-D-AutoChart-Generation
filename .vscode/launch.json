@@ -16,14 +16,11 @@
       "request": "launch",
       "program": "${workspaceFolder}/DLS Chart Generation/main.py",
       "args": [
-          "V:/Userdoc/R & D/DAQ_Station/lkantordyson/TJ80218/TSK3259-2/Attempt 2/CSV/14.0/14.0_Data_23-10-2025_13-11-28.csv", 
-          "V:/Userdoc/R & D/DAQ_Station/lkantordyson/TJ80218/TSK3259-2/Attempt 2/CSV/14.0/14.0_Test_Details_23-10-2025_13-11-28.csv", 
+          "V:/Userdoc/R & D/DAQ_Station/Calibration/DLS007_Right Hand Small Temperature Cabinet/3-11-2025/CSV/Calibration_Data_3-11-2025_10-44-13.csv", 
+          "V:/Userdoc/R & D/DAQ_Station/Calibration/DLS007_Right Hand Small Temperature Cabinet/3-11-2025/CSV/Calibration_Test_Details_3-11-2025_10-44-13.csv", 
           "C:/Users/tlelean/Downloads"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}"
     }
   ]
 }
-
-
-

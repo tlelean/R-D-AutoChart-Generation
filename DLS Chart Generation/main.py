@@ -51,6 +51,13 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
     )
     unique_pdf_output_path = handler_instance.generate()
 
+    if isinstance(unique_pdf_output_path, list):
+        pdf_count = len(unique_pdf_output_path)
+    elif unique_pdf_output_path:
+        pdf_count = 1
+    else:
+        pdf_count = 0
+
     mass_spec_channel = default_to_custom_map.get("Mass Spectrometer")
     if (
         (part_windows[["Start", "Stop"]].notna().sum().sum() != 0)

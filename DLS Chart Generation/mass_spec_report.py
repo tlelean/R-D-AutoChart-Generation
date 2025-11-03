@@ -84,7 +84,7 @@ def generate_mass_spec_reports(
         figure, _, _ = plot_channel_data(
             active_channels=[mass_spec_channel],
             cleaned_data=data_slice,
-            channels_to_record=channels_to_record,
+            test_metadata=test_metadata,
             is_table=False,
             channel_map=channel_map,
         )

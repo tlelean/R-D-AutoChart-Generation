@@ -1,31 +1,60 @@
 # Colour mapping for known channels
 CHANNEL_COLOUR_MAP = {
-    'Upstream': '#e6194b',            # Vivid Red
-    'Downstream': '#3cb44b',          # Vivid Green
-    'Body': '#f58231',                # Vivid Orange
-    'Actuator': '#000000',            # Black
-    'Hyperbaric': '#0082c8',          # Strong Blue
-    'Backseat': "#ffee00",            # Bright Yellow
-    'Spring Chamber': '#911eb4',      # Vivid Purple
-    'Primary Stem Seal': '#00ced1',   # Dark Turquoise
-    'Secondary Stem Seal': '#f032e6', # Bright Magenta
-    'Relief Port': '#6bb300',         # Strong Olive Green
-    'BX Port': '#e377c2',             # Dusty Pink
-    'Flow Meter': '#9f7fff',           # Medium Lavender
-    'Mass Spectrometer Mantissa': '#005f5f',               # Dark Teal
-    'Mass Spectrometer': '#8b4513',   # Saddle Brown
-    'LVDT': '#800000',                # Maroon
-    'Torque': '#b2a400',              # Dark Gold
-    'Number Of Turns': '#000075',     # Navy Blue
-    'Motor Speed': '#00a572',         # Emerald Green
-    'Ambient Temperature': '#4363d8', # Vivid Blue
-    'Body Temperature': '#ff8c00',    # Dark Orange
-    'Monitor Temperature': '#5c5c00', # Dark Olive
-    'Chamber Temperature': '#cd5c5c', # Indian Red
-    'Hyperbaric Temperature': '#696969', # Dim Grey
-    'Close' : "#ff1493",               # Deep Pink
-    'Open' : '#1e90ff',                 # Dodger Blue
-    'Cycle Count': '#ffa500'          # Orange
+    'Upstream': '#FF0000',
+    'Downstream': '#00B050',
+    'Body': '#FFA500',
+    'Actuator': '#000000',
+    'Hyperbaric': '#0000FF',
+    'Backseat': '#00FFFF',
+    'Spring Chamber': '#FF00FF',
+    'Primary Stem Seal': '#80FF00',
+    'Secondary Stem Seal': '#400080',
+    'Relief Port': '#008080',
+    'BX Port': '#800000',
+    'Flow Meter': '#808000',
+    'Mass Spectrometer Mantissa': '#FF66CC',
+    'Mass Spectrometer': '#66B2FF',
+    'LVDT': '#99FF33',
+    'Torque': '#663300',
+    'Number Of Turns': '#00FFAA',
+    'Motor Speed': '#336699',
+    'Ambient Temperature': '#0000FF',
+    'Body Temperature': '#00B050',
+    'Monitor Temperature': '#FFA500',
+    'Chamber Temperature': '#000000',
+    'Hyperbaric Temperature': '#FF0000',
+    'Close': '#00FFFF',
+    'Open': '#FF00FF',
+    'Cycle Count': '#80FF00',
+}
+
+CHANNEL_LINESTYLE_MAP = {
+    'Upstream': '-',
+    'Downstream': '-',
+    'Body': '-',
+    'Actuator': '-',
+    'Hyperbaric': '-',
+    'Backseat': '-',
+    'Spring Chamber': '-',
+    'Primary Stem Seal': '-',
+    'Secondary Stem Seal': '-',
+    'Relief Port': '-',
+    'BX Port': '-',
+    'Flow Meter': '-',
+    'Mass Spectrometer Mantissa': '-',
+    'Mass Spectrometer': '-',
+    'LVDT': '-',
+    'Torque': '-',
+    'Number Of Turns': '-',
+    'Motor Speed': '-',
+    'Ambient Temperature': ':',
+    'Body Temperature': ':',
+    'Monitor Temperature': ':',
+    'Chamber Temperature': ':',
+    'Hyperbaric Temperature': ':',
+    'Close': ':',
+    'Open': ':',
+    'Cycle Count': ':',
 }
 
 CHANNEL_UNITS_MAP = {
@@ -61,7 +90,7 @@ CHANNEL_AXIS_NAMES_MAP = {
     'Upstream': 'Pressure',
     'Downstream': 'Pressure',
     'Body': 'Pressure',
-    'Actuator': 'Pressure',
+    'Actuator': 'Actuator',
     'Hyperbaric': 'Pressure',
     'Backseat': 'Pressure',
     'Spring Chamber': 'Pressure',
@@ -87,21 +116,23 @@ CHANNEL_AXIS_NAMES_MAP = {
 }
 
 AXIS_COLOUR_MAP = {
-    'Pressure': '#e6194b',              # Vivid Red
-    'Leak Rate': '#9f7fff',             # Medium Lavender
-    'Mass Spectrometer': '#8b4513',     # Saddle Brown
-    'LVDT': '#800000',                  # Maroon
-    'Torque': '#b2a400',                # Dark Gold
-    'Number Of Turns': '#000075',       # Navy Blue
-    'Motor Speed': '#00a572',           # Emerald Green
-    'Temperature': '#4363d8',           # Vivid Blue
-    'Valve State' : "#ff1493",
-    'Cycle Count': '#ffa500'            # Orange
+    'Pressure': '#FF0000',              # Vivid Red
+    'Actuator': '#000000',            # Black
+    'Leak Rate': '#808000',             # Medium Lavender
+    'Mass Spectrometer': '#66B2FF',     # Saddle Brown
+    'LVDT': '#99FF33',                  # Maroon
+    'Torque': '#663300',                # Dark Gold
+    'Number Of Turns': '#00FFAA',       # Navy Blue
+    'Motor Speed': '#336699',           # Emerald Green
+    'Temperature': '#0000FF',           # Vivid Blue
+    'Valve State' : "#00FFFF",
+    'Cycle Count': '#80FF00'            # Orange
 }
 
 
 AXIS_PRIORITY = [
-    'Pressure', 
+    'Pressure',
+    'Actuator', 
     'Torque', 
     'Pneumatic', 
     'Leak Rate', 

@@ -42,4 +42,34 @@ TEST_CASES = [
         "test_details_file": "V:/Userdoc/Mechatronics/Applications/Python/R&D AutoChart Generation/Example Data/Atmospheric Breakouts/Calibration_Test_Details_1-10-2025_16-23-24.csv",
         "pdf_output_path": "./Example Certs/",
     },
+    # Cryogenic
+    {
+        "primary_data_file": "V:/Userdoc/R & D/DAQ_Station/dkay/32378/97945-15/Attempt 1/CSV/9.0/9.0_Data_28-10-2025_8-30-27.csv",
+        "test_details_file": "V:/Userdoc/R & D/DAQ_Station/dkay/32378/97945-15/Attempt 1/CSV/9.0/9.0_Test_Details_28-10-2025_8-30-27.csv",
+        "pdf_output_path": "./Example Certs/",
+    },
+    # Zero Pressure Actuator Signature
+    {
+        "primary_data_file": "V:/Userdoc/R & D/DAQ_Station/plinegar/TJ00082342/TA5451-7/Attempt 1/CSV/1.0/1.0_Data_30-10-2025_10-40-34.csv",
+        "test_details_file": "V:/Userdoc/R & D/DAQ_Station/plinegar/TJ00082342/TA5451-7/Attempt 1/CSV/1.0/1.0_Test_Details_30-10-2025_10-40-34.csv",
+        "pdf_output_path": "./Example Certs/",
+    },
+    # WP Actuator Signature
+    {
+        "primary_data_file": "V:/Userdoc/R & D/DAQ_Station/plinegar/TJ00082342/TA5451-7/Attempt 1/CSV/2.0/2.0_Data_30-10-2025_11-8-55.csv",
+        "test_details_file": "V:/Userdoc/R & D/DAQ_Station/plinegar/TJ00082342/TA5451-7/Attempt 1/CSV/2.0/2.0_Test_Details_30-10-2025_11-8-55.csv",
+        "pdf_output_path": "./Example Certs/",
+    },
+    # Zero Pressure Torque Signature
+    {
+        "primary_data_file": "V:/Userdoc/R & D/DAQ_Station/plinegar/TJ00082342/TA5451-7/Attempt 1/CSV/3.0/3.0_Data_30-10-2025_13-57-54.csv",
+        "test_details_file": "V:/Userdoc/R & D/DAQ_Station/plinegar/TJ00082342/TA5451-7/Attempt 1/CSV/3.0/3.0_Test_Details_30-10-2025_13-57-54.csv",
+        "pdf_output_path": "./Example Certs/",
+    },
+    # WP Torque Signature
+    {
+        "primary_data_file": "V:/Userdoc/R & D/DAQ_Station/plinegar/TJ00082342/TA5451-7/Attempt 1/CSV/4.0/4.0_Data_30-10-2025_14-9-18.csv",
+        "test_details_file": "V:/Userdoc/R & D/DAQ_Station/plinegar/TJ00082342/TA5451-7/Attempt 1/CSV/4.0/4.0_Test_Details_30-10-2025_14-9-18.csv",
+        "pdf_output_path": "./Example Certs/",
+    },
 ]
