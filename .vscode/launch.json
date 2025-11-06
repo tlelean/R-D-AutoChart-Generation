@@ -16,8 +16,8 @@
       "request": "launch",
       "program": "${workspaceFolder}/DLS Chart Generation/main.py",
       "args": [
-          "V:/Userdoc/R & D/DAQ_Station/Calibration/DLS007_Right Hand Small Temperature Cabinet/3-11-2025/CSV/Calibration_Data_3-11-2025_10-44-13.csv", 
-          "V:/Userdoc/R & D/DAQ_Station/Calibration/DLS007_Right Hand Small Temperature Cabinet/3-11-2025/CSV/Calibration_Test_Details_3-11-2025_10-44-13.csv", 
+          "V:/Userdoc/R & D/DAQ_Station/mtimlin/31784-0/VA9883/Attempt 3/CSV/13.0.0/6-11-2025_13-50-18_data.csv", 
+          "V:/Userdoc/R & D/DAQ_Station/mtimlin/31784-0/VA9883/Attempt 3/CSV/13.0.0/6-11-2025_13-50-18_details.csv", 
           "C:/Users/tlelean/Downloads"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}"

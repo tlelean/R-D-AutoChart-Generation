@@ -86,6 +86,25 @@ class BaseReportGenerator:
             f"{full_name}_"
             f"{test_metadata.at['Date Time', 1]}.tmp.pdf"
         )
+    
+    def finalize_output_path(self, temp_path: Path) -> Path:
+        """Rename the temporary PDF path to its final name and return it."""
+
+        name = temp_path.name
+
+        if not name.endswith(".tmp.pdf"):
+            return temp_path  # not a temp pdf
+
+        final_path = Path(temp_path.parent, name[:-8] + ".pdf")
+
+        # if exists, delete old
+        if final_path.exists():
+            final_path.unlink()
+
+        temp_path.replace(final_path)  # atomic rename
+
+        return final_path
+
 
     def generate(self) -> Path:
         """Generate the report."""
@@ -112,8 +131,8 @@ class GenericReportGenerator(BaseReportGenerator):
             raw_data=self.raw_data,
         )
         insert_plot_and_logo(figure, pdf, is_table)
-        return unique_path
-    
+        return self.finalize_output_path(unique_path)
+        
 class NumberOfTurnsReportGenerator(BaseReportGenerator):
     def generate(self) -> Path:
         is_table = True
@@ -141,8 +160,8 @@ class NumberOfTurnsReportGenerator(BaseReportGenerator):
         )
         draw_table(pdf_canvas=pdf, dataframe=table)
         insert_plot_and_logo(figure, pdf, is_table)
-        return unique_path
-
+        return self.finalize_output_path(unique_path)
+    
 class HoldsReportGenerator(BaseReportGenerator):
     """Generate reports for hold tests.
 
@@ -152,22 +171,29 @@ class HoldsReportGenerator(BaseReportGenerator):
 
     def generate(self) -> List[Path]:
         title_prefix = self.test_metadata.at['Test Section Number', 1]
-        header = self.additional_info.iloc[[0]]
-        group_count = (len(self.additional_info) - 1) // 3
-        generated_paths = []
+
+        # Clean: drop fully empty spacer rows
+        df = self.additional_info.dropna(how='all').reset_index(drop=True)
+
+        n = len(df)
+        group_count = n // 4
+        generated_paths: List[Path] = []
+
         if group_count > 1:
             for group_idx in range(group_count):
-                start = 1 + group_idx * 3
-                group = pd.concat(
-                    [header, self.additional_info.iloc[start:start + 3]],
-                    ignore_index=True,
-                )
+                start = group_idx * 4
+                # Exactly one header + three rows
+                group = df.iloc[start:start + 4].reset_index(drop=True)
                 path = self._generate_single_hold_report(title_prefix, group, group_idx)
                 generated_paths.append(path)
         else:
-            path = self._generate_single_hold_report(title_prefix, self.additional_info, None)
+            # Single section (or partial) — just pass what we have
+            group = df.iloc[:4] if n >= 4 else df
+            path = self._generate_single_hold_report(title_prefix, group, None)
             generated_paths.append(path)
+
         return generated_paths
+
 
     def _generate_single_hold_report(self, title_prefix, info_df, group_idx=None):
         is_table = True
@@ -199,8 +225,8 @@ class HoldsReportGenerator(BaseReportGenerator):
         )
         draw_table(pdf_canvas=pdf, dataframe=display_table)
         insert_plot_and_logo(figure, pdf, is_table)
-        return unique_path
-
+        return self.finalize_output_path(unique_path)
+    
 class BreakoutsReportGenerator(BaseReportGenerator):
     def generate(self) -> List[Path]:
         breakout_values, breakout_indices = locate_bto_btc_rows(
@@ -284,8 +310,8 @@ class BreakoutsReportGenerator(BaseReportGenerator):
             )
             insert_plot_and_logo(figure, pdf, False)
 
-        return unique_path
-
+        return self.finalize_output_path(unique_path)
+    
     def _slice_data(self, data, cycle_ranges, cycles):
         start_idx = cycle_ranges.loc[cycle_ranges['Cycle'] == cycles[0], 'Start Index'].iat[0]
         end_idx = cycle_ranges.loc[cycle_ranges['Cycle'] == cycles[-1], 'End Index'].iat[0]
@@ -387,8 +413,8 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
             )
             insert_plot_and_logo(figure, pdf, False)
 
-        return unique_path
-    
+        return self.finalize_output_path(unique_path)
+        
     @staticmethod
     def _select_first_and_last_rows(df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
         indices = [df.index[0], *df.index[-3:]]
@@ -465,8 +491,8 @@ class CalibrationReportGenerator(BaseReportGenerator):
         if regression_coefficients is not None and not regression_coefficients.dropna().empty:
             draw_regression_table(pdf, regression_coefficients)
         insert_plot_and_logo(figure, pdf, is_table)
-        return unique_path
-
+        return self.finalize_output_path(unique_path)
+    
 class DoNothingReportGenerator(BaseReportGenerator):
     def generate(self) -> None:
         return None
@@ -479,6 +505,7 @@ HANDLERS: Dict[str, Callable[..., Any]] = {
     "Dynamic Cycles Petrobras": BreakoutsReportGenerator,
     "Pulse Cycles": GenericReportGenerator,
     "Signatures": SignaturesReportGenerator,
+    "Holds": HoldsReportGenerator,
     "Holds-Seat": HoldsReportGenerator,
     "Holds-Body": HoldsReportGenerator,
     "Holds-Body onto Seat": HoldsReportGenerator,
