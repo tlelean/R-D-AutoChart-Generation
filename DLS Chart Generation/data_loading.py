@@ -46,7 +46,7 @@ def load_test_information(test_details_path: str):
 
     transducers_codes = channel_info[["channel", "transducer"]].fillna("")
     gauge_codes = channel_info[["channel", "gauge"]].fillna("")
-    channel_visibility = channel_info[["channel", "vissible"]]
+    channel_visibility = channel_info.set_index('channel')[['visible']]
 
     # Create the channel name mapping
     custom_channel_names = channel_info["channel"].tolist()
@@ -74,7 +74,7 @@ def prepare_primary_data(primary_data_path: str, channels_to_record: pd.DataFram
     ).iloc[:-1]
 
     # Identify which channels are actually recorded
-    active_channels = channels_to_record[channels_to_record[1] == True].index.tolist()
+    active_channels = channels_to_record[channels_to_record['visible'] == True].index.tolist()
     required_columns = ["Datetime"] + active_channels
 
     # Extract only the required columns

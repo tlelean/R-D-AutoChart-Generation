@@ -17,9 +17,10 @@ def generate_mass_spec_reports(
     part_windows: pd.DataFrame,
     mass_spec_channel: str,
     test_metadata: pd.DataFrame,
-    transducer_details: pd.DataFrame,
+    transducer_codes: pd.DataFrame,
+    gauge_codes: pd.DataFrame,
     pdf_output_path: Path,
-    channels_to_record: pd.DataFrame,
+    channel_visibility: pd.DataFrame,
     channel_map: dict[str, str],
     raw_data: pd.DataFrame,
 ) -> List[Path]:
@@ -97,7 +98,8 @@ def generate_mass_spec_reports(
 
         pdf = draw_test_details(
             meta,
-            transducer_details,
+            transducer_codes,
+            gauge_codes,
             [mass_spec_channel],
             data_slice,
             output_path,

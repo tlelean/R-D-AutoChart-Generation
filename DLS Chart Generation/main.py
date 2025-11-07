@@ -42,8 +42,9 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
         program_name=program_name,
         pdf_output_path=pdf_output_path,
         test_metadata=test_metadata,
-        transducers_codes=transducers_codes,
+        transducer_codes=transducers_codes,
         gauge_codes=gauge_codes,
+        channel_visibility=channel_visibility,
         mass_spec_timings=mass_spec_timings,
         holds=holds,
         cycles=cycles,
@@ -57,7 +58,7 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
 
     mass_spec_channel = default_to_custom_map.get("Mass Spectrometer")
     if (
-        (mass_spec_timings[["Start", "Stop"]].notna().sum().sum() != 0)
+        (mass_spec_timings[["start", "stop"]].notna().sum().sum() != 0)
         and mass_spec_channel in cleaned_data.columns
         ):
         generate_mass_spec_reports(
@@ -65,9 +66,10 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
             mass_spec_timings=mass_spec_timings,
             mass_spec_channel=mass_spec_channel,
             test_metadata=test_metadata,
-            transducer_details=transducer_details,
+            transducer_codes=transducers_codes,
+            gauge_codes=gauge_codes,
             pdf_output_path=pdf_output_path,
-            channels_to_record=channels_to_record,
+            channel_visibility=channel_visibility,
             channel_map=default_to_custom_map,
             raw_data=raw_data,
         )

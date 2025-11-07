@@ -36,6 +36,7 @@ class BaseReportGenerator:
         self.test_metadata = kwargs.get("test_metadata")
         self.transducer_codes = kwargs.get("transducer_codes")
         self.gauge_codes = kwargs.get("gauge_codes")
+        self.channel_visibility = kwargs.get("channel_visibility")
         self.mass_spec_timings = kwargs.get("mass_spec_timings")
         self.holds = kwargs.get("holds")
         self.cycles = kwargs.get("cycles")
@@ -69,24 +70,24 @@ class BaseReportGenerator:
     def _is_channel_recorded(self, default_channel: str) -> bool:
         """Return ``True`` when the default channel has recorded data."""
 
-        if not isinstance(self.channels_to_record, pd.DataFrame):
+        if not isinstance(self.channel_visibility, pd.DataFrame):
             return False
 
         if not self.channel_map or default_channel not in self.channel_map:
             return False
 
         channel_name = self.channel_map[default_channel]
-        if channel_name not in self.channels_to_record.index:
+        if channel_name not in self.channel_visibility.index:
             return False
 
-        return bool(self.channels_to_record.at[channel_name, 1])
+        return self.channel_visibility.loc[channel_name, 'visible']
 
     def build_output_path(self, test_metadata) -> Path:
         """Construct the output PDF path from metadata."""
         full_name = build_test_title(test_metadata)
         return self.pdf_output_path / (
             f"{full_name}_"
-            f"{test_metadata.at['Date Time', 1]}.tmp.pdf"
+            f"{test_metadata['Date Time']}.tmp.pdf"
         )
     
     def finalize_output_path(self, temp_path: Path) -> Path:
@@ -125,7 +126,8 @@ class GenericReportGenerator(BaseReportGenerator):
         )
         pdf = draw_test_details(
             test_metadata=self.test_metadata,
-            transducer_details=self.transducer_details,
+            transducer_codes=self.transducer_codes,
+            gauge_codes=self.gauge_codes,
             active_channels=self.active_channels,
             cleaned_data=self.cleaned_data,
             pdf_output_path=unique_path,
@@ -148,7 +150,8 @@ class NumberOfTurnsReportGenerator(BaseReportGenerator):
         )
         pdf = draw_test_details(
             test_metadata=self.test_metadata,
-            transducer_details=self.transducer_details,
+            transducer_codes=self.transducer_codes,
+            gauge_codes=self.gauge_codes,
             active_channels=self.active_channels,
             cleaned_data=self.cleaned_data,
             pdf_output_path=unique_path,
@@ -157,7 +160,7 @@ class NumberOfTurnsReportGenerator(BaseReportGenerator):
         )
         table = calculate_number_of_turns_table(
             raw_data=self.raw_data,
-            channels_to_record=self.channels_to_record,
+            channel_visibility=self.channel_visibility,
             channel_map=self.channel_map,
         )
         draw_table(pdf_canvas=pdf, dataframe=table)
@@ -172,41 +175,27 @@ class HoldsReportGenerator(BaseReportGenerator):
     """
 
     def generate(self) -> List[Path]:
-        title_prefix = self.test_metadata.at['Test Section Number', 1]
+        title_prefix = self.test_metadata['Test Section Number']
 
-        # Clean: drop fully empty spacer rows
-        df = self.additional_info.dropna(how='all').reset_index(drop=True)
-
-        n = len(df)
-        group_count = n // 4
         generated_paths: List[Path] = []
 
-        if group_count > 1:
-            for group_idx in range(group_count):
-                start = group_idx * 4
-                # Exactly one header + three rows
-                group = df.iloc[start:start + 4].reset_index(drop=True)
-                path = self._generate_single_hold_report(title_prefix, group, group_idx)
-                generated_paths.append(path)
-        else:
-            # Single section (or partial) — just pass what we have
-            group = df.iloc[:4] if n >= 4 else df
-            path = self._generate_single_hold_report(title_prefix, group, None)
+        for _, hold in self.holds.iterrows():
+            path = self._generate_single_hold_report(title_prefix, hold)
             generated_paths.append(path)
 
         return generated_paths
 
 
-    def _generate_single_hold_report(self, title_prefix, info_df, group_idx=None):
+    def _generate_single_hold_report(self, title_prefix, hold_info):
         is_table = True
-        if group_idx is not None:
-            self.test_metadata.at['Test Section Number', 1] = (
-                f"{title_prefix}.{group_idx + 1}"
-            )
-        single_info = info_df
+        self.test_metadata['Test Section Number'] = (
+            f"{title_prefix}.{hold_info['cycle_index']}"
+        )
+        self.test_metadata['Breakout Torque'] = hold_info['breakout_torque']
+        self.test_metadata['Running Torque'] = hold_info['running_torque']
 
         unique_path = self.build_output_path(self.test_metadata)
-        holds_indices, display_table = locate_key_time_rows(self.cleaned_data, single_info)
+        holds_indices, display_table = locate_key_time_rows(self.cleaned_data, hold_info)
 
         figure, axes, axis_map = plot_channel_data(
             active_channels=self._channels_for_main_plot(),
@@ -217,12 +206,12 @@ class HoldsReportGenerator(BaseReportGenerator):
         )
         plot_crosses(
             df=holds_indices,
-            channel=single_info.iloc[0, 2],
+            channel=hold_info['channel'],
             data=self.cleaned_data,
             ax=axes[axis_map["Pressure"]],
         )
         pdf = draw_test_details(
-            self.test_metadata, self.transducer_details, self.active_channels,
+            self.test_metadata, self.transducer_codes, self.gauge_codes, self.active_channels,
             self.cleaned_data, unique_path, is_table, self.raw_data
         )
         draw_table(pdf_canvas=pdf, dataframe=display_table)
@@ -232,10 +221,10 @@ class HoldsReportGenerator(BaseReportGenerator):
 class BreakoutsReportGenerator(BaseReportGenerator):
     def generate(self) -> List[Path]:
         breakout_values, breakout_indices = locate_bto_btc_rows(
-            self.raw_data, self.additional_info, self.channels_to_record, self.channel_map
+            self.raw_data, self.cycles, self.channel_visibility, self.channel_map
         )
 
-        cycle_ranges, max_cycle = find_cycle_breakpoints(self.raw_data, self.channels_to_record, self.channel_map)
+        cycle_ranges, max_cycle = find_cycle_breakpoints(self.raw_data, self.channel_visibility, self.channel_map)
         all_cycles = list(range(1, max_cycle + 1))
         generated_paths = []
 
@@ -243,7 +232,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
             breakout_values = pd.DataFrame(columns=['Cycle'])
             breakout_indices = pd.DataFrame(columns=['Cycle'])
 
-        show_breakout = bool(self.test_metadata.at[("Show Breakout Torque"), 1] == 'TRUE')
+        show_breakout = self.test_metadata["Show Breakout Torque"]
 
         if show_breakout:
             cycles_to_display = all_cycles[-3:] or all_cycles
@@ -279,7 +268,7 @@ class BreakoutsReportGenerator(BaseReportGenerator):
 
         if show_breakout:
             axis_location = axis_map.get('Torque')
-            if axis_location is not None:
+            if axis_location is not None and breakout_indices is not None:
                 index_slice = breakout_indices[breakout_indices['Cycle'].isin(ordered_cycles)]
                 plot_crosses(
                     df=index_slice,
@@ -290,7 +279,8 @@ class BreakoutsReportGenerator(BaseReportGenerator):
 
             pdf = draw_test_details(
                 self.test_metadata,
-                self.transducer_details,
+                self.transducer_codes,
+                self.gauge_codes,
                 self.active_channels,
                 data_slice,
                 unique_path,
@@ -303,7 +293,8 @@ class BreakoutsReportGenerator(BaseReportGenerator):
         else:
             pdf = draw_test_details(
                 self.test_metadata,
-                self.transducer_details,
+                self.transducer_codes,
+                self.gauge_codes,
                 self.active_channels,
                 data_slice,
                 unique_path,
@@ -322,13 +313,13 @@ class BreakoutsReportGenerator(BaseReportGenerator):
 class SignaturesReportGenerator(BreakoutsReportGenerator):
     def generate(self) -> List[Path]:
         torque_values, torque_indices, actuator_values, actuator_indices = locate_signature_key_points(
-            self.channels_to_record, self.raw_data, self.channel_map, self.test_metadata
+            self.channel_visibility, self.raw_data, self.channel_map, self.test_metadata
         )
 
-        cycle_ranges, max_cycle = find_cycle_breakpoints(self.raw_data, self.channels_to_record, self.channel_map)
+        cycle_ranges, max_cycle = find_cycle_breakpoints(self.raw_data, self.channel_visibility, self.channel_map)
         all_cycles = list(range(1, max_cycle + 1))
         generated_paths = []
-        show_breakout = bool(self.test_metadata.at[("Show Breakout Torque"), 1] == 'TRUE')
+        show_breakout = self.test_metadata["Show Breakout Torque"]
 
         if self._is_channel_recorded('Torque'):
             values_df, indices_df, plot_channel, axis_key = torque_values, torque_indices, self.channel_map['Torque'], 'Torque'
@@ -392,7 +383,8 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
 
             pdf = draw_test_details(
                 self.test_metadata,
-                self.transducer_details,
+                self.transducer_codes,
+                self.gauge_codes,
                 self.active_channels,
                 data_slice,
                 unique_path,
@@ -406,7 +398,8 @@ class SignaturesReportGenerator(BreakoutsReportGenerator):
         else:
             pdf = draw_test_details(
                 self.test_metadata,
-                self.transducer_details,
+                self.transducer_codes,
+                self.gauge_codes,
                 self.active_channels,
                 data_slice,
                 unique_path,
@@ -442,7 +435,7 @@ class CalibrationReportGenerator(BaseReportGenerator):
     def generate(self) -> Path:
         is_table = True
         unique_path = self.build_output_path(self.test_metadata)
-        calibration_indices, _ = locate_calibration_points(self.cleaned_data, self.additional_info)
+        calibration_indices = locate_calibration_points(self.cleaned_data, self.calibration)
         (
             average_values,
             counts_series,
@@ -451,7 +444,7 @@ class CalibrationReportGenerator(BaseReportGenerator):
         ) = calculate_succesful_calibration(
             self.cleaned_data,
             calibration_indices,
-            self.additional_info,
+            self.calibration,
         )
 
         breach_mask = evaluate_calibration_thresholds(average_values, abs_errors)
@@ -475,7 +468,7 @@ class CalibrationReportGenerator(BaseReportGenerator):
         for phase in calibration_indices.index:
             positions = calibration_indices.loc[phase].dropna().astype(int).tolist()
             times = self.cleaned_data["Datetime"].iloc[positions]
-            channel_name = self.additional_info.at[1, 0]
+            channel_name = self.calibration['channel_name']
             default_channel_name = custom_to_default_map.get(channel_name, channel_name)
             axis_type = CHANNEL_AXIS_NAMES_MAP.get(default_channel_name)
             axis_location = axis_map.get(axis_type, "left")
@@ -486,7 +479,7 @@ class CalibrationReportGenerator(BaseReportGenerator):
             )
         
         pdf = draw_test_details(
-            self.test_metadata, self.transducer_details, self.active_channels,
+            self.test_metadata, self.transducer_codes, self.gauge_codes, self.active_channels,
             self.cleaned_data, unique_path, is_table, self.raw_data
         )
         draw_table(pdf_canvas=pdf, dataframe=average_values)

@@ -193,7 +193,7 @@ def _style_axes(
                 ax.relim()
                 ax.autoscale_view()
         if 'pressure' in axis_name.lower():
-            if test_metadata.at["Test Pressure", 1] == '0' and test_metadata.at["Program Name", 1] != 'Calibration':
+            if test_metadata["Test Pressure"] == '0' and test_metadata["Program Name"] != 'Calibration':
                 ax.set_ylim(-1, 1000)
             else:
                 _, y_max = ax.get_ylim()
