@@ -16,8 +16,8 @@
       "request": "launch",
       "program": "${workspaceFolder}/DLS Chart Generation/main.py",
       "args": [
-          "V:/Userdoc/R & D/DAQ_Station/mtimlin/31784-0/VA9883/Attempt 3/CSV/13.0.0/6-11-2025_13-50-18_data.csv", 
-          "V:/Userdoc/R & D/DAQ_Station/mtimlin/31784-0/VA9883/Attempt 3/CSV/13.0.0/6-11-2025_13-50-18_details.csv", 
+          "V:/Userdoc/Mechatronics/Applications/Python/R&D AutoChart Generation/Example Data/JSON Test/6-11-2025_14-50-30_data.csv", 
+          "V:/Userdoc/Mechatronics/Applications/Python/R&D AutoChart Generation/Example Data/JSON Test/6-11-2025_14-50-30_details.json", 
           "C:/Users/tlelean/Downloads"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}"

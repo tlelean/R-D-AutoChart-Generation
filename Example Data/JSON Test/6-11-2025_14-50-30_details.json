@@ -1,5 +1,5 @@
 {
-"test_metadata": {
+"metadata": {
 "Test Procedure Reference": "Test Procedure Reference",
 "Unique Number": "Unique Number",
 "R&D Reference": "R&D Reference",
@@ -17,7 +17,7 @@
 "Program Name": "Holds",
 "Show Breakout Torque": false
 },
-"transducers": [
+"channel_info": [
   {
     "channel": "Upstream",
     "transducer": "",
@@ -242,7 +242,7 @@
     "stop": ""
   }
 ],
-"holds_data": [
+"holds": [
   {
     "cycle_index": 1,
     "channel": "Upstream",

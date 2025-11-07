@@ -18,20 +18,22 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
     """
     (
         test_metadata,
-        transducer_details,
-        channels_to_record,
-        part_windows,
-        additional_info,
-        program_name,
-        default_to_custom_map,
+        transducers_codes,
+        gauge_codes,
+        channel_visibility,
+        mass_spec_timings,
+        holds,
+        cycles,
+        calibration,
+        default_to_custom_map
     ) = load_test_information(test_details_file)
 
     cleaned_data, active_channels, raw_data = prepare_primary_data(
         primary_data_file,
-        channels_to_record,
+        channel_visibility,
     )
 
-    program_name = test_metadata.at['Program Name', 1]
+    program_name = test_metadata["Program Name"]
     handler_class = HANDLERS.get(program_name)
     if handler_class is None:
         raise ValueError(f"Unsupported program: {program_name}")
@@ -40,32 +42,27 @@ def process_files_and_generate_report(primary_data_file, test_details_file, pdf_
         program_name=program_name,
         pdf_output_path=pdf_output_path,
         test_metadata=test_metadata,
-        transducer_details=transducer_details,
+        transducers_codes=transducers_codes,
+        gauge_codes=gauge_codes,
+        mass_spec_timings=mass_spec_timings,
+        holds=holds,
+        cycles=cycles,
+        calibration=calibration,
         active_channels=active_channels,
         cleaned_data=cleaned_data,
         raw_data=raw_data,
-        additional_info=additional_info,
-        part_windows=part_windows,
-        channels_to_record=channels_to_record,
         channel_map=default_to_custom_map,
     )
     unique_pdf_output_path = handler_instance.generate()
 
-    if isinstance(unique_pdf_output_path, list):
-        pdf_count = len(unique_pdf_output_path)
-    elif unique_pdf_output_path:
-        pdf_count = 1
-    else:
-        pdf_count = 0
-
     mass_spec_channel = default_to_custom_map.get("Mass Spectrometer")
     if (
-        (part_windows[["Start", "Stop"]].notna().sum().sum() != 0)
+        (mass_spec_timings[["Start", "Stop"]].notna().sum().sum() != 0)
         and mass_spec_channel in cleaned_data.columns
         ):
         generate_mass_spec_reports(
             cleaned_data=cleaned_data,
-            part_windows=part_windows,
+            mass_spec_timings=mass_spec_timings,
             mass_spec_channel=mass_spec_channel,
             test_metadata=test_metadata,
             transducer_details=transducer_details,
