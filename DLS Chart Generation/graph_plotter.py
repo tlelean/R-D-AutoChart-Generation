@@ -8,6 +8,7 @@ from matplotlib.ticker import MultipleLocator
 
 from plotter_info import (
     CHANNEL_COLOUR_MAP,
+    CHANNEL_LINESTYLE_MAP,
     CHANNEL_UNITS_MAP,
     CHANNEL_AXIS_NAMES_MAP,
     AXIS_COLOUR_MAP,
@@ -122,10 +123,16 @@ def _plot_channels(active_channels, data_for_plot, axis_map, axes, custom_to_def
             continue
         ax = axes[axis_type]
         color = CHANNEL_COLOUR_MAP.get(default_ch, 'black')
+        linestyle = CHANNEL_LINESTYLE_MAP.get(default_ch, "-")
         unit = CHANNEL_UNITS_MAP.get(default_ch, '')
         label = f"{ch} ({unit})" if unit else ch
         line, = ax.plot(
-            data_for_plot['Datetime'], data_for_plot[ch], label=label, color=color, linewidth=1
+            data_for_plot['Datetime'], 
+            data_for_plot[ch], 
+            label=label, 
+            color=color, 
+            linestyle=linestyle,
+            linewidth=1
         )
         color_map[axis_type] = color
         plotted_lines.append(line)
@@ -141,7 +148,7 @@ def _style_axes(
     axis_label_map,
     color_map,
     cleaned_data,
-    custom_to_default_map,
+    test_metadata,
     *,
     lock_temperature_axis=True,
 ):
@@ -154,6 +161,13 @@ def _style_axes(
         range. When ``False`` the axis limits are derived from the plotted
         data.
     """
+    temperature_channels = [ch for ch in cleaned_data.columns if 'temperature' in str(ch).lower()]
+    max_value = cleaned_data[temperature_channels].max()
+    min_value = cleaned_data[temperature_channels].min()
+    max_value = max_value.max()
+    min_value = min_value.min()
+    if max_value > 260 or min_value < -60:
+            lock_temperature_axis = False
     for axis_type, ax in axes.items():
         axis_label = axis_label_map.get(axis_type, '')
         axis_name = axis_label.split('(')[0].strip() if axis_label else ''
@@ -171,25 +185,23 @@ def _style_axes(
             ax.spines['right'].set_edgecolor(axis_color)
             ax.spines['right'].set_linewidth(0.5)
             ax.spines['left'].set_visible(False)
-        if 'Temperature' in axis_name:
+        if 'temperature' in axis_name.lower():
             if lock_temperature_axis:
                 ax.set_ylim(-60, 260)
                 ax.yaxis.set_major_locator(MultipleLocator(10))
             else:
                 ax.relim()
                 ax.autoscale_view()
-        if 'Pressure' in axis_name:
-            pressure_channels = [
-                ch for ch in cleaned_data.columns
-                if custom_to_default_map.get(ch) and CHANNEL_AXIS_NAMES_MAP.get(custom_to_default_map.get(ch)) == "Pressure"
-            ]
-            all_pressure_near_zero = all(cleaned_data[ch].mean() < 5 for ch in pressure_channels if ch in cleaned_data.columns)
-            if all_pressure_near_zero:
-                ax.set_ylim(-1, 100)
+        if 'pressure' in axis_name.lower():
+            if test_metadata["Test Pressure"] == '0' and test_metadata["Program Name"] != 'Calibration':
+                ax.set_ylim(-1, 1000)
             else:
                 _, y_max = ax.get_ylim()
                 ax.set_ylim(0, y_max)
-        if 'Valve State' in axis_name:
+        if 'actuator' in axis_name.lower():
+            ax.relim()
+            ax.autoscale_view()
+        if 'valve state' in axis_name.lower():
             ax.set_ylim(-0.05, 1.05)
             ax.set_yticks([0, 1])
             ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
@@ -218,7 +230,7 @@ def _configure_legend(fig, plotted_lines, plotted_labels):
 def plot_channel_data(
     active_channels,
     cleaned_data,
-    channels_to_record,
+    test_metadata,
     is_table,
     channel_map,
     *,
@@ -247,7 +259,7 @@ def plot_channel_data(
         axis_label_map,
         color_map,
         cleaned_data,
-        custom_to_default_map,
+        test_metadata,
         lock_temperature_axis=lock_temperature_axis,
     )
 

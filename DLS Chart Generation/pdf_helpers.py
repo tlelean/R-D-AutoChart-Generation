@@ -4,6 +4,7 @@ import io
 import os
 from typing import Optional
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 from reportlab.lib import colors
@@ -13,6 +14,7 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 
+mpl.rcParams['agg.path.chunksize'] = 10000
 
 CALIBRATION_THRESHOLDS = {
     "Abs Error (µA) - ±3.6 µA": 3.6,
@@ -22,6 +24,8 @@ CALIBRATION_THRESHOLDS = {
 
 def format_torque(value):
     """Return a torque string with units or special cases."""
+    if value is None:
+        return "N/A"
     if isinstance(value, str):
         stripped = value.strip()
         if stripped in {"See Table", "N/A"} or stripped.endswith("ft.lbs"):
@@ -286,8 +290,8 @@ def _combine_section_and_name(section_number: Optional[str], test_name: Optional
 def build_test_title(test_metadata) -> str:
     """Construct the display title for a test from its metadata."""
 
-    section = test_metadata.at['Test Section Number', 1]
-    name = test_metadata.at['Test Name', 1]
+    section = test_metadata['Test Section Number']
+    name = test_metadata['Test Name']
     return _combine_section_and_name(section, name)
 
 def draw_headers(pdf, test_metadata, cleaned_data, light_blue):
@@ -314,67 +318,79 @@ def draw_headers(pdf, test_metadata, cleaned_data, light_blue):
         pdf, "3rd Party Stamp and Date", Layout.RIGHT_COL_X + (Layout.RIGHT_COL_W / 2), Layout.STAMP_TITLE_Y, "Helvetica-Bold", size=12
     )
 
-def prepare_transducer_dataframe(transducer_details, active_channels):
-    empty_rows = pd.DataFrame([["", ""]] * 14)
-    used_transducers = transducer_details.loc[active_channels].reset_index(drop=True)
-    used_transducers.columns = [0, 1]
-    used_transducers = pd.concat([used_transducers, empty_rows], ignore_index=True)
-    return used_transducers
+def prepare_transducer_dataframe(transducer_codes, gauge_codes, active_channels):
+    # Select used transducers and gauges
+    used_transducers = transducer_codes[transducer_codes['channel'].isin(active_channels)]['transducer']
+    used_gauges = gauge_codes[gauge_codes['channel'].isin(active_channels)]['gauge']
+
+    # Drop blank/NaN/empty-string rows and shift up
+    used_transducers = used_transducers[used_transducers.fillna("") != ""].reset_index(drop=True)
+    used_gauges = used_gauges[used_gauges.fillna("") != ""].reset_index(drop=True)
+
+    # Add 14 empty rows at the end
+    empty_rows = pd.DataFrame([""] * 14)
+
+    # Concatenate, ensure no NaNs
+    used_transducers = pd.concat([used_transducers, empty_rows], ignore_index=True).fillna("")
+    used_gauges = pd.concat([used_gauges, empty_rows], ignore_index=True).fillna("")
+
+    return used_transducers, used_gauges
 
 def build_static_text_positions(test_metadata, light_blue, black, max_cycle=None):
     return [
         (Layout.HEADER_COL1_LABEL_X, Layout.HEADER_ROW1_Y, "Test Procedure Reference", black, False),
-        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW1_Y, test_metadata.at['Test Procedure Reference', 1], light_blue, True),
+        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW1_Y, test_metadata['Test Procedure Reference'], light_blue, True),
         (Layout.HEADER_COL1_LABEL_X, Layout.HEADER_ROW2_Y, "Unique No.", black, False),
-        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW2_Y, test_metadata.at['Unique Number', 1], light_blue, True),
+        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW2_Y, test_metadata['Unique Number'], light_blue, True),
         (Layout.HEADER_COL1_LABEL_X, Layout.HEADER_ROW3_Y, "R&D Reference", black, False),
-        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW3_Y, test_metadata.at['R&D Reference', 1], light_blue, True),
+        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW3_Y, test_metadata['R&D Reference'], light_blue, True),
         (Layout.HEADER_COL1_LABEL_X, Layout.HEADER_ROW4_Y, "Valve Description", black, False),
-        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW4_Y, test_metadata.at['Valve Description', 1], light_blue, True),
+        (Layout.HEADER_COL1_VALUE_X, Layout.HEADER_ROW4_Y, test_metadata['Valve Description'], light_blue, True),
 
         (Layout.HEADER_COL2_LABEL_X, Layout.HEADER_ROW1_Y, "Job No.", black, False),
-        (Layout.HEADER_COL2_VALUE_X, Layout.HEADER_ROW1_Y, test_metadata.at['Job Number', 1], light_blue, True),
+        (Layout.HEADER_COL2_VALUE_X, Layout.HEADER_ROW1_Y, test_metadata['Job Number'], light_blue, True),
         (Layout.HEADER_COL2_LABEL_X, Layout.HEADER_ROW2_Y, "Test Description", black, False),
-        (Layout.HEADER_COL2_VALUE_X, Layout.HEADER_ROW2_Y, test_metadata.at['Test Section Number', 1], light_blue, True),
+        (Layout.HEADER_COL2_VALUE_X, Layout.HEADER_ROW2_Y, test_metadata['Test Section Number'], light_blue, True),
         (Layout.HEADER_COL2_LABEL_X, Layout.HEADER_ROW3_Y, "Test Date", black, False),
         (Layout.HEADER_COL2_LABEL_X, Layout.HEADER_ROW4_Y, "Valve Drawing No.", black, False),
-        (Layout.HEADER_COL2_VALUE_X, Layout.HEADER_ROW4_Y, test_metadata.at['Valve Drawing Number', 1], light_blue, True),
+        (Layout.HEADER_COL2_VALUE_X, Layout.HEADER_ROW4_Y, test_metadata['Valve Drawing Number'], light_blue, True),
 
         (Layout.RIGHT_COL_LABEL_X, Layout.TEST_PRESSURE_TEXT_Y, "Test Pressure", black, False),
-        (Layout.RIGHT_COL_VALUE_X, Layout.TEST_PRESSURE_TEXT_Y, f"{test_metadata.at['Test Pressure', 1]} psi", light_blue, True),
+        (Layout.RIGHT_COL_VALUE_X, Layout.TEST_PRESSURE_TEXT_Y, f"{test_metadata['Test Pressure']} psi", light_blue, True),
         (Layout.RIGHT_COL_LABEL_X, Layout.CYCLE_COUNT_TEXT_Y, "Cycle Count", black, False),
         (Layout.RIGHT_COL_VALUE_X, Layout.CYCLE_COUNT_TEXT_Y - 1.25, f"{max_cycle}" if max_cycle is not None else "", light_blue, True),
         (Layout.RIGHT_COL_LABEL_X, Layout.BREAKOUT_TORQUE_TEXT_Y, "Breakout Torque", black, False),
-        (Layout.RIGHT_COL_VALUE_X, Layout.BREAKOUT_TORQUE_TEXT_Y, format_torque(test_metadata.at['Breakout Torque', 1]), light_blue, True),
+        (Layout.RIGHT_COL_VALUE_X, Layout.BREAKOUT_TORQUE_TEXT_Y, format_torque(test_metadata.get('Breakout Torque')), light_blue, True),
         (Layout.RIGHT_COL_LABEL_X, Layout.RUNNING_TORQUE_TEXT_Y, "Running Torque", black, False),
-        (Layout.RIGHT_COL_VALUE_X, Layout.RUNNING_TORQUE_TEXT_Y, format_torque(test_metadata.at['Running Torque', 1]), light_blue, True),
+        (Layout.RIGHT_COL_VALUE_X, Layout.RUNNING_TORQUE_TEXT_Y, format_torque(test_metadata.get('Running Torque')), light_blue, True),
 
         (Layout.RIGHT_COL_LABEL_X, Layout.DATA_LOGGER_Y, "Data Logger", black, False),
-        (Layout.RIGHT_COL_VALUE_X, Layout.DATA_LOGGER_Y, test_metadata.at['Data Logger', 1], light_blue, True),
+        (Layout.RIGHT_COL_VALUE_X, Layout.DATA_LOGGER_Y, test_metadata['Data Logger'], light_blue, True),
         (Layout.RIGHT_COL_LABEL_X, Layout.SERIAL_NO_Y, "Serial No.", black, False),
-        (Layout.RIGHT_COL_VALUE_X, Layout.SERIAL_NO_Y, test_metadata.at['Serial Number', 1], light_blue, True),
+        (Layout.RIGHT_COL_VALUE_X, Layout.SERIAL_NO_Y, test_metadata['Serial Number'], light_blue, True),
         (Layout.RIGHT_COL_LABEL_X, Layout.TRANSDUCERS_Y, "Transducers", black, False),
         (Layout.RIGHT_COL_LABEL_X, Layout.GAUGES_Y, "Gauges", black, False),
     ]
 
-def build_transducer_and_gauge_positions(used_transducers, light_blue):
+def build_transducer_and_gauge_positions(used_transducers, used_gauges, light_blue):
     positions = []
-    for i in range(15):
+    for i in range(14):
         x = Layout.TRANSDUCER_TABLE_START_X + (i % 5) * Layout.TRANSDUCER_COL_WIDTH
         y = Layout.TRANSDUCER_TABLE_START_Y - (i // 5) * Layout.TRANSDUCER_ROW_HEIGHT
-        positions.append((x, y, used_transducers.iat[i, 0], light_blue, False))
+        positions.append((x, y, used_transducers.iloc[i, 0], light_blue, False))
     for i in range(12):
         x = Layout.GAUGE_TABLE_START_X + (i % 4) * Layout.GAUGE_COL_WIDTH
         y = Layout.GAUGE_TABLE_START_Y - (i // 4) * Layout.GAUGE_ROW_HEIGHT
-        positions.append((x, y, used_transducers.iat[i, 1], light_blue, False))
+        positions.append((x, y, used_gauges.iloc[i, 0], light_blue, False))
     return positions
 
-def build_torque_and_stamp_positions(transducer_details, test_metadata, light_blue, black):
+def build_torque_and_stamp_positions(transducer_codes, test_metadata, light_blue, black):
+    torque_transducer = transducer_codes[transducer_codes['channel'] == 'Torque']['transducer'].iloc[0]
     return [
         (Layout.RIGHT_COL_LABEL_X, Layout.TORQUE_TRANSDUCER_Y, "Torque Transducer", black, False),
-        (Layout.RIGHT_COL_VALUE_X, Layout.TORQUE_TRANSDUCER_Y, transducer_details.at['Torque', 1], light_blue, True),
+        (Layout.RIGHT_COL_VALUE_X, Layout.TORQUE_TRANSDUCER_Y, torque_transducer, light_blue, True),
         (Layout.RIGHT_COL_LABEL_X, Layout.OPERATIVE_Y, "Operative:", black, False),
-        (Layout.OPERATIVE_VALUE_X, Layout.OPERATIVE_Y, test_metadata.at['Operative', 1], light_blue, False),
+        (Layout.OPERATIVE_VALUE_X, Layout.OPERATIVE_Y, test_metadata['Operative'], light_blue, False),
     ]
 
 def draw_table(pdf_canvas, dataframe, x=15, y=15, width=600, height=51.5):
@@ -498,7 +514,8 @@ def draw_all_text(pdf, pdf_text_positions):
 
 def draw_test_details(
     test_metadata,
-    transducer_details,
+    transducer_codes,
+    gauge_codes,
     active_channels,
     cleaned_data,
     pdf_output_path,
@@ -508,22 +525,21 @@ def draw_test_details(
 ):
     if is_table and has_breakout_table:
         for field in ("Breakout Torque", "Running Torque"):
-            test_metadata.at[field, 1] = "See Table"
-    else:
-        for field in ("Breakout Torque", "Running Torque"):
-            test_metadata.at[field, 1] = format_torque(
-                test_metadata.at[field, 1]
-            )
+            test_metadata[field] = "See Table"
+
     pdf = canvas.Canvas(str(pdf_output_path), pagesize=landscape(A4))
     pdf.setStrokeColor(colors.black)
     draw_layout_boxes(pdf, is_table)
     light_blue = Color(0.325, 0.529, 0.761)
     black = Color(0, 0, 0)
     draw_headers(pdf, test_metadata, cleaned_data, light_blue)
-    used_transducers = prepare_transducer_dataframe(transducer_details, active_channels)
-    max_cycle = int(raw_data["Cycle Count"].max())
+    used_transducers, used_gauges = prepare_transducer_dataframe(transducer_codes, gauge_codes, active_channels)
+    if test_metadata["Program Name"] == "Signatures":
+        max_cycle = 3
+    else:
+        max_cycle = int(raw_data["Cycle Count"].max())
     pdf_text_positions = build_static_text_positions(test_metadata, light_blue, black, max_cycle)
-    pdf_text_positions += build_transducer_and_gauge_positions(used_transducers, light_blue)
-    pdf_text_positions += build_torque_and_stamp_positions(transducer_details, test_metadata, light_blue, black)
+    pdf_text_positions += build_transducer_and_gauge_positions(used_transducers, used_gauges, light_blue)
+    pdf_text_positions += build_torque_and_stamp_positions(transducer_codes, test_metadata, light_blue, black)
     draw_all_text(pdf, pdf_text_positions)
     return pdf

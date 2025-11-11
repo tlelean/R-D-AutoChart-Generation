@@ -4,9 +4,9 @@
 
 param(
     [string]$SourceDir       = "V:\Userdoc\Mechatronics\Applications\CODESYS\Programs\Main\F.A.T Rig\Application",
-    [string]$RemotePath      = "/var/opt/codesys/PlcLogic/DLS/",
+    [string]$RemotePath      = "/var/opt/codesys/PlcLogic/DLS/Updates/",
     [string]$VisuSourceDir   = "V:\Userdoc\Mechatronics\Applications\CODESYS\Programs\Main\F.A.T Rig\Application\PlcLogic\visu",
-    [string]$VisuRemotePath  = "/var/opt/codesys/PlcLogic/visu",
+    [string]$VisuRemotePath  = "/var/opt/codesys/PlcLogic/DLS/Updates/visu",
     [string]$HostsFile       = ".\Deploy\hosts.txt",
     [string]$User            = "root",
     [string]$Key             = "$env:USERPROFILE\.ssh\id_ed25519",  # adjust if you use a different key
@@ -48,10 +48,6 @@ foreach ($Target in $Targets) {
         Write-Host "   -> SCP visu contents to $VisuDest"
         scp -i $Key -C -r -q "$VisuSourceDir\." "$VisuDest"
     }
-
-    # Restart Codesys service
-    Write-Host "   -> Restarting $ServiceName"
-    ssh -i $Key "$User@$Target" "sudo systemctl restart $ServiceName"
 }
 
 Write-Host "All deployments complete."

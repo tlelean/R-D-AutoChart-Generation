@@ -20,11 +20,11 @@ def find_cycle_breakpoints(raw_data, channels_to_record, channel_map: dict[str, 
         end_idx = matching.index[-1]
         n_points = len(matching)
 
-        if channels_to_record.at[channel_map["Torque"], 1]:
+        if channels_to_record.loc[channel_map["Torque"]].all():
             one_quarter_idx = matching.index[n_points // 4]
             middle_idx = matching.index[n_points // 2]
             three_quarter_idx = matching.index[(3 * n_points) // 4]
-        elif channels_to_record.at[channel_map["Actuator"], 1]:
+        elif channels_to_record.loc[channel_map["Actuator"]].all():
             actuator_series = raw_data.loc[matching.index, channel_map["Actuator"]]
             if actuator_series.empty:
                 one_quarter_idx = matching.index[n_points // 4]
@@ -72,143 +72,76 @@ def signed_distances_to_baseline(y: pd.Series) -> np.ndarray:
         return ((m * x - y + b) / np.hypot(m, -1))
 
 # Find the point in the given data that is furthest **above** the baseline.
-def find_above(data):
+def find_below(data):
     sd = signed_distances_to_baseline(data)
     idx = np.argmax(sd)
     return data.iloc[idx], idx
 
 # Find the point in the given data that is furthest **below** the baseline.
-def find_below(data):
+def find_above(data):
     sd = signed_distances_to_baseline(data)
     idx = np.argmin(sd)
     return data.iloc[idx], idx
 
-def locate_calibration_points(cleaned_data, additional_info):
-
-    # Ensure Datetime is a datetime type
-    calibration_indices = pd.DataFrame(index=range(2), columns=[0, 1, 2, 3, 4, 5])
-    calibration_values = pd.DataFrame(index=range(2), columns=[0, 1, 2, 3, 4, 5])
-    calibration_times = pd.DataFrame(index=range(2), columns=[0, 1, 2, 3, 4, 5])
+def locate_calibration_points(cleaned_data, calibration_info):
+    calibration_indices = pd.DataFrame(index=range(2), columns=range(5))
     date_time_index = cleaned_data.set_index('Datetime')
 
-    for col in range(1, len(additional_info.columns)):
-        calibration_times.at[0, col] = pd.to_datetime(
-            additional_info.at[1, col],
-            format="%d/%m/%Y %H:%M:%S.%f",
-            errors="coerce",
-            dayfirst=True,
-        )
+    for i, key_point in enumerate(calibration_info['key_points']):
+        start_time = pd.to_datetime(key_point, format="%d/%m/%Y %H:%M:%S.%f", errors="coerce", dayfirst=True)
+        end_time = start_time + pd.Timedelta(seconds=10)
 
-        calibration_times.at[1, col] = calibration_times.at[0, col] + pd.Timedelta(seconds=10)
-        calibration_indices.at[0, col] = date_time_index.index.get_indexer(
-            [calibration_times.iloc[0, col]],
-            method="nearest",
-        )[0]
-        calibration_indices.at[1, col] = date_time_index.index.get_indexer(
-            [calibration_times.iloc[1, col]],
-            method="nearest",
-        )[0]
-        calibration_values.at[0, col] = cleaned_data.iloc[calibration_indices.iloc[0, col]][additional_info.at[1, 0]]
-        calibration_values.at[1, col] = cleaned_data.iloc[calibration_indices.iloc[1, col]][additional_info.at[1, 0]]
-    return calibration_indices, calibration_values
+        calibration_indices.iloc[0, i] = date_time_index.index.get_indexer([start_time], method="nearest")[0]
+        calibration_indices.iloc[1, i] = date_time_index.index.get_indexer([end_time], method="nearest")[0]
 
-def calculate_succesful_calibration(cleaned_data, calibration_indices, additional_info):
-    """Calculate calibration table along with unrounded measurement data."""
+    return calibration_indices
 
+def calculate_succesful_calibration(cleaned_data, calibration_indices, calibration_info):
     display_table = pd.DataFrame()
-    expected_counts = {}
-    intercepts: List[float] = []
 
-    def _to_float(value) -> float:
-        if isinstance(value, str):
-            match = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", value)
-            if match:
-                return float(match.group())
-        return float(value)
+    channel_index = calibration_info['channel_index']
 
-    start_value = _to_float(additional_info.at[0, 0])
-    first_value = _to_float(additional_info.at[0, 1])
-    last_value = _to_float(additional_info.at[0, 5])
-
-    if additional_info.at[0, 1] == "-10000":
-        slope = (last_value - first_value) / (start_value * 2)
-        step = start_value / 2
+    if channel_index <= 12:
+        applied_values = [4000, 8000, 12000, 16000, 20000]
+        index_labels = ['Applied (µA)', 'Counts (avg)', 'Converted (µA)', 'Abs Error (µA) - ±3.6 µA']
+    elif channel_index <= 15:
+        applied_values = [0, 2500, 5000, 7500, 10000]
+        index_labels = ['Applied (mV)', 'Counts (avg)', 'Converted (mV)', 'Abs Error (mV) - ±1.0 mV']
+    elif channel_index <= 16:
+        applied_values = [-10000, -5000, 0, 5000, 10000]
+        index_labels = ['Applied (mV)', 'Counts (avg)', 'Converted (mV)', 'Abs Error (mV) - ±1.0 mV']
+    elif channel_index <= 23:
+        applied_values = [-5.89, 9.28, 24.46, 39.64, 54.81]
+        index_labels = ['Applied (mV)', 'Counts (avg)', 'Converted (mV)', 'Abs Error (mV) - ±0.12 mV']
     else:
-        slope = (last_value - first_value) / start_value
-        step = start_value / (len(calibration_indices.columns) - 2)
+        applied_values = [0, 0, 0, 0, 0]
+        index_labels = ['Applied', 'Counts (avg)', 'Converted', 'Abs Error']
 
-    column_range = list(range(1, len(calibration_indices.columns)))
-
-    for col in column_range:
-        if additional_info.at[0, 0] == "7812500.0":
-            if additional_info.at[0, 1] == "-10000":
-                expected_value = (col - 1) * step - start_value
-            else:
-                expected_value = (col - 1) * step
-        elif additional_info.at[0, 0] == "15700":
-            expected_value = ((col - 1) * step) - 2000
-        else:
-            expected_value = (col - 1) * step
-
-        expected_counts[col] = expected_value
-        intercepts.append(_to_float(additional_info.iat[0, col]) - (slope * expected_value))
-
-    intercept_value = float(np.mean(intercepts)) if intercepts else 0.0
+    slope = (applied_values[-1] - applied_values[0]) / calibration_info['max_range']
+    intercept = applied_values[0]
 
     counts_series = pd.Series(dtype=float)
     expected_series = pd.Series(dtype=float)
     abs_error_series = pd.Series(dtype=float)
 
-    channel_name = additional_info.at[1, 0]
+    for i in range(5):
+        start_idx = calibration_indices.iloc[0, i]
+        end_idx = calibration_indices.iloc[1, i]
 
-    for i, col in enumerate(column_range):
-        start_idx = calibration_indices.iloc[0, col]
-        end_idx = calibration_indices.iloc[1, col]
-        applied = _to_float(additional_info.at[0, col])
+        counts = cleaned_data.loc[start_idx:end_idx, calibration_info['channel_name']].mean()
+        converted = (slope * counts) + intercept
+        error = applied_values[i] - converted
 
-        counts = cleaned_data.loc[start_idx:end_idx, channel_name].mean()
+        counts_series.loc[i+1] = counts
+        expected_series.loc[i+1] = applied_values[i]
+        abs_error_series.loc[i+1] = abs(error)
 
-        converted = (slope * counts) + intercept_value
-        error = applied - converted
+        display_table.loc[0, i+1] = applied_values[i]
+        display_table.loc[1, i+1] = int(round(counts))
+        display_table.loc[2, i+1] = round(converted, 3)
+        display_table.loc[3, i+1] = round(abs(error), 2)
 
-        display_col = i + 1
-
-        counts_series.loc[display_col] = counts
-        expected_series.loc[display_col] = expected_counts.get(col, np.nan)
-        abs_error_series.loc[display_col] = abs(error)
-
-        counts_display = int(round(counts))
-        converted_display = round(converted, 3)
-        error_display = round(abs(error), 2)
-
-        display_table.loc[0, [display_col]] = applied
-        display_table.loc[1, [display_col]] = counts_display
-        display_table.loc[2, [display_col]] = converted_display
-        display_table.loc[3, [display_col]] = error_display
-
-    if additional_info.at[0, 0] == "7812500.0" or additional_info.at[0, 0] == "7812500":
-        if additional_info.at[0, 1] == "4000":
-            display_table.index = [
-                'Applied (µA)',
-                'Counts (avg)',
-                'Converted (µA)',
-                'Abs Error (µA) - ±3.6 µA',
-            ]
-        else:
-            display_table.index = [
-                'Applied (mV)',
-                'Counts (avg)',
-                'Converted (mV)',
-                'Abs Error (mV) - ±1.0 mV',
-            ]
-    elif additional_info.at[0, 0] == "15700":
-        display_table.index = [
-            'Applied (mV)',
-            'Counts (avg)',
-            'Converted (mV)',
-            'Abs Error (mV) - ±0.12 mV',
-        ]
-
+    display_table.index = index_labels
     display_table.insert(0, "0", display_table.index)
 
     return display_table, counts_series, expected_series, abs_error_series
@@ -240,68 +173,76 @@ def calculate_calibration_regression(counts: pd.Series, expected_counts: pd.Seri
     padded[-(degree + 1):] = coefficients
     return pd.Series(padded, index=labels, dtype=float)
 
-def locate_key_time_rows(cleaned_data, additional_info):
+def locate_key_time_rows(cleaned_data, hold_info: pd.Series):
     """Return indices of key time points closest to provided timestamps."""
-    if additional_info.empty:
-        return None, None
-    else:
-        holds_indices = pd.DataFrame(index=range(1), columns=[1, 2, 3])
-        holds_values = additional_info.copy()
-        date_time_index = cleaned_data.set_index('Datetime')
-        for row in range(1, len(holds_values)):
-            holds_values.at[row, 1] = pd.to_datetime(
-                holds_values.at[row, 1],
-                format="%d/%m/%Y %H:%M:%S.%f",
-                errors="coerce",
-                dayfirst=True,
-            )
-            if pd.isna(holds_values.iloc[row, 1]):
-                continue
-            holds_indices.at[0, row] = date_time_index.index.get_indexer(
-                [holds_values.iloc[row, 1]],
-                method="nearest",
-            )[0]
-            rowpos = holds_indices.at[0, row]
-            colpos_value = cleaned_data.columns.get_loc(holds_values.at[0, 2])
-            colpos_temp  = cleaned_data.columns.get_loc("Body Temperature")
-            holds_values.at[row, 2] = int(cleaned_data.iloc[rowpos, colpos_value])
-            holds_values.at[row, 3] = cleaned_data.iloc[rowpos, colpos_temp]
-        holds_indices.columns = ['SOS_Index', 'SOH_Index', 'EOH_Index']
-        holds_values.columns = holds_values.iloc[0]
-        s = holds_values.loc[1:, "Datetime"].astype(str).str.strip()
-        dt = pd.to_datetime(s, errors="coerce")     # no explicit format
-        holds_values.loc[1:, "Datetime"] = dt.dt.floor("s").dt.strftime("%d/%m/%Y %H:%M:%S")
-        holds_values.iat[0, 2] = str(holds_values.iat[0, 2]) + " (psi)"
-        holds_values.iat[0, 3] = str(holds_values.iat[0, 3]) + " (°C)"
-        holds_values = holds_values.fillna('')
+    date_time_index = cleaned_data.set_index('Datetime')
 
-        return holds_indices, holds_values
-    
-def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_map: dict[str, str]):
-    if (
-        additional_info.iloc[0, :3].astype(str).tolist() == ["Cycle", "BTO", "BTC"]
-        and channels_to_record.at[channel_map["Torque"], 1]
-    ):
+    # 1. Get timestamps and find nearest indices
+    sos_time = pd.to_datetime(hold_info['start_of_stabilisation'], format="%d/%m/%Y %H:%M:%S.%f", errors="coerce", dayfirst=True)
+    soh_time = pd.to_datetime(hold_info['start_of_hold'], format="%d/%m/%Y %H:%M:%S.%f", errors="coerce", dayfirst=True)
+    eoh_time = pd.to_datetime(hold_info['end_of_hold'], format="%d/%m/%Y %H:%M:%S.%f", errors="coerce", dayfirst=True)
+
+    sos_index = date_time_index.index.get_indexer([sos_time], method="nearest")[0]
+    soh_index = date_time_index.index.get_indexer([soh_time], method="nearest")[0]
+    eoh_index = date_time_index.index.get_indexer([eoh_time], method="nearest")[0]
+
+    holds_indices_data = {
+        'SOS_Index': [sos_index],
+        'SOH_Index': [soh_index],
+        'EOH_Index': [eoh_index]
+    }
+    holds_indices = pd.DataFrame(holds_indices_data)
+
+    # 2. Create and populate display_table
+    channel = hold_info['channel']
+    sos_pressure = cleaned_data.loc[sos_index, channel]
+    soh_pressure = cleaned_data.loc[soh_index, channel]
+    eoh_pressure = cleaned_data.loc[eoh_index, channel]
+
+    sos_temp = cleaned_data.loc[sos_index, 'Body Temperature']
+    soh_temp = cleaned_data.loc[soh_index, 'Body Temperature']
+    eoh_temp = cleaned_data.loc[eoh_index, 'Body Temperature']
+
+    display_table_data = {
+        '': ['Start of Stabilisation', 'Start of Hold', 'End of Hold'],
+        'Datetime': [
+            sos_time.strftime("%d/%m/%Y %H:%M:%S"),
+            soh_time.strftime("%d/%m/%Y %H:%M:%S"),
+            eoh_time.strftime("%d/%m/%Y %H:%M:%S")
+        ],
+        f'{channel} (psi)': [int(sos_pressure), int(soh_pressure), int(eoh_pressure)],
+        'Body Temperature (°C)': [sos_temp, soh_temp, eoh_temp]
+    }
+    display_table = pd.DataFrame(display_table_data)
+
+    return holds_indices, display_table
+
+def locate_bto_btc_rows(raw_data, cycles, channel_visibility, channel_map: dict[str, str]):
+    if not cycles.empty and (cycles['bto'] != 0).any() and (cycles['btc'] != 0).any():
+        breakout_values = cycles.rename(columns={'cycle_index': 'Cycle', 'bto': 'BTO (lb·ft)', 'btc': 'BTC (lb·ft)'})
+        return breakout_values, None
+
+    if channel_visibility.loc[channel_map["Torque"]].all():
         breakout_values: List[Dict[str, Any]] = []
         breakout_indices: List[Dict[str, Any]] = []
 
-        torque_series = raw_data[channel_map["Torque"]]
+        torque_data = raw_data[channel_map["Torque"]]
+        downstream_data = raw_data[channel_map["Downstream"]]
 
-        # Get precomputed cycle boundaries
-        indices_ranges, _ = find_cycle_breakpoints(raw_data, channels_to_record, channel_map)
+        indices_ranges, _ = find_cycle_breakpoints(raw_data, channel_visibility, channel_map)
 
         for cycle, start_idx, one_quarter, middle_idx, three_quarter, end_idx in indices_ranges.itertuples(index=False, name=None):
-            # 1st third for BTO
-            torque_first = torque_series.loc[start_idx:one_quarter]
-            bto = torque_first.min().round(2)
-            bto_index = torque_first.idxmin()
+            ds_slice = downstream_data.loc[middle_idx:end_idx]
+            _, end_idx = find_above(ds_slice)
 
-            # 3rd third for BTC
-            torque_third = torque_series.loc[middle_idx:three_quarter]
-            btc = torque_third.max().round(2)
-            btc_index = torque_third.idxmax()
+            torque_first = torque_data.loc[start_idx:one_quarter]
+            bto = round(torque_first.min(), 2)
+            bto_idx = torque_first.idxmin()
 
-            # Store values
+            torque_third = torque_data.loc[middle_idx:three_quarter]
+            btc = round(torque_first.max(), 2)
+            btc_idx = torque_third.idxmax()
+            
             breakout_values.append({
                 "Cycle": cycle,
                 "BTO (lb·ft)": bto,
@@ -309,28 +250,32 @@ def locate_bto_btc_rows(raw_data, additional_info, channels_to_record, channel_m
             })
             breakout_indices.append({
                 "Cycle": cycle,
-                "BTO_Index": bto_index,
-                "BTC_Index": btc_index,
+                "BTO_Index": bto_idx,
+                "BTC_Index": btc_idx,
             })
-        return (
-            pd.DataFrame.from_records(breakout_values), 
-            pd.DataFrame.from_records(breakout_indices),
-        )
-    else:
-        return None, None
+        return pd.DataFrame.from_records(breakout_values), pd.DataFrame.from_records(breakout_indices)
+
+    return None, None
 
 def locate_signature_key_points(
-    channels_to_record: pd.DataFrame,
+    channel_visibility: pd.DataFrame,
     raw_data: pd.DataFrame,
     channel_map: dict[str, str],
+    test_metadata: dict,
 ) -> pd.DataFrame:
+    
+    if test_metadata["Test Pressure"] != '0':
+        not_zero_pressure = True
+    else:
+        not_zero_pressure = False
+
     """
     Processes raw_data to find signature key points for each cycle.
     Returns a DataFrame with one row per cycle and columns for each key point and its index.
     """
     def find_a1() -> Tuple[Optional[float], Optional[int]]:
         """Finds A1 (Backseat Elbow)."""
-        if channels_to_record.at[channel_map["Backseat"], 1]:
+        if channel_visibility.loc[channel_map["Backseat"]].all() and not_zero_pressure:
             bs_slice = backseat_data.loc[:middle_idx]
             _, idx = find_above(bs_slice)
             abs_idx = bs_slice.index[idx]
@@ -346,7 +291,7 @@ def locate_signature_key_points(
 
     def find_a3() -> Tuple[Optional[float], Optional[int]]:
         """Finds A3 (Downstream Elbow)."""
-        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
+        if not_zero_pressure:
             ds_slice = downstream_data.loc[:middle_idx]
             _, idx = find_above(ds_slice)
             abs_idx = ds_slice.index[idx]
@@ -355,7 +300,7 @@ def locate_signature_key_points(
 
     def find_a4() -> Tuple[Optional[float], Optional[int]]:
         """Finds A4 (Downstream Knee)."""
-        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
+        if not_zero_pressure:
             ds_slice = downstream_data.loc[:middle_idx]
             _, idx = find_below(ds_slice)
             abs_idx = ds_slice.index[idx]
@@ -365,31 +310,31 @@ def locate_signature_key_points(
     def find_a5(start_idx: int) -> Tuple[Optional[float], Optional[int]]:
         """Finds A5 (Actuator Elbow after start_idx)."""
         ac_slice = actuator_data.loc[start_idx:middle_idx]
-        _, idx = find_above(ac_slice)
+        _, idx = find_below(ac_slice)
         abs_idx = ac_slice.index[idx]
         return round(actuator_data.loc[abs_idx], 0), abs_idx
 
     def find_r1(end_idx: int) -> Tuple[Optional[float], Optional[int]]:
         """Finds R1 (Actuator Elbow in return stroke)."""
         ac_slice = actuator_data.loc[middle_idx:end_idx]
-        _, idx = find_above(ac_slice)
+        _, idx = find_below(ac_slice)
         abs_idx = ac_slice.index[idx]
         return round(actuator_data.loc[abs_idx], 0), abs_idx
 
     def find_r2() -> Tuple[Optional[float], Optional[int]]:
         """Finds R2 (Downstream Knee in return stroke)."""
-        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
+        if not_zero_pressure:
             ds_slice = downstream_data.loc[middle_idx:]
-            _, idx = find_below(ds_slice)
+            _, idx = find_above(ds_slice)
             abs_idx = ds_slice.index[idx]
             return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
 
     def find_r3() -> Tuple[Optional[float], Optional[int]]:
         """Finds R3 (Downstream Elbow in return stroke)."""
-        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
+        if not_zero_pressure:
             ds_slice = downstream_data.loc[middle_idx:]
-            _, idx = find_above(ds_slice)
+            _, idx = find_below(ds_slice)
             abs_idx = ds_slice.index[idx]
             return round(actuator_data.loc[abs_idx], 0), abs_idx
         return None, None
@@ -397,50 +342,50 @@ def locate_signature_key_points(
     def find_r4(r3_idx: int, r1_idx: int, end_idx) -> Tuple[Optional[float], Optional[int]]:
         """Finds R4 (Actuator Knee after start_idx)."""
         if r3_idx is None:
-            # recording_speed = datetime.strptime(datetime_data.loc[r1_idx+1], "%d/%m/%Y %H:%M:%S.%f") - datetime.strptime(datetime_data.loc[r1_idx], "%d/%m/%Y %H:%M:%S.%f")
-            # forty_s_in_rows = pd.Timedelta(seconds=40) / recording_speed
-            # end_idx = r1_idx + forty_s_in_rows
             ac_slice = actuator_data.loc[r1_idx:end_idx]
         else:
             ac_slice = actuator_data.loc[r3_idx:]
-        _, idx = find_below(ac_slice)
+        _, idx = find_above(ac_slice)
         abs_idx = ac_slice.index[idx]
         return round(actuator_data.loc[abs_idx], 0), abs_idx
 
-    def find_bto() -> Tuple[float, int]:
-        false_indices = close_data.index[~close_data.astype(bool)]
-        end_rel_idx = false_indices[0] if not false_indices.empty else close_data.index[-1]
-        tq_slice = torque_data.loc[:end_rel_idx]
-        val = round(tq_slice.min(), 2)
-        abs_idx = tq_slice.idxmin()
+    def find_bto(end_idx) -> Tuple[float, int]:
+        if end_idx is None:
+            tq_slice = torque_data.loc[:one_quarter_idx]
+            val = round(tq_slice.min(), 2)
+            abs_idx = tq_slice.idxmin()
+        else:
+            tq_slice = torque_data.loc[:end_idx]
+            _, end_idx = find_above(tq_slice)
+            end_idx = tq_slice.index[end_idx]
+            tq_slice = tq_slice.loc[:end_idx]
+            val = round(tq_slice.min(), 2)
+            abs_idx = tq_slice.idxmin()
         return val, abs_idx
 
-    def find_rpo(start_idx: int) -> Tuple[Optional[float], Optional[int]]:
-        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
+    def find_rpo() -> Tuple[Optional[float], Optional[int]]:
+        if not_zero_pressure:
             ds_slice = downstream_data.loc[:middle_idx]
-            _, end_idx = find_below(ds_slice)
+            _, end_idx = find_above(ds_slice)
             end_idx = ds_slice.index[end_idx]
-            tq_slice1 = torque_data.loc[start_idx:end_idx]
-            _, start_idx = find_above(tq_slice1)
-            start_idx = tq_slice1.index[start_idx]
-            final_slice = torque_data.loc[start_idx:end_idx]
+            final_slice = torque_data.loc[:end_idx]
             val = round(final_slice.min(), 2)
             abs_idx = final_slice.idxmin()
             return val, abs_idx
         return None, None
 
     def find_rno(start_idx, end_idx) -> Tuple[float, int]:
-        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
+        if not_zero_pressure:
             ds_slice = downstream_data.loc[:middle_idx]
-            _, start_idx = find_below(ds_slice)
+            _, start_idx = find_above(ds_slice)
             start_idx = ds_slice.index[start_idx]
         else:
             tq_slice = torque_data.loc[start_idx:one_quarter_idx]
-            _, start_idx = find_below(tq_slice)
+            _, start_idx = find_above(tq_slice)
             start_idx = tq_slice.index[start_idx]
 
         tq_slice = torque_data.loc[one_quarter_idx:end_idx]
-        _, end_idx = find_below(tq_slice)
+        _, end_idx = find_above(tq_slice)
         end_idx = tq_slice.index[end_idx]
 
         final_slice = torque_data.loc[start_idx:end_idx-1]
@@ -455,25 +400,23 @@ def locate_signature_key_points(
 
     def find_btc() -> Tuple[float, int]:
         # Convert to boolean and find first True/False indices
-        true_indices = open_data.index[open_data.astype(bool)]
-        end_rel_idx = true_indices[-1] if not true_indices.empty else close_data.index[-1]
-        tq_slice = torque_data.loc[:end_rel_idx]
+        tq_slice = torque_data.loc[middle_idx:three_quarter_idx]
         val = round(tq_slice.max(), 2)
         abs_idx = tq_slice.idxmax()
         return val, abs_idx
 
     def find_rnc(start_idx: int, end_idx: int) -> Tuple[float, int]:
         tq_slice = torque_data.loc[start_idx:three_quarter_idx]
-        _, start_idx = find_above(tq_slice)
+        _, start_idx = find_below(tq_slice)
         start_idx = tq_slice.index[start_idx]
 
-        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
+        if not_zero_pressure:
             ds_slice = downstream_data.loc[middle_idx:]
-            _, end_idx = find_above(ds_slice)
+            _, end_idx = find_below(ds_slice)
             end_idx = ds_slice.index[end_idx]
         else:
             tq_slice = torque_data.loc[three_quarter_idx:end_idx]
-            _, end_idx = find_above(tq_slice)
+            _, end_idx = find_below(tq_slice)
             end_idx = tq_slice.index[end_idx]
 
         final_slice = torque_data.loc[start_idx:end_idx-1]
@@ -482,14 +425,13 @@ def locate_signature_key_points(
         return val, abs_idx
 
     def find_rpc(end_idx: int) -> Tuple[Optional[float], Optional[int]]:
-        if channels_to_record.at[channel_map["Upstream"], 1] or channels_to_record.at[channel_map["Downstream"], 1]:
+        if not_zero_pressure:
             ds_slice = downstream_data.loc[middle_idx:]
-            _, start_idx = find_above(ds_slice)
+            _, start_idx = find_below(ds_slice)
             start_idx = ds_slice.index[start_idx]
 
             tq_slice1 = torque_data.loc[start_idx:end_idx]
-            _, end_idx = find_above(tq_slice1)
-            end_idx = tq_slice1.index[end_idx]
+            end_idx = tq_slice1.idxmin()
 
             final_slice = torque_data.loc[start_idx:end_idx]
             val = round(final_slice.max(), 2)
@@ -503,28 +445,25 @@ def locate_signature_key_points(
         return val, abs_idx
 
     # Main loop
-    df_cycle_breakpoints, total_cycles = find_cycle_breakpoints(raw_data, channels_to_record, channel_map)
+    df_cycle_breakpoints, total_cycles = find_cycle_breakpoints(raw_data, channel_visibility, channel_map)
     torque_signature_values: List[Dict[str, Any]] = []
     torque_signature_indices: List[Dict[str, Any]] = []
     actuator_signature_values: List[Dict[str, Any]] = []
     actuator_signature_indices: List[Dict[str, Any]] = []
     for cycle, start_idx, one_quarter_idx, middle_idx, three_quarter_idx, end_idx in df_cycle_breakpoints.itertuples(index=False, name=None):
-        datetime_data   = raw_data.loc[start_idx:end_idx, "Datetime"]
         backseat_data   = raw_data.loc[start_idx:end_idx, channel_map["Backseat"]]
         actuator_data   = raw_data.loc[start_idx:end_idx, channel_map["Actuator"]]
         downstream_data = raw_data.loc[start_idx:end_idx, channel_map["Downstream"]]
         torque_data     = raw_data.loc[start_idx:end_idx, channel_map["Torque"]]
-        open_data       = raw_data.loc[start_idx:end_idx, channel_map["Open"]]
-        close_data      = raw_data.loc[start_idx:end_idx, channel_map["Close"]]
 
-        if channels_to_record.at[channel_map["Torque"], 1]:
-            bto, bto_idx = find_bto()
-            rpo, rpo_idx = find_rpo(bto_idx)
+        if channel_visibility.loc[channel_map["Torque"]].all():
+            rpo, rpo_idx = find_rpo()
+            bto, bto_idx = find_bto(rpo_idx if rpo_idx is not None else None)
             jto, jto_idx = find_jto()
             rno, rno_idx = find_rno(rpo_idx if rpo_idx is not None else bto_idx, jto_idx)
             btc, btc_idx = find_btc()
             jtc, jtc_idx = find_jtc()
-            rpc, rpc_idx = find_rpc(jtc_idx)
+            rpc, rpc_idx = find_rpc(jtc_idx if jtc_idx is not None else end_idx)
             rnc, rnc_idx = find_rnc(btc_idx, jtc_idx)
             torque_signature_values.append({
                 "Cycle": cycle,
@@ -582,14 +521,58 @@ def locate_signature_key_points(
                 "R3_Index": r3_idx,
                 "R4_Index": r4_idx,
             })
-    actuator_signature_values = pd.DataFrame.from_records(actuator_signature_values).dropna(axis=1, how='all').astype('Int64')
-    actuator_signature_values.loc[-1] = actuator_signature_values.columns
-    actuator_signature_values.index = actuator_signature_values.index + 1
-    actuator_signature_values = actuator_signature_values.sort_index()
+
+    if channel_visibility.loc[channel_map["Torque"]].all():
+        torque_signature_values = pd.DataFrame.from_records(torque_signature_values).dropna(axis=1, how='all')
+        torque_signature_values.loc[-1] = torque_signature_values.columns
+        torque_signature_values.index = torque_signature_values.index + 1
+        torque_signature_values = torque_signature_values.sort_index()
+    else:
+        actuator_signature_values = pd.DataFrame.from_records(actuator_signature_values).dropna(axis=1, how='all').astype('Int64')
+        actuator_signature_values.loc[-1] = actuator_signature_values.columns
+        actuator_signature_values.index = actuator_signature_values.index + 1
+        actuator_signature_values = actuator_signature_values.sort_index()
 
     return (
-        pd.DataFrame.from_records(torque_signature_values), 
+        torque_signature_values, 
         pd.DataFrame.from_records(torque_signature_indices), 
         actuator_signature_values,
         pd.DataFrame.from_records(actuator_signature_indices),
     )
+
+def calculate_number_of_turns_table(raw_data, channel_visibility, channel_map: dict[str, str]):
+    no_turns_values: List[Dict[str, Any]] = []
+
+    no_turns_series = raw_data[channel_map["Number Of Turns"]]
+    rpm_series = raw_data[channel_map["Motor Speed"]]
+
+    # Get precomputed cycle boundaries
+    indices_ranges, _ = find_cycle_breakpoints(raw_data, channel_visibility, channel_map)
+
+    for cycle, start_idx, _, middle_idx, _, end_idx in indices_ranges.itertuples(index=False, name=None):
+        # Max Number of Turns
+        no_turns_slice = no_turns_series.loc[start_idx:end_idx]
+        max_no_turns = (no_turns_slice.max() - no_turns_slice.min()).round(2)
+
+        # Max RPM during Open
+        max_rpm_open_slice = rpm_series.loc[start_idx:middle_idx]
+        max_rpm_open = round(max_rpm_open_slice.min(), 2)
+
+        # Max RPM during Close
+        max_rpm_close_slice = rpm_series.loc[middle_idx:end_idx]
+        max_rpm_close = round(max_rpm_close_slice.max(), 2)
+
+        # Store values
+        no_turns_values.append({
+            "Cycle": cycle,
+            "Number of Turns": max_no_turns,
+            "Max Opening Speed (rpm)": max_rpm_open,
+            "Max Closing Speed (rpm)": max_rpm_close,
+        })
+
+    no_turns_values = pd.DataFrame.from_records(no_turns_values).dropna(axis=1, how='all')
+    no_turns_values.loc[-1] = no_turns_values.columns
+    no_turns_values.index = no_turns_values.index + 1
+    no_turns_values = no_turns_values.sort_index()
+
+    return no_turns_values
