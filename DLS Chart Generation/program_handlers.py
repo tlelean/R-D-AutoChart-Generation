@@ -214,6 +214,12 @@ class HoldsReportGenerator(BaseReportGenerator):
             self.test_metadata, self.transducer_codes, self.gauge_codes, self.active_channels,
             self.cleaned_data, unique_path, is_table, self.raw_data
         )
+
+        display_table.loc[-1] = display_table.columns
+        display_table.index = display_table.index + 1
+        display_table = display_table.sort_index()
+        display_table.columns = range(display_table.shape[1])
+
         draw_table(pdf_canvas=pdf, dataframe=display_table)
         insert_plot_and_logo(figure, pdf, is_table)
         return self.finalize_output_path(unique_path)
@@ -501,9 +507,6 @@ HANDLERS: Dict[str, Callable[..., Any]] = {
     "Pulse Cycles": GenericReportGenerator,
     "Signatures": SignaturesReportGenerator,
     "Holds": HoldsReportGenerator,
-    "Holds-Seat": HoldsReportGenerator,
-    "Holds-Body": HoldsReportGenerator,
-    "Holds-Body onto Seat": HoldsReportGenerator,
     "Open-Close": BreakoutsReportGenerator,
     "Number of Turns": NumberOfTurnsReportGenerator,
     "Calibration": CalibrationReportGenerator,

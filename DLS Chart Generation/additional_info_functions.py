@@ -204,7 +204,7 @@ def locate_key_time_rows(cleaned_data, hold_info: pd.Series):
     eoh_temp = cleaned_data.loc[eoh_index, 'Body Temperature']
 
     display_table_data = {
-        '': ['SOS', 'SOH', 'EOH'],
+        '': ['Start of Stabilisation', 'Start of Hold', 'End of Hold'],
         'Datetime': [
             sos_time.strftime("%d/%m/%Y %H:%M:%S"),
             soh_time.strftime("%d/%m/%Y %H:%M:%S"),

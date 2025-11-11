@@ -26,8 +26,8 @@
   },
   {
     "channel": "Downstream",
-    "transducer": "",
-    "gauge": "",
+    "transducer": "PT02",
+    "gauge": "SUB02",
     "visible": true
   },
   {

@@ -20,5 +20,9 @@ foreach ($Target in $Targets) {
     Write-Host "==> Copying to $Target"
     $Destination = "$User@$Target`:$RemotePath"
     scp -i $Key -r -C "$SourceDir*" $Destination
+
+    ssh -i $Key "$User@$Target" "sudo chmod +x '/var/opt/codesys/PlcLogic/python/Update Checker/update-checker'"
+    ssh -i $Key "$User@$Target" "sudo chmod +x '/var/opt/codesys/PlcLogic/python/Update Checker/apply-update'"
 }
+
 Write-Host "Done."

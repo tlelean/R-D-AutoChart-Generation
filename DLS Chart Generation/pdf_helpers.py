@@ -377,11 +377,11 @@ def build_transducer_and_gauge_positions(used_transducers, used_gauges, light_bl
     for i in range(14):
         x = Layout.TRANSDUCER_TABLE_START_X + (i % 5) * Layout.TRANSDUCER_COL_WIDTH
         y = Layout.TRANSDUCER_TABLE_START_Y - (i // 5) * Layout.TRANSDUCER_ROW_HEIGHT
-        positions.append((x, y, used_transducers.iloc[i], light_blue, False))
+        positions.append((x, y, used_transducers.iloc[i, 0], light_blue, False))
     for i in range(12):
         x = Layout.GAUGE_TABLE_START_X + (i % 4) * Layout.GAUGE_COL_WIDTH
         y = Layout.GAUGE_TABLE_START_Y - (i // 4) * Layout.GAUGE_ROW_HEIGHT
-        positions.append((x, y, used_gauges.iloc[i], light_blue, False))
+        positions.append((x, y, used_gauges.iloc[i, 0], light_blue, False))
     return positions
 
 def build_torque_and_stamp_positions(transducer_codes, test_metadata, light_blue, black):

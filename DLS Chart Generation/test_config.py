@@ -7,8 +7,8 @@ to the data and test details files for a single test run.
 
 TEST_CASES = [
     {
-        "primary_data_file": "Example Data/JSON Test/6-11-2025_14-50-30_data.csv",
-        "test_details_file": "Example Data/JSON Test/6-11-2025_14-50-30_details.json",
+        "primary_data_file": "Example Data/Holds/6-11-2025_14-50-30_data.csv",
+        "test_details_file": "Example Data/Holds/6-11-2025_14-50-30_details.json",
         "pdf_output_path": "Example Certs/",
     },
 ]
