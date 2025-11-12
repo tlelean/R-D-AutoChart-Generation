@@ -7,8 +7,8 @@
 # # F.A.T. Rig 3
 # 10.1.6.12
 
-# # F.A.T. Rig 4
-# 10.1.6.13
+# F.A.T. Rig 4
+10.1.6.13
 
 # # Right Hand Large Temperature Cabinet
 # 10.1.6.14
@@ -25,5 +25,5 @@
 # # Signature Rig 1
 # 10.1.6.19
 
-# Prototype
-10.1.6.40
+# # Prototype
+# 10.1.6.40
